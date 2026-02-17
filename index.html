@@ -18,11 +18,6 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
-  <!-- CDNs -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -31,78 +26,29 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script>
-    // Error handler visual
     window.addEventListener('error', function(e) {
-      document.body.innerHTML = '<div style="padding:20px;font-family:monospace;background:#fee;border:3px solid red;margin:20px;border-radius:10px;">' +
-        '<h2 style="color:red;margin:0 0 15px 0;">❌ Erro JavaScript Detectado:</h2>' +
-        '<p style="margin:10px 0;"><strong>Mensagem:</strong> ' + e.message + '</p>' +
-        '<p style="margin:10px 0;"><strong>Arquivo:</strong> ' + e.filename + '</p>' +
-        '<p style="margin:10px 0;"><strong>Linha:</strong> ' + e.lineno + ':' + e.colno + '</p>' +
-        '<details style="margin-top:15px;"><summary style="cursor:pointer;font-weight:bold;">Stack Trace</summary><pre style="background:#fff;padding:10px;overflow:auto;margin-top:10px;">' + (e.error?.stack || 'Stack não disponível') + '</pre></details>' +
+      document.body.innerHTML = '<div style="padding:30px;font-family:monospace;background:#ffe0e0;border:4px solid #d00;margin:20px;border-radius:12px;">' +
+        '<h1 style="color:#d00;margin:0 0 20px 0;">❌ Erro JavaScript</h1>' +
+        '<div style="background:white;padding:15px;border-radius:8px;margin-bottom:15px;">' +
+        '<p style="margin:5px 0;"><strong>Mensagem:</strong> ' + (e.message || 'Erro desconhecido') + '</p>' +
+        '<p style="margin:5px 0;"><strong>Arquivo:</strong> ' + (e.filename || 'N/A') + '</p>' +
+        '<p style="margin:5px 0;"><strong>Linha:Coluna:</strong> ' + (e.lineno || 0) + ':' + (e.colno || 0) + '</p>' +
+        '</div>' +
+        '<details style="background:white;padding:15px;border-radius:8px;"><summary style="cursor:pointer;font-weight:bold;color:#d00;">📋 Stack Trace</summary>' +
+        '<pre style="margin-top:10px;overflow:auto;font-size:11px;">' + (e.error?.stack || 'Stack não disponível') + '</pre></details>' +
         '</div>';
+      return false;
     });
     
-    console.log('%c🎴 PokéEventos v39 inicializando...', 'font-size:16px;font-weight:bold;color:#e63946;');
-    console.log('✓ React:', typeof React !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
-    console.log('✓ ReactDOM:', typeof ReactDOM !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
-    console.log('✓ Babel:', typeof Babel !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
-    console.log('✓ Supabase:', typeof window.supabase !== 'undefined' ? '✅ Carregado' : '⚠️  Opcional');
+    console.log('%c🎴 PokéEventos v38 carregando...', 'font-size:18px;font-weight:bold;color:#e63946;background:#ffe0e0;padding:5px 10px;border-radius:5px;');
+    setTimeout(() => {
+      console.log('%c✓ React:', typeof React !== 'undefined' ? 'color:green;font-weight:bold' : 'color:red;font-weight:bold', typeof React !== 'undefined' ? 'CARREGADO ✅' : 'FALTANDO ❌');
+      console.log('%c✓ ReactDOM:', typeof ReactDOM !== 'undefined' ? 'color:green;font-weight:bold' : 'color:red;font-weight:bold', typeof ReactDOM !== 'undefined' ? 'CARREGADO ✅' : 'FALTANDO ❌');
+      console.log('%c✓ Babel:', typeof Babel !== 'undefined' ? 'color:green;font-weight:bold' : 'color:red;font-weight:bold', typeof Babel !== 'undefined' ? 'CARREGADO ✅' : 'FALTANDO ❌');
+    }, 500);
   </script>
 
   <script type="text/babel">
-  // ══════════════════════════════════════════════════════════════
-  // SUPABASE SETUP
-  // ══════════════════════════════════════════════════════════════
-  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
-  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
-  const supabase = window.supabase?.createClient(SUPA_URL, SUPA_KEY);
-
-  // Helpers Supabase
-  const sbAuth = {
-    signUp: (email, password, meta) => supabase?.auth.signUp({ email, password, options: { data: meta } }),
-    signIn: (email, password) => supabase?.auth.signInWithPassword({ email, password }),
-    signOut: () => supabase?.auth.signOut(),
-    onAuthChange: (cb) => supabase?.auth.onAuthStateChange(cb),
-    getUser: () => supabase?.auth.getUser(),
-  };
-
-  const sbDB = {
-    getLeiloes: () => supabase?.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data'),
-    createLeilao: (data) => supabase?.from('leiloes').insert(data).select().single(),
-    createCartas: (cartas) => supabase?.from('leilao_cartas').insert(cartas),
-    getGrupos: () => supabase?.from('grupos').select('*').eq('ativo', true),
-    getProfile: (id) => supabase?.from('profiles').select('*').eq('id', id).single(),
-    upsertProfile: (data) => supabase?.from('profiles').upsert(data),
-  };
-
-  const leilaoToEvent = (row) => ({
-    id: row.id,
-    title: row.titulo,
-    date: row.data,
-    time: row.horario,
-    organizer: row.organizador,
-    groupId: row.grupo_id,
-    description: row.descricao,
-    paymentMethods: row.metodos_pagamento || [],
-    paymentDeadline: row.prazo_pagamento,
-    whatsappLink: row.whatsapp_link,
-    featured: row.destaque,
-    announcementPhoto: row.foto_anuncio,
-    auctionType: row.tipo_leilao,
-    cards: (row.leilao_cartas || []).sort((a,b) => a.ordem - b.ordem).map(c => ({
-      name: c.nome,
-      number: c.numero,
-      set: c.set_nome,
-      rarity: c.raridade,
-      quality: c.qualidade,
-      img: c.img_url,
-      minBid: c.lance_minimo,
-      increment: c.incremento,
-      pollOptions: c.opcoes_poll,
-    })),
-  });
-
-
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -1017,30 +963,7 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState('');
-
-  const handleLogin = async () => {
-    if (!email || !password) { setError('Preencha e-mail e senha'); return; }
-    setLoading(true); setError('');
-    try {
-      if (supabase) {
-        const { error: loginError } = await sbAuth.signIn(email, password);
-        if (loginError) throw loginError;
-      } else {
-        setScreen('home'); // fallback sem Supabase
-      }
-    } catch(e) {
-      setError(e.message || 'Erro ao entrar');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
+  const LoginScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -1066,10 +989,9 @@ const App = () => {
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          {error && <p className="text-red-500 text-sm font-semibold text-center">{error}</p>}
-          <button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loading ? "⏳ Entrando..." : "⚡ Entrar"}</button>
+          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
