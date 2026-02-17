@@ -18,6 +18,11 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <!-- CDNs -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -25,6 +30,59 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
+  // ══════════════════════════════════════════════════════════════
+  // SUPABASE SETUP
+  // ══════════════════════════════════════════════════════════════
+  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
+  const supabase = window.supabase?.createClient(SUPA_URL, SUPA_KEY);
+
+  // Helpers Supabase
+  const sbAuth = {
+    signUp: (email, password, meta) => supabase?.auth.signUp({ email, password, options: { data: meta } }),
+    signIn: (email, password) => supabase?.auth.signInWithPassword({ email, password }),
+    signOut: () => supabase?.auth.signOut(),
+    onAuthChange: (cb) => supabase?.auth.onAuthStateChange(cb),
+    getUser: () => supabase?.auth.getUser(),
+  };
+
+  const sbDB = {
+    getLeiloes: () => supabase?.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data'),
+    createLeilao: (data) => supabase?.from('leiloes').insert(data).select().single(),
+    createCartas: (cartas) => supabase?.from('leilao_cartas').insert(cartas),
+    getGrupos: () => supabase?.from('grupos').select('*').eq('ativo', true),
+    getProfile: (id) => supabase?.from('profiles').select('*').eq('id', id).single(),
+    upsertProfile: (data) => supabase?.from('profiles').upsert(data),
+  };
+
+  const leilaoToEvent = (row) => ({
+    id: row.id,
+    title: row.titulo,
+    date: row.data,
+    time: row.horario,
+    organizer: row.organizador,
+    groupId: row.grupo_id,
+    description: row.descricao,
+    paymentMethods: row.metodos_pagamento || [],
+    paymentDeadline: row.prazo_pagamento,
+    whatsappLink: row.whatsapp_link,
+    featured: row.destaque,
+    announcementPhoto: row.foto_anuncio,
+    auctionType: row.tipo_leilao,
+    cards: (row.leilao_cartas || []).sort((a,b) => a.ordem - b.ordem).map(c => ({
+      name: c.nome,
+      number: c.numero,
+      set: c.set_nome,
+      rarity: c.raridade,
+      quality: c.qualidade,
+      img: c.img_url,
+      minBid: c.lance_minimo,
+      increment: c.incremento,
+      pollOptions: c.opcoes_poll,
+    })),
+  });
+
+
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -939,7 +997,30 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
+  const LoginScreen = () => {
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const handleLogin = async () => {
+    if (!email || !password) { setError('Preencha e-mail e senha'); return; }
+    setLoading(true); setError('');
+    try {
+      if (supabase) {
+        const { error: loginError } = await sbAuth.signIn(email, password);
+        if (loginError) throw loginError;
+      } else {
+        setScreen('home'); // fallback sem Supabase
+      }
+    } catch(e) {
+      setError(e.message || 'Erro ao entrar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -965,9 +1046,10 @@ const App = () => {
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
+          <input type="email" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          {error && <p className="text-red-500 text-sm font-semibold text-center">{error}</p>}
+          <button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loading ? "⏳ Entrando..." : "⚡ Entrar"}</button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
@@ -3076,3 +3158,4 @@ const App = () => {
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
+</html>
