@@ -70,7 +70,7 @@
     featured:       row.destaque,
     announcementPhoto: row.foto_anuncio,
     auctionType:    row.tipo_leilao,
-    cards:          (row.leilao_cartas || []).sort((a,b)=>a.ordem-b.ordem).map(c=>{
+    cards:          (row.leilao_cartas || []).sort((a,b)=>a.ordem-b.ordem).map(c=>({
       name:    c.nome,
       number:  c.numero,
       set:     c.set_nome,
@@ -80,7 +80,7 @@
       minBid:  c.lance_minimo,
       increment: c.incremento,
       pollOptions: c.opcoes_poll,
-    }),
+    })),
   });
 
 
