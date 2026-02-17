@@ -18,16 +18,75 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <!-- React, ReactDOM e Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+  // ── Supabase ──────────────────────────────────────────────────
+  const SUPA_URL  = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
+  const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
+  const supabase  = window.supabase?.createClient(SUPA_URL, SUPA_KEY);
 
+  // Helpers de autenticação
+  const sbAuth = {
+    signUp:       (email, password, meta)  => supabase.auth.signUp({ email, password, options:{ data:meta } }),
+    signIn:       (email, password)        => supabase.auth.signInWithPassword({ email, password }),
+    signOut:      ()                       => supabase.auth.signOut(),
+    onAuthChange: (cb)                     => supabase.auth.onAuthStateChange(cb),
+    getUser:      ()                       => supabase.auth.getUser(),
+  };
+
+  // Helpers de banco
+  const sbDB = {
+    getLeiloes:   ()           => supabase.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data'),
+    createLeilao: (data)       => supabase.from('leiloes').insert(data).select().single(),
+    createCartas: (cartas)     => supabase.from('leilao_cartas').insert(cartas),
+    getGrupos:    ()           => supabase.from('grupos').select('*').eq('ativo', true),
+    getProfile:   (id)         => supabase.from('profiles').select('*').eq('id', id).single(),
+    upsertProfile:(data)       => supabase.from('profiles').upsert(data),
+  };
+
+  // Converter leilão do banco para formato do app
+  const leilaoToEvent = (row) => ({
+    id:             row.id,
+    title:          row.titulo,
+    date:           row.data,
+    time:           row.horario,
+    organizer:      row.organizador,
+    groupId:        row.grupo_id,
+    description:    row.descricao,
+    paymentMethods: row.metodos_pagamento || [],
+    paymentDeadline:row.prazo_pagamento,
+    whatsappLink:   row.whatsapp_link,
+    featured:       row.destaque,
+    announcementPhoto: row.foto_anuncio,
+    auctionType:    row.tipo_leilao,
+    cards:          (row.leilao_cartas || []).sort((a,b)=>a.ordem-b.ordem).map(c=>({
+      name:    c.nome,
+      number:  c.numero,
+      set:     c.set_nome,
+      rarity:  c.raridade,
+      quality: c.qualidade,
+      img:     c.img_url,
+      minBid:  c.lance_minimo,
+      increment: c.incremento,
+      pollOptions: c.opcoes_poll,
+    })),
+  });
+
+
+const { useState, useMemo, useEffect, useCallback } = React;
+
+/* ─── IMAGENS ESTÁTICAS ─── */
 const TCG = {
   charizardBase : 'https://assets.tcgdex.net/en/base/base1/4/high.png',
   lovebirds     : 'https://assets.tcgdex.net/en/swsh/swsh7/215/high.png',
@@ -51,112 +110,127 @@ const POKE = {
 };
 
 /* ─── LEILÕES MOCKADOS ─── */
-
-
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  SUPABASE — Configure suas credenciais aqui                  ║
-// ║  Encontre em: supabase.com → Project Settings → API          ║
-// ╚══════════════════════════════════════════════════════════════╝
-const SUPABASE_URL  = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-// Helpers de autenticação
-const sbAuth = {
-  signUp:  (email, password, meta) => sb.auth.signUp({ email, password, options:{ data: meta } }),
-  signIn:  (email, password)       => sb.auth.signInWithPassword({ email, password }),
-  signOut: ()                      => sb.auth.signOut(),
-  getUser: ()                      => sb.auth.getUser(),
-  onAuthChange: (cb)               => sb.auth.onAuthStateChange(cb),
-};
-
-// Helpers de banco de dados
-const sbDB = {
-  // Leilões
-  getLeiloes: async () => {
-    const { data, error } = await sb.from('leiloes')
-      .select(\`*, leilao_cartas(*)\`)
-      .eq('ativo', true)
-      .order('data', { ascending: true })
-      .order('horario', { ascending: true });
-    if (error) throw error;
-    return data || [];
+const EVENTS = [
+  {
+    id:1, title:'Leilão Cartas Raras — Colecionador Premium',
+    date:'2026-02-15', time:'20:00', organizer:'Cards Premium Brasil',
+    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-17',
+    whatsappLink:'https://chat.whatsapp.com/exemplo1',
+    description:'Leilão especial com cartas raras em excelente estado!', featured:false,
+    cards:[
+      { name:'Charizard VMAX',   number:'020/189', set:'Darkness Ablaze', rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Pikachu VMAX',     number:'044/185', set:'Vivid Voltage',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Mewtwo V',         number:'030/192', set:'Rebel Clash',     rarity:'rare',       img:TCG.mewtwov       },
+    ],
   },
-  createLeilao: async (leilao) => {
-    const { data, error } = await sb.from('leiloes').insert([leilao]).select().single();
-    if (error) throw error;
-    return data;
+  {
+    id:2, title:'Mega Leilão Japonês — Edições Limitadas',
+    date:'2026-02-15', time:'21:30', organizer:'Japan Cards BR',
+    paymentMethods:['PIX'], paymentDeadline:'2026-02-16',
+    whatsappLink:'https://chat.whatsapp.com/exemplo2',
+    description:'Cartas japonesas raríssimas importadas direto do Japão!', featured:false,
+    cards:[
+      { name:'Latias & Latios GX', number:'170/236', set:'Unified Minds',  rarity:'ultra-rare', img:TCG.lovebirds    },
+      { name:'Rayquaza VMAX',      number:'111/203', set:'Evolving Skies', rarity:'ultra-rare', img:TCG.rayquazaVmax },
+    ],
   },
-  createCartas: async (cartas) => {
-    const { data, error } = await sb.from('leilao_cartas').insert(cartas).select();
-    if (error) throw error;
-    return data;
+  {
+    id:3, title:'Leilão Vintage — Base Set & Clássicos',
+    date:'2026-02-16', time:'19:00', organizer:'Vintage Pokemon Cards',
+    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-18',
+    whatsappLink:'https://chat.whatsapp.com/exemplo3',
+    description:'Nostalgia pura! Base Set e coleções clássicas dos anos 90.', featured:false,
+    cards:[
+      { name:'Blastoise', number:'002/102', set:'Base Set', rarity:'holo', img:TCG.blastoise },
+      { name:'Venusaur',  number:'015/102', set:'Base Set', rarity:'holo', img:TCG.venusaur  },
+    ],
   },
-  // Grupos
-  getGrupos: async () => {
-    const { data, error } = await sb.from('grupos').select('*').eq('ativo', true);
-    if (error) throw error;
-    return data || [];
+  {
+    id:5, title:'🔥 Escarlate & Violeta — Ultra Rares & IRs',
+    date:'2026-02-18', time:'20:00', organizer:'Raridades TCG', groupId:'raridades',
+    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-20',
+    whatsappLink:'https://chat.whatsapp.com/leilao-sv',
+    description:'As melhores cartas da era Escarlate e Violeta! SIRs, IRs e Ultra Rares.', featured:false,
+    cards:[
+      { name:'Charizard ex SIR',    number:'234/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Iono SIR',            number:'237/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Gardevoir ex SIR',    number:'245/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.rayquazaVmax  },
+      { name:'Miraidon ex',         number:'081/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.lovebirds     },
+      { name:'Koraidon ex',         number:'120/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.charizardBase },
+      { name:'Roaring Moon ex IR',  number:'228/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Iron Valiant ex SIR', number:'232/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.rayquazaVmax  },
+      { name:'Pidgeot ex IR',       number:'166/167', set:'Obsidian Flames',  rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Tyranitar ex SIR',    number:'182/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.mewtwov       },
+      { name:'Mew ex SIR',          number:'205/165', set:'Pokemon 151',      rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Armarouge ex IR',     number:'222/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.lovebirds     },
+    ],
   },
-  // Perfil
-  getProfile: async (userId) => {
-    const { data } = await sb.from('profiles').select('*').eq('id', userId).single();
-    return data;
+  {
+    id:6, title:'🇯🇵 Vintage Japonês — Base Set & Neo Series',
+    date:'2026-02-19', time:'20:30', organizer:'Japan Cards BR', groupId:'japanesetcg',
+    paymentMethods:['PIX'], paymentDeadline:'2026-02-21',
+    whatsappLink:'https://chat.whatsapp.com/leilao-jp',
+    description:'Cartas japonesas vintage! Base Set JP, Neo Genesis e edições limitadas.', featured:false,
+    cards:[
+      { name:'Charizard JP Base Set',    number:'006/102', set:'Base Set JP',       rarity:'holo', img:TCG.charizardBase },
+      { name:'Lugia Neo Genesis JP',     number:'009/111', set:'Neo Genesis JP',    rarity:'holo', img:TCG.rayquazaVmax  },
+      { name:'Ho-Oh Neo Revelation JP',  number:'010/066', set:'Neo Revelation JP', rarity:'holo', img:TCG.charizardVmax },
+      { name:'Mewtwo JP Base Set',       number:'012/102', set:'Base Set JP',       rarity:'holo', img:TCG.mewtwov       },
+      { name:'Gengar JP Fossil',         number:'005/062', set:'Fossil JP',         rarity:'holo', img:TCG.lovebirds     },
+      { name:'Gyarados JP Base Set',     number:'006/102', set:'Base Set JP',       rarity:'holo', img:TCG.blastoise     },
+      { name:'Espeon Neo Discovery JP',  number:'001/075', set:'Neo Discovery JP',  rarity:'holo', img:TCG.pikachuVmax   },
+      { name:'Umbreon Neo Discovery JP', number:'013/075', set:'Neo Discovery JP',  rarity:'holo', img:TCG.lovebirds     },
+      { name:'Blastoise JP Base Set',    number:'002/102', set:'Base Set JP',       rarity:'holo', img:TCG.blastoise     },
+      { name:'Venusaur JP Base Set',     number:'015/102', set:'Base Set JP',       rarity:'holo', img:TCG.venusaur      },
+      { name:'Raichu JP Base Set',       number:'014/102', set:'Base Set JP',       rarity:'holo', img:TCG.pikachuVmax   },
+    ],
   },
-  upsertProfile: async (profile) => {
-    const { data, error } = await sb.from('profiles').upsert(profile).select().single();
-    if (error) throw error;
-    return data;
+  {
+    id:7, title:'🐉 Especial Charizard — Todas as Eras',
+    date:'2026-02-20', time:'19:00', organizer:'KARMA TCG', groupId:'karmaytcg',
+    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-22',
+    whatsappLink:'https://chat.whatsapp.com/leilao-charizard',
+    description:'Leilão temático! Todas as versões do Charizard, do Base Set até Paldea.', featured:false,
+    cards:[
+      { name:'Charizard Base Set Holo', number:'004/102', set:'Base Set',            rarity:'holo',       img:TCG.charizardBase },
+      { name:'Charizard VMAX',          number:'020/189', set:'Darkness Ablaze',     rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Charizard VMAX Rainbow',  number:'074/073', set:"Champion's Path",     rarity:'rainbow',    img:TCG.charizardVmax },
+      { name:'Charizard VSTAR',         number:'018/196', set:'Lost Origin',         rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Charizard ex SIR',        number:'234/193', set:'Paldea Evolved',      rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Charizard ex Obsidian',   number:'125/197', set:'Obsidian Flames',     rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Charizard AR 151',        number:'006/165', set:'Pokemon 151',         rarity:'art-rare',   img:TCG.charizardBase },
+      { name:'Charizard GX Rainbow',    number:'150/147', set:'Burning Shadows',     rarity:'rainbow',    img:TCG.charizardBase },
+      { name:'Charizard V Alt Art',     number:'154/172', set:'Brilliant Stars',     rarity:'alt-art',    img:TCG.charizardVmax },
+      { name:'Charizard ex FireRed',    number:'105/112', set:'FireRed & LeafGreen', rarity:'ultra-rare', img:TCG.charizardBase },
+      { name:'Charizard & Braixen GX',  number:'222/236', set:'Cosmic Eclipse',      rarity:'rainbow',    img:TCG.lovebirds     },
+      { name:'Charizard Neo Destiny',   number:'016/105', set:'Neo Destiny',         rarity:'holo',       img:TCG.charizardBase },
+    ],
   },
-};
-
-// Converter registro do Supabase para formato do app
-const leilaoToEvent = (row) => ({
-  id:              row.id,
-  title:           row.titulo,
-  date:            row.data,
-  time:            row.horario ? row.horario.slice(0,5) : '00:00',
-  organizer:       row.organizador,
-  groupId:         row.grupo_id,
-  description:     row.descricao,
-  featured:        row.destaque,
-  auctionType:     row.tipo_leilao,
-  paymentMethods:  row.metodos_pagamento || ['PIX'],
-  paymentDeadline: row.prazo_pagamento,
-  whatsappLink:    row.whatsapp_link || '#',
-  announcementPhoto: row.foto_anuncio,
-  eventPhotos:     row.fotos_evento || [],
-  cards: (row.leilao_cartas || []).sort((a,b) => a.ordem - b.ordem).map(c => ({
-    id:       c.id,
-    name:     c.nome,
-    number:   c.numero,
-    set:      c.set_nome,
-    rarity:   c.raridade,
-    quality:  c.qualidade,
-    img:      c.img_url,
-    minBid:   c.lance_minimo,
-    increment:c.incremento,
-    pollOptions: c.opcoes_poll,
-    ligaPrice: null,
-  })),
-});
-
-const grupoToGroup = (row) => ({
-  id:      row.id,
-  name:    row.nome,
-  short:   row.short,
-  emoji:   row.emoji,
-  color:   row.cor || 'from-gray-400 to-gray-600',
-  members: row.membros,
-  whatsappLink: row.whatsapp_link,
-});
+  {
+    id:8, title:'⚡ Pikachu Collection + Slabs PSA & BGS',
+    date:'2026-02-21', time:'21:00', organizer:'Slabs Premium BR', groupId:'slabsbr',
+    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-23',
+    whatsappLink:'https://chat.whatsapp.com/leilao-pikachu',
+    description:'Coleção de Pikachus raros e slabs graduados PSA/BGS para colecionadores exigentes!', featured:false,
+    cards:[
+      { name:'Pikachu Illustrator (rep)', number:'PROMO',   set:'Promo JP 1998',   rarity:'trophy',     img:TCG.pikachuVmax  },
+      { name:'Pikachu VMAX Rainbow',      number:'188/185', set:'Vivid Voltage',   rarity:'rainbow',    img:TCG.pikachuVmax  },
+      { name:'Pikachu V Full Art',        number:'170/185', set:'Vivid Voltage',   rarity:'full-art',   img:TCG.pikachuVmax  },
+      { name:'Flying Pikachu V',          number:'006/025', set:'Celebrations',    rarity:'ultra-rare', img:TCG.pikachuVmax  },
+      { name:'Surfing Pikachu VMAX',      number:'009/025', set:'Celebrations',    rarity:'ultra-rare', img:TCG.pikachuVmax  },
+      { name:'Pikachu Yellow Base Set',   number:'058/102', set:'Base Set',        rarity:'common',     img:TCG.pikachuVmax  },
+      { name:'Charizard ex BGS 9.5',      number:'006/193', set:'Paldea Evolved',  rarity:'ultra-rare', img:TCG.charizardVmax},
+      { name:'Umbreon VMAX Alt BGS 9',    number:'215/203', set:'Evolving Skies',  rarity:'alt-art',    img:TCG.lovebirds    },
+      { name:'Rayquaza VMAX BGS 9',       number:'111/203', set:'Evolving Skies',  rarity:'alt-art',    img:TCG.rayquazaVmax },
+      { name:'Lugia V Alt Art PSA 10',    number:'186/195', set:'Silver Tempest',  rarity:'alt-art',    img:TCG.rayquazaVmax },
+      { name:'Arceus VSTAR PSA 10',       number:'123/172', set:'Brilliant Stars', rarity:'ultra-rare', img:TCG.pikachuVmax  },
+      { name:'Mew ex SIR PSA 10',         number:'205/165', set:'Pokemon 151',     rarity:'ultra-rare', img:TCG.pikachuVmax  },
+    ],
+  },
+];
 
 
-// EVENTS começa vazio — preenchido pelo Supabase
-let EVENTS_STATIC = [];
-
-
+/* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
   const wName = wantedCard.name.toLowerCase();
   const wNum  = (wantedCard.number || '').toLowerCase();
@@ -177,8 +251,6 @@ const matchWanted = (wantedCard, eventCard) => {
    Estrutura idêntica ao retorno da PokemonTCG API para futura substituição.
    No futuro: trocar searchLocalCards() por chamada real à API.
 ──────────────────────────────────────────────────────────────────────────── */
-
-
 const LOCAL_CARDS = [
   { id:'base1-4', name:'Charizard', number:'4', set:'base1', setName:'Base Set', rarity:'Rare', image:'https://assets.tcgdex.net/en/base/base1/4/low.png', imageLarge:'https://assets.tcgdex.net/en/base/base1/4/high.png' },
   { id:'base1-10', name:'Mewtwo', number:'10', set:'base1', setName:'Base Set', rarity:'Rare', image:'https://assets.tcgdex.net/en/base/base1/10/low.png', imageLarge:'https://assets.tcgdex.net/en/base/base1/10/high.png' },
@@ -375,8 +447,6 @@ const buscarNomesPt = async (cartas) => {
 };
 
 // Executa a busca TCGdex completa com suporte bilíngue
-
-
 const tcgdexBuscar = async (q) => {
   const busca = detectarTipoBusca(q);
 
@@ -471,10 +541,8 @@ const tcgdexBuscar = async (q) => {
 };
 
 /* ─── BlocoCarrossel — componente reutilizável para fotos dos blocos ─── */
-
-
 const BlocoCarrossel = ({ fotos, dark = true }) => {
-  const [ativo, setAtivo] = React.useState(0);
+  const [ativo, setAtivo] = React.React.useState(0);
   if (!fotos || fotos.length === 0) return null;
   return (
     <div className={`rounded-2xl overflow-hidden border-2 border-yellow-300 shadow-xl ${dark ? 'bg-gray-900' : 'bg-gray-100'}`}>
@@ -573,8 +641,6 @@ const SET_NAMES = {
 const getSetName = (setId, fallback) => SET_NAMES[setId] || fallback || setId;
 
 
-
-
 const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModalEvent, addToWanted, removeWanted }) => {
   const { card, setName, imgSrc, rarity, auctions, rarityColor } = data;
   const inWanted = wantedList.find(w => w.id === card.id);
@@ -621,7 +687,7 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
           {/* Leilões onde aparece */}
           {auctions.length > 0 && (
             <div>
-              <p className="text-[11px] font-black text-green-600 uppercase tracking-widest mb-2">✅ Presente em {auctions.length} leilão{auctions.length > 1 ? 'ões' : ''}</p>
+              <p className="text-[11px] font-black text-green-600 uppercase tracking-widest mb-2">✅ Presente em {auctions.length} leilã{auctions.length > 1 ? 'ões' : 'ão'}</p>
               <div className="space-y-2">
                 {auctions.map((ev, j) => (
                   <div key={j} className="bg-green-50 border-2 border-green-200 rounded-2xl p-3">
@@ -666,17 +732,16 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
 };
 
 
-
-
-const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin }) => {
-  const [verCartas, setVerCartas] = React.useState(false);
-
+const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin }) => {
+  const [verCartas, setVerCartas] = React.React.useState(false);
   // Grupo vinculado ao evento (se existir)
   const grupo = AUCTION_GROUPS.find(g => g.id === event.groupId);
 
   return (
-  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-end md:items-center justify-center">
-    <div className="bg-white w-full md:max-w-xl md:rounded-3xl rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl modal-enter">
+  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-end md:items-center justify-center"
+    onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+    <div className="bg-white w-full md:max-w-xl md:rounded-3xl rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl modal-enter"
+      onClick={e=>e.stopPropagation()}>
 
       {/* ── Header: avatar + nome do leiloeiro ── */}
       <div className="sticky top-0 z-30 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-t-3xl">
@@ -707,7 +772,6 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
         {/* Título do leilão */}
         <div className="px-4 pb-3 border-t border-white/10 pt-2">
           <p className="text-sm text-gray-300 font-medium leading-snug">{event.title}</p>
-          {event.featured && <span className="inline-block mt-1 bg-yellow-400 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded-full">⭐ DESTAQUE</span>}
         </div>
       </div>
 
@@ -723,9 +787,9 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
           {event.description && <p className="text-sm text-gray-600 mt-1">{event.description}</p>}
         </div>
 
-        {/* ── Ver cartas — grid 2×2 com sininho sobreposto ── */}
+        {/* ── Ver cartas ── */}
         <div>
-          <button onClick={e=>{e.stopPropagation();setVerCartas(v=>!v);}}
+          <button onClick={e=>{e.stopPropagation();setVerCartas(!verCartas);}}
             className={`w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${verCartas?'bg-gray-800 text-white border-gray-800':'bg-white text-gray-800 border-gray-300 hover:border-gray-500'}`}>
             🎴 {verCartas ? 'Ocultar cartas' : `Ver todas as cartas (${event.cards.length})`}
             <span className="text-lg">{verCartas?'▲':'▼'}</span>
@@ -733,48 +797,25 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
 
           {verCartas && (
             <div className="mt-3">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-2">
-                🔔 Toque para ser avisado quando a carta for leiloada
-              </p>
-              <div className="grid grid-cols-2 gap-2"
-                onClick={e => e.stopPropagation()}
-                onTouchStart={e => e.stopPropagation()}
-                onTouchEnd={e => e.stopPropagation()}>
+              <div className="grid grid-cols-2 gap-2">
                 {event.cards.map((card, i) => {
-                  const isWanted   = wantedList.find(w => matchWanted(w, card));
-                  const interested = isInterested(event.id, i);
+                  const isWanted = wantedList.find(w => matchWanted(w, card));
                   return (
-                    <div key={i}
-                      onClick={e => { e.stopPropagation(); toggleInterest(event.id, i); }}
-                      className={`relative rounded-xl overflow-hidden isolate border-2 cursor-pointer transition-all active:scale-95 ${
-                        interested ? 'border-yellow-400 shadow-lg ring-2 ring-yellow-300' :
-                        isWanted   ? 'border-yellow-300 wanted-glow' :
-                        'border-gray-200 hover:border-gray-400'
-                      }`}>
-
-                      {/* Sininho — canto superior direito */}
-                      <div className={`absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full flex items-center justify-center text-base shadow-md transition-all ${
-                        interested ? 'bg-yellow-400 text-gray-900' : 'bg-black/40 text-white'
-                      }`}>
-                        {interested ? '🔔' : '🔕'}
-                      </div>
-
+                    <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300' : 'border-gray-200'}`}>
                       {/* Badge Wanted */}
-                      {isWanted && !interested && (
-                        <div className="absolute top-1.5 left-1.5 z-10 bg-yellow-400 text-gray-900 text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                          ⭐
+                      {isWanted && (
+                        <div className="bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">
+                          ⭐ Na sua Wanted List
                         </div>
                       )}
-
-                      {/* Imagem da carta */}
+                      {/* Imagem */}
                       <div className="bg-gray-100 flex items-center justify-center p-2" style={{minHeight:'150px'}}>
                         <img src={card.img} alt={card.name}
                           className="h-36 w-auto object-contain drop-shadow-sm"
                           onError={e=>e.target.style.display='none'} />
                       </div>
-
                       {/* Info */}
-                      <div className={`px-2 py-1.5 ${interested?'bg-yellow-50':'bg-white'}`}>
+                      <div className="px-2 py-1.5 bg-white">
                         <p className="font-black text-gray-800 text-xs leading-snug truncate">{card.name}</p>
                         <p className="text-[10px] text-gray-400 truncate mt-0.5">{card.set}</p>
                       </div>
@@ -795,7 +836,7 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
 
         {/* ── Ações ── */}
         <div className="space-y-2 pb-2">
-          <button onClick={()=>{toggleCheckin(event.id);onClose();}}
+          <button onClick={e=>{e.stopPropagation();toggleCheckin(event.id);}}
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
@@ -813,91 +854,92 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
 /* ─── BOTTOM NAV ─── */
 
 
+/* ════════════════════════════════════════
+   GRUPOS DE LEILÃO — cadastro dos grupos do WhatsApp
+════════════════════════════════════════ */
+const AUCTION_GROUPS = [
+  { id:'karmaytcg',      name:'KARMA TCG - ÉPICO DNS ÉPIC...', short:'KARMA TCG',         emoji:'⚡', color:'from-yellow-500 to-orange-500',  members:null },
+  { id:'armarstcg',      name:'ARMARSTCG ● Leilões Notic...', short:'ARMARSTCG',           emoji:'🏆', color:'from-red-500 to-pink-500',        members:null },
+  { id:'aliadotcg',      name:'ALIADO TCG - Leilões, Rifas...', short:'ALIADO TCG',        emoji:'🃏', color:'from-blue-500 to-cyan-500',       members:null },
+  { id:'pimtcg',         name:'PIM - Compra Venda Leilão', short:'PIM TCG',                emoji:'🎴', color:'from-green-500 to-teal-500',      members:null },
+  { id:'meaplafenby',    name:'MEAPLA EMBY',              short:'MEAPLA EMBY',              emoji:'🌟', color:'from-purple-500 to-indigo-500',   members:null },
+  { id:'limacardvenda',  name:'LIMA CARDS & VENDA LG...',  short:'LIMA CARDS',              emoji:'🐉', color:'from-red-600 to-red-800',         members:null },
+  { id:'dreamfieldtcg',  name:'DreamField TCG Leilões, Ve...', short:'DreamField TCG',     emoji:'✨', color:'from-sky-400 to-blue-600',        members:null },
+  { id:'dominatcg',      name:'Dominators & grupo E...',   short:'Dominators TCG',          emoji:'👑', color:'from-yellow-600 to-amber-700',    members:null },
+  { id:'dmgtcg',         name:'DMG TCG',                   short:'DMG TCG',                 emoji:'💎', color:'from-cyan-500 to-blue-700',       members:null },
+  { id:'buenohowtcg',    name:'Bueno HowTCG 🎴 A grupo E...', short:'Bueno HowTCG',        emoji:'🎯', color:'from-orange-400 to-red-500',      members:null },
+  { id:'ghostudios',     name:'GhostStudios Card game...',  short:'GhostStudios',            emoji:'👻', color:'from-gray-600 to-gray-900',       members:null },
+  { id:'espertogudalupe',name:'Esperto de Gudar Fouks Jr...', short:'Esperto de Gudar',    emoji:'🦊', color:'from-orange-500 to-yellow-600',   members:null },
+  { id:'pokemonpikachu', name:'Pokemon Pikachu',            short:'Pokémon Pikachu',         emoji:'⚡', color:'from-yellow-400 to-yellow-600',   members:null },
+  { id:'estandoon',      name:'ESTAMOS ON 🎴🎴🎴',         short:'ESTAMOS ON',              emoji:'🔥', color:'from-red-500 to-orange-600',      members:null },
+  { id:'tcgpokeshield',  name:'TCG PokéShield',             short:'TCG PokéShield',          emoji:'🛡️', color:'from-blue-600 to-indigo-800',    members:null },
+  { id:'boogcardshop',   name:'BOOGCARDSHOP 🎴',           short:'BOOGCARDSHOP',            emoji:'🎪', color:'from-pink-500 to-purple-600',     members:null },
+  { id:'armandotcg2',    name:'ArmandoTCG 2',              short:'ArmandoTCG 2',            emoji:'⚔️', color:'from-gray-700 to-gray-900',      members:null },
+  { id:'descontocardgame',name:'Desconto Card game',        short:'Desconto Card Game',      emoji:'💰', color:'from-green-600 to-emerald-700',   members:null },
+  { id:'slarrpokfire',   name:'SLAR FOR POKEFIR AUC...',   short:'SLAR POKFIRE',            emoji:'🌋', color:'from-red-700 to-orange-800',      members:null },
+  { id:'jjamestcg',      name:'# James TCG 🎴',            short:'James TCG',               emoji:'🎭', color:'from-indigo-500 to-purple-700',   members:null },
+  { id:'moretcg',        name:'moretCG 🎴🎴🎴🎴🎴 15%...',  short:'moretCG',                emoji:'💫', color:'from-teal-500 to-cyan-600',       members:null },
+  { id:'hpretcg',        name:'+HPRE - GRUPO OFICIAL...',  short:'+HPRE TCG',               emoji:'🏅', color:'from-gold-400 to-yellow-600',     members:null },
+  { id:'freeletchtcg',   name:'FreeletchTCG 🎴🎴...',      short:'FreeletchTCG',            emoji:'🦅', color:'from-blue-800 to-indigo-900',     members:null },
+  { id:'collectlubishop',name:'COLLECTLUBI SHOP PSA...',   short:'COLLECTLUBI SHOP',        emoji:'🏪', color:'from-emerald-500 to-green-700',   members:null },
+  { id:'ritafire',       name:'RITA DE CHARIZARD DE ELKO', short:'RITA DE CHARIZARD',       emoji:'🔥', color:'from-red-600 to-orange-700',      members:null },
+  { id:'mkabpremium',    name:'M KAB PREMIUM CHAN...',     short:'M KAB PREMIUM',           emoji:'💎', color:'from-purple-600 to-indigo-800',   members:null },
+  { id:'ymgtcg',         name:'YMG TCG 🎴',               short:'YMG TCG',                  emoji:'🌊', color:'from-blue-400 to-teal-600',       members:null },
+  { id:'meoxboxpremium', name:'MEO XBOX PREMIUM CHAN...',  short:'MEO XBOX PREMIUM',        emoji:'🎮', color:'from-green-700 to-emerald-900',   members:null },
+  { id:'meadowtcg',      name:'Meadow TCG',                short:'Meadow TCG',               emoji:'🌿', color:'from-green-500 to-lime-600',      members:null },
+  { id:'silvertcg',      name:'Silver TCG 🎴',             short:'Silver TCG',               emoji:'🥈', color:'from-gray-400 to-slate-600',      members:null },
+  { id:'tabernamento',   name:'TABERNA NERD - TIN...',     short:'TABERNA NERD',            emoji:'🍺', color:'from-amber-600 to-yellow-800',    members:null },
+  { id:'leilaorecovery', name:'LEILÃO RECOVERY 💎 100...',  short:'LEILÃO RECOVERY',        emoji:'💎', color:'from-cyan-600 to-blue-800',       members:null },
+  { id:'leilaomineral',  name:'LEILÃO DE MINERAL (PORTU...', short:'LEILÃO MINERAL',        emoji:'💎', color:'from-purple-700 to-indigo-900',   members:null },
+  { id:'collectfosso',   name:'COLLECTIVOS (PORTUGA...)',   short:'COLLECTIVOS PT',          emoji:'🇵🇹', color:'from-green-600 to-red-600',      members:null },
+  { id:'communiquedesc', name:'COMMUNIQUE - DESCONT...',   short:'COMMUNIQUE',              emoji:'📢', color:'from-blue-500 to-sky-600',        members:null },
+  { id:'yttstore',       name:'YTT STORE TCG 🎴',          short:'YTT STORE',               emoji:'🏬', color:'from-violet-500 to-purple-700',   members:null },
+  { id:'maranatcg',      name:'MaranaTCG TCG',             short:'MaranaTCG',               emoji:'✝️', color:'from-blue-700 to-indigo-900',    members:null },
+  { id:'andreatcgplus',  name:'Andreatcg+ Representante...', short:'Andreatcg+',             emoji:'👩‍💼', color:'from-pink-500 to-rose-600',   members:null },
+  { id:'reidobrasil',    name:'REI DO BRASIL PROMO...',    short:'REI DO BRASIL',           emoji:'👑', color:'from-yellow-500 to-green-600',    members:null },
+  { id:'yyt111store',    name:'YYT 111 STORE TCG 🎴',      short:'YYT 111 STORE',           emoji:'💯', color:'from-orange-500 to-red-600',      members:null },
+  { id:'pokemonoferta',  name:'POKEMON OFERTAS SHOPE...',  short:'POKEMON OFERTAS',         emoji:'🛍️', color:'from-yellow-400 to-orange-500',  members:null },
+  { id:'francisotcg',    name:'Franciscon Pokemon',        short:'Franciscon',               emoji:'🎲', color:'from-teal-400 to-cyan-600',       members:null },
+  { id:'youngtcg',       name:'YOUNG TCG 🎴🎴',            short:'YOUNG TCG',               emoji:'🌱', color:'from-lime-500 to-green-600',      members:null },
+  { id:'leilaonerd',     name:'LEILÃO NO BREAK (TURMA...', short:'LEILÃO NO BREAK',         emoji:'⚡', color:'from-yellow-600 to-orange-700',   members:null },
+  { id:'leilaobrasil',   name:'LEILÃO EM BREAK (TURMA...', short:'LEILÃO EM BREAK',         emoji:'🎪', color:'from-purple-500 to-pink-600',     members:null },
+  { id:'zapzaptcg',      name:'ZapZapCards',               short:'ZapZap Cards',             emoji:'⚡', color:'from-yellow-400 to-amber-500',    members:null },
+  { id:'plantasatopiche', name:'Plantas atopiche OE',      short:'Plantas atopiche',         emoji:'🌺', color:'from-green-400 to-emerald-600',   members:null },
+  { id:'maranatcg2',     name:'MaranaTCG TCG Cópia',       short:'MaranaTCG 2',              emoji:'✝️', color:'from-indigo-700 to-blue-900',    members:null },
+  { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
+];
 
 const App = () => {
-  // ── Auth state ─────────────────────────────────────────────
-  const [user,        setUser]        = useState(null);    // usuario Supabase
-  const [profile,     setProfile]     = useState(null);    // perfil do banco
-  const [authLoading, setAuthLoading] = useState(true);    // checando sessao
-
-  // ── App state ──────────────────────────────────────────────
-  const [screen,      setScreen]      = useState('login');
-  const [events,      setEvents]      = useState([]);      // leiloes do Supabase
-  const [eventsLoading,setEventsLoading]=useState(false);
-  const [groups,      setGroups]      = useState([]);      // grupos do Supabase
-  const [checkins,    setCheckins]    = useState([]);
-  const [modalEvent,  setModalEvent]  = useState(null);
-  const [searchLog,   setSearchLog]   = useState([]);
-  const [wantedList,  setWantedList]  = useState([]);
-  const [alerts,      setAlerts]      = useState([]);
-  const [interests,   setInterests]   = useState({});
-  const [liveAuction, setLiveAuction] = useState(null);
-
-  const isAuctioneer = profile?.tipo === 'leiloeiro';
-
-  // ── Escuta mudanças de autenticação ───────────────────────
-  useEffect(() => {
-    const { data: { subscription } } = sbAuth.onAuthChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        // Buscar perfil do banco
-        const p = await sbDB.getProfile(session.user.id);
-        setProfile(p);
-        setScreen('home');
-      } else {
-        setUser(null);
-        setProfile(null);
-        setScreen('login');
-      }
-      setAuthLoading(false);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ── Carregar leilões do Supabase ──────────────────────────
-  const loadEvents = async () => {
-    setEventsLoading(true);
-    try {
-      const rows = await sbDB.getLeiloes();
-      setEvents(rows.map(leilaoToEvent));
-    } catch(e) {
-      console.error('Erro ao carregar leilões:', e);
-      // Fallback: manter lista vazia ou mostrar mensagem
-    }
-    setEventsLoading(false);
-  };
-
-  // ── Carregar grupos do Supabase ───────────────────────────
-  const loadGroups = async () => {
-    try {
-      const rows = await sbDB.getGrupos();
-      setGroups(rows.map(grupoToGroup));
-    } catch(e) {
-      console.error('Erro ao carregar grupos:', e);
-    }
-  };
-
-  // Carregar dados quando logar
-  useEffect(() => {
-    if (user) {
-      loadEvents();
-      loadGroups();
-    }
-  }, [user]);
-
-  // Usar events como EVENTS para compatibilidade com código existente
-  const EVENTS = events;
-  const AUCTION_GROUPS = groups;
-
-  // ── Interest / checkins ───────────────────────────────────
+  const [screen,      setScreen]      = React.useState('login');
+  const [checkins,    setCheckins]    = React.useState([]);
+  const [modalEvent,  setModalEvent]  = React.useState(null);
+  const [searchLog,   setSearchLog]   = React.useState([]);
+  const [wantedList,  setWantedList]  = React.useState([]);
+  const [alerts,      setAlerts]      = React.useState([]);
+  // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
+  const [interests,   setInterests]   = React.useState({});
   const toggleInterest = (eventId, cardIdx) => {
     const key = eventId + '_' + cardIdx;
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
+  const [isAuctioneer,setIsAuctioneer]= React.useState(true);   // mock: true = conta leiloeiro
+  const [liveAuction, setLiveAuction] = React.useState(null);   // leilão ao vivo em andamento
+  const [authUser,    setAuthUser]    = React.useState(null);    // usuário autenticado
 
-  // ── Alertas wanted list ───────────────────────────────────
-  useEffect(() => {
+  // Auth state listener
+  React.useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = sbAuth.onAuthChange((event, session) => {
+      setAuthUser(session?.user || null);
+      if (event === 'SIGNED_IN')  setScreen('home');
+      if (event === 'SIGNED_OUT') setScreen('login');
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
+  React.useEffect(() => {
     const newAlerts = [];
     wantedList.forEach(wc => {
       EVENTS.forEach(ev => {
@@ -905,35 +947,41 @@ const App = () => {
           if (matchWanted(wc, ec)) {
             const key = `${wc.id}-${ev.id}`;
             const already = alerts.find(a => a.key === key);
-            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img,
-              eventTitle:ev.title, eventId:ev.id, eventDate:ev.date,
-              eventTime:ev.time, seen:false });
+            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img, eventTitle:ev.title, eventId:ev.id, eventDate:ev.date, eventTime:ev.time, seen:false });
           }
         });
       });
     });
     if (newAlerts.length) setAlerts(prev => [...prev, ...newAlerts]);
-  }, [wantedList, events]);
+  }, [wantedList]);
 
   const unseenAlerts = alerts.filter(a => !a.seen).length;
   const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
   const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
   const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
   const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
+  const logSearch = query => {
+    if (!query.trim()) return;
+    setSearchLog(prev => {
+      const existing = prev.find(x=>x.query.toLowerCase()===query.toLowerCase());
+      const updated  = existing
+        ? prev.map(x=>x.query.toLowerCase()===query.toLowerCase()?{...x,count:x.count+1,last:new Date()}:x)
+        : [...prev,{query:query.trim(),count:1,last:new Date()}];
+      const sorted = [...updated].sort((a,b)=>b.count-a.count);
+      console.group('%c📊 PokEventos — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
+      console.table(sorted.map((s,i)=>({'#':i+1,'Carta':s.query,'Buscas':s.count,'Última':new Date(s.last).toLocaleString('pt-BR')})));
+      console.groupEnd();
+      return updated;
+    });
+  };
 
-  // ── Loading inicial (verificando sessão) ──────────────────
-  if (authLoading) return (
-    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center">
-      <div className="text-center text-white">
-        <div className="text-6xl mb-4 animate-bounce">🎴</div>
-        <p className="font-black text-2xl" style={{fontFamily:'Arial Black'}}>PokEventos</p>
-        <p className="mt-2 opacity-80">Carregando...</p>
-      </div>
-    </div>
-  );
+  /* ─── MODAL DETALHES ─── */
+  /* ════════════════════════════════════════
+     MODAL CARTA — popup ao clicar em resultado
+  ════════════════════════════════════════ */
 
 
-    const BottomNav = ({ current }) => (
+  const BottomNav = ({ current }) => (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-yellow-400 px-2 py-3 shadow-2xl z-40">
       <div className="flex justify-around items-center">
         {[
@@ -961,19 +1009,26 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-
   const LoginScreen = () => {
-    const [email,    setEmail]    = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [loading,  setLoading]  = React.useState(false);
-    const [error,    setError]    = React.useState('');
+    const [loginEmail,   setLoginEmail]   = React.useState('');
+    const [loginPwd,     setLoginPwd]     = React.useState('');
+    const [loginLoading, setLoginLoading] = React.useState(false);
+    const [loginError,   setLoginError]   = React.useState('');
 
-    const doLogin = async () => {
-      if (!email || !password) { setError('Preencha e-mail e senha.'); return; }
-      setLoading(true); setError('');
-      const { error: err } = await sbAuth.signIn(email, password);
-      if (err) { setError('E-mail ou senha incorretos.'); setLoading(false); }
-      // onAuthChange cuida do redirect para home
+    const handleLogin = async () => {
+      if (!loginEmail || !loginPwd) { setLoginError('Preencha e-mail e senha.'); return; }
+      setLoginLoading(true); setLoginError('');
+      try {
+        if (supabase) {
+          const { error } = await sbAuth.signIn(loginEmail, loginPwd);
+          if (error) throw error;
+          // onAuthStateChange cuida do setScreen
+        } else {
+          setScreen('home'); // fallback sem Supabase
+        }
+      } catch(e) {
+        setLoginError(e.message || 'Erro ao entrar. Verifique seus dados.');
+      } finally { setLoginLoading(false); }
     };
 
     return (
@@ -993,136 +1048,109 @@ const App = () => {
               { src:TCG.venusaur,      label:'Venusaur',   border:'border-green-400', size:'w-16', shift:'' },
               { src:TCG.charizardBase, label:'Charizard',  border:'border-red-400',   size:'w-16', shift:'-translate-y-2' },
               { src:TCG.blastoise,     label:'Blastoise',  border:'border-blue-400',  size:'w-16', shift:'' },
-            ].map(c=>(
-              <div key={c.label} className={`flex flex-col items-center ${c.shift}`}>
-                <img src={c.src} className={`${c.size} rounded-xl border-2 ${c.border} shadow-md`} />
-                <p className="text-[9px] font-bold text-gray-400 mt-1">{c.label}</p>
+            ].map((c,i)=>(
+              <div key={i} className="flex flex-col items-center gap-1">
+                <img src={c.src} alt={c.label} className={`${c.size} ${c.shift} rounded-lg shadow-xl border-2 ${c.border} card-img`} />
+                <span className="text-[9px] text-gray-500 font-semibold">{c.label}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" value={email}
-            onChange={e=>setEmail(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&doLogin()}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" value={password}
-            onChange={e=>setPassword(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&doLogin()}
-            autoComplete="current-password"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          {error && <p className="text-red-500 text-xs text-center font-medium">{error}</p>}
-          <button onClick={doLogin} disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-black rounded-xl shadow-lg disabled:opacity-60 text-sm">
-            {loading ? '⏳ Entrando...' : '⚡ Entrar'}
-          </button>
-          <button onClick={()=>setScreen('register')}
-            className="w-full py-3 text-gray-500 text-sm hover:text-gray-700">
-            Não tem conta? <span className="text-blue-600 font-bold">Criar conta grátis</span>
-          </button>
+          <input type="email" placeholder="E-mail" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          {loginError && <p className="text-red-500 text-xs text-center font-semibold">{loginError}</p>}
+          <button onClick={handleLogin} disabled={loginLoading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loginLoading ? '⏳ Entrando...' : '⚡ Entrar'}</button>
+          <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
-    );
+  );
   };
 
-
+  /* ════════════════════════════════════════
+     TELA CADASTRO
+  ════════════════════════════════════════ */
   const RegisterScreen = () => {
-    const [nome,     setNome]     = React.useState('');
-    const [email,    setEmail]    = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [confirm,  setConfirm]  = React.useState('');
-    const [tipo,     setTipo]     = React.useState('usuario');
-    const [whatsapp, setWhatsapp] = React.useState('');
-    const [loading,  setLoading]  = React.useState(false);
-    const [error,    setError]    = React.useState('');
-    const [success,  setSuccess]  = React.useState(false);
-
-    const doRegister = async () => {
-      if (!nome || !email || !password) { setError('Preencha todos os campos obrigatórios.'); return; }
-      if (password !== confirm) { setError('As senhas não conferem.'); return; }
-      if (password.length < 6) { setError('Senha deve ter pelo menos 6 caracteres.'); return; }
-      setLoading(true); setError('');
-      const { data, error: err } = await sbAuth.signUp(email, password, { nome, tipo, whatsapp });
-      if (err) {
-        if (err.message.includes('already registered')) setError('Este e-mail já está cadastrado.');
-        else setError('Erro ao criar conta. Tente novamente.');
-        setLoading(false);
-        return;
-      }
-      // Criar perfil na tabela profiles
-      if (data.user) {
-        await sbDB.upsertProfile({ id: data.user.id, nome, tipo, whatsapp });
-      }
-      setSuccess(true);
-      setLoading(false);
-    };
-
-    if (success) return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-black text-gray-800 mb-2">Conta criada!</h2>
-          <p className="text-gray-500 text-sm mb-6">Verifique seu e-mail para confirmar o cadastro, depois faça login.</p>
-          <button onClick={()=>setScreen('login')}
-            className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-black rounded-xl">
-            Ir para Login
-          </button>
-        </div>
-      </div>
-    );
-
+    const [accountType, setAccountType] = React.React.useState('collector'); // 'collector' | 'auctioneer'
+    const isAuc = accountType === 'auctioneer';
     return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm my-4">
-        <button onClick={()=>setScreen('login')} className="text-gray-400 hover:text-gray-600 text-lg mb-4">← Voltar</button>
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-2">✨</div>
-          <h2 className="text-2xl font-black text-gray-800">Criar conta</h2>
-          <p className="text-gray-400 text-sm">Junte-se à comunidade PokEventos</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
+      <img src={POKE.mewtwo}  className="absolute top-8 right-4 w-20 opacity-10 animate-bounce" style={{animationDuration:'3.5s'}} />
+      <img src={POKE.eevee}   className="absolute bottom-12 left-4 w-16 opacity-10 animate-bounce" style={{animationDuration:'4.5s'}} />
+      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative z-10 overflow-y-auto max-h-[96vh]">
+
+        {/* Header — Jolteon */}
+        <div className="text-center mb-5">
+          <button onClick={()=>setScreen('login')} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 text-lg">←</button>
+          <div className="relative inline-block mb-2">
+            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-70"></div>
+            <img src={POKE.jolteon} className="w-16 h-16 relative z-10 drop-shadow-lg" />
+          </div>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Criar Conta</h1>
+          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
         </div>
 
-        {/* Tipo de conta */}
+        {/* Tipo de conta — com estado */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {[{v:'usuario',label:'🎴 Colecionador',desc:'Sigo leilões'},{v:'leiloeiro',label:'🏆 Leiloeiro',desc:'Realizo leilões'}].map(t=>(
-            <button key={t.v} onClick={()=>setTipo(t.v)}
-              className={`p-3 rounded-xl border-2 text-left transition-all ${tipo===t.v?'border-purple-500 bg-purple-50':'border-gray-200'}`}>
-              <p className="font-black text-sm">{t.label}</p>
-              <p className="text-xs text-gray-400">{t.desc}</p>
-            </button>
-          ))}
+          <button onClick={()=>setAccountType('collector')}
+            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+            <span className="text-2xl">👤</span>
+            <span>Colecionador</span>
+            <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
+          </button>
+          <button onClick={()=>setAccountType('auctioneer')}
+            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+            <span className="text-2xl">🔨</span>
+            <span>Leiloeiro</span>
+            <span className={`text-[10px] font-normal ${accountType==='auctioneer'?'text-yellow-600':'text-gray-400'}`}>Organiza leilões</span>
+          </button>
         </div>
 
-        <div className="space-y-3">
-          <input type="text" placeholder="Nome completo *" value={nome}
-            onChange={e=>setNome(e.target.value)}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="email" placeholder="E-mail *" value={email}
-            onChange={e=>setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="tel" placeholder="WhatsApp (opcional)" value={whatsapp}
-            onChange={e=>setWhatsapp(e.target.value)}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha *" value={password}
-            onChange={e=>setPassword(e.target.value)}
-            autoComplete="new-password"
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="password" placeholder="Confirmar senha *" value={confirm}
-            onChange={e=>setConfirm(e.target.value)}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          {error && <p className="text-red-500 text-xs text-center font-medium">{error}</p>}
-          <button onClick={doRegister} disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-black rounded-xl shadow-lg disabled:opacity-60">
-            {loading ? '⏳ Criando conta...' : '🚀 Criar conta'}
+        <div className="space-y-2.5">
+          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+
+          {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
+          <div>
+            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
+              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
+            {!isAuc && (
+              <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                ⚡ Necessário para participar de leilões
+              </p>
+            )}
+          </div>
+
+          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+
+          <div className="flex items-start gap-2 pt-1">
+            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
+            <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
+              Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
+            </label>
+          </div>
+
+          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
+            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
+            <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
+            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
           </button>
+
+          <p className="text-center text-sm">
+            Já tem conta? <button onClick={()=>setScreen('login')} className="text-purple-600 hover:underline font-semibold">Entrar</button>
+          </p>
         </div>
       </div>
     </div>
     );
   };
 
-
-    const HomeScreen = () => {
+  /* ════════════════════════════════════════
+     TELA HOME
+  ════════════════════════════════════════ */
+  const HomeScreen = () => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
       <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
@@ -1158,7 +1186,7 @@ const App = () => {
             </div>
           ))}
         </div>
-        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} isInterested={isInterested} toggleInterest={toggleInterest} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
+        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
         <BottomNav current="home" />
       </div>
     );
@@ -1167,11 +1195,10 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
-
-    const CalendarScreen = () => {
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [showDayModal, setShowDayModal] = useState(false);
+  const CalendarScreen = () => {
+    const [currentMonth, setCurrentMonth] = React.useState(new Date());
+    const [selectedDate, setSelectedDate] = React.useState(null);
+    const [showDayModal, setShowDayModal] = React.useState(false);
     const getDays = (month) => {
       const first = new Date(month.getFullYear(), month.getMonth(), 1);
       const last  = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -1244,12 +1271,7 @@ const App = () => {
                         'border-l-purple-400'
                       }`}>
 
-                      {/* Faixa destaque */}
-                      {event.featured && (
-                        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 px-4 py-1.5 flex items-center gap-2">
-                          <span className="text-white text-[10px] font-black tracking-wide">⭐ LEILÃO EM DESTAQUE</span>
-                        </div>
-                      )}
+
                       {hasWanted && !event.featured && (
                         <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-1 flex items-center gap-1.5">
                           <span className="text-yellow-700 text-[10px] font-bold">⭐ Carta da sua Wanted List aqui!</span>
@@ -1277,17 +1299,18 @@ const App = () => {
 
                           {/* Nome + info */}
                           <div className="flex-1 min-w-0">
-                            <p className="font-black text-gray-900 text-base leading-tight truncate">
-                              {event.organizer || event.title}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">{event.title}</p>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className="flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                📅 {evDate.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})}
-                              </span>
-                              <span className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                ⏰ {event.time}
-                              </span>
+                            {/* Data em destaque */}
+                            <div className="flex items-baseline gap-2 mb-1.5">
+                              <p className="text-xl font-black text-gray-900 leading-none tabular-nums">
+                                {evDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+                              </p>
+                              <p className="text-sm font-bold text-purple-600 leading-none">
+                                {event.time}
+                              </p>
+                            </div>
+                            <p className="font-bold text-gray-800 text-sm leading-tight truncate">{event.organizer || event.title}</p>
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">{event.title}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                               {isChecked && (
                                 <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">✓ Check-in</span>
                               )}
@@ -1450,20 +1473,20 @@ const App = () => {
           </div>
         )}
 
-        {modalEvent && <EventModal event={modalEvent} onClose={() => setModalEvent(null)} isInterested={isInterested} toggleInterest={toggleInterest} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
+        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
+      <BottomNav current="calendar" />
       </div>
     );
   };
 
-
-    const SearchWantedScreen = () => {
-    const [query,       setQuery]      = useState('');
-    const [results,     setResults]    = useState([]);
-    const [loading,     setLoading]    = useState(false);
-    const [searched,    setSearched]   = useState('');
-    const [apiError,    setApiError]   = useState('');
-    const [modalCard,   setModalCard]  = useState(null);
-    const [excluirComuns, setExcluirComuns] = useState(false);
+  const SearchWantedScreen = () => {
+    const [query,       setQuery]      = React.useState('');
+    const [results,     setResults]    = React.useState([]);
+    const [loading,     setLoading]    = React.useState(false);
+    const [searched,    setSearched]   = React.useState('');
+    const [apiError,    setApiError]   = React.useState('');
+    const [modalCard,   setModalCard]  = React.useState(null);
+    const [excluirComuns, setExcluirComuns] = React.useState(false);
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
@@ -1635,7 +1658,7 @@ const App = () => {
                           </p>
                           {rarity ? <span className={'inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 ' + rarityColor}>{rarity}</span> : null}
                           {auctions.length > 0
-                            ? <p className="text-[10px] font-black text-green-600 uppercase tracking-wide mt-2">✅ Em {auctions.length} leilão{auctions.length > 1 ? 'ões' : ''}</p>
+                            ? <p className="text-[10px] font-black text-green-600 uppercase tracking-wide mt-2">✅ Em {auctions.length} leilã{auctions.length > 1 ? 'ões' : 'ão'}</p>
                             : <p className="text-[10px] text-gray-400 mt-2">Toque para ver detalhes</p>
                           }
                           {inWanted && <p className="text-[10px] font-black text-yellow-600 mt-0.5">⭐ Na sua Wanted List</p>}
@@ -1723,7 +1746,7 @@ const App = () => {
 
         </div>
 
-        {modalEvent ? <EventModal event={modalEvent} onClose={() => setModalEvent(null)} isInterested={isInterested} toggleInterest={toggleInterest} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} /> : null}
+        {modalEvent ? <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
@@ -1733,63 +1756,7 @@ const App = () => {
 
 
 
-    /* ════════════════════════════════════════
-     GRUPOS DE LEILÃO — cadastro dos grupos do WhatsApp
-  ════════════════════════════════════════ */
-  const AUCTION_GROUPS = [
-    { id:'karmaytcg',      name:'KARMA TCG - ÉPICO DNS ÉPIC...', short:'KARMA TCG',         emoji:'⚡', color:'from-yellow-500 to-orange-500',  members:null },
-    { id:'armarstcg',      name:'ARMARSTCG ● Leilões Notic...', short:'ARMARSTCG',           emoji:'🏆', color:'from-red-500 to-pink-500',        members:null },
-    { id:'aliadotcg',      name:'ALIADO TCG - Leilões, Rifas...', short:'ALIADO TCG',        emoji:'🃏', color:'from-blue-500 to-cyan-500',       members:null },
-    { id:'pimtcg',         name:'PIM - Compra Venda Leilão', short:'PIM TCG',                emoji:'🎴', color:'from-green-500 to-teal-500',      members:null },
-    { id:'meaplafenby',    name:'MEAPLA EMBY',              short:'MEAPLA EMBY',              emoji:'🌟', color:'from-purple-500 to-indigo-500',   members:null },
-    { id:'limacardvenda',  name:'LIMA CARDS & VENDA LG...',  short:'LIMA CARDS',              emoji:'🐉', color:'from-red-600 to-red-800',         members:null },
-    { id:'dreamfieldtcg',  name:'DreamField TCG Leilões, Ve...', short:'DreamField TCG',     emoji:'✨', color:'from-sky-400 to-blue-600',        members:null },
-    { id:'dominatcg',      name:'Dominators & grupo E...',   short:'Dominators TCG',          emoji:'👑', color:'from-yellow-600 to-amber-700',    members:null },
-    { id:'dmgtcg',         name:'DMG TCG',                   short:'DMG TCG',                 emoji:'💎', color:'from-cyan-500 to-blue-700',       members:null },
-    { id:'buenohowtcg',    name:'Bueno HowTCG 🎴 A grupo E...', short:'Bueno HowTCG',        emoji:'🎯', color:'from-orange-400 to-red-500',      members:null },
-    { id:'ghostudios',     name:'GhostStudios Card game...',  short:'GhostStudios',            emoji:'👻', color:'from-gray-600 to-gray-900',       members:null },
-    { id:'espertogudalupe',name:'Esperto de Gudar Fouks Jr...', short:'Esperto de Gudar',    emoji:'🦊', color:'from-orange-500 to-yellow-600',   members:null },
-    { id:'pokemonpikachu', name:'Pokemon Pikachu',            short:'Pokémon Pikachu',         emoji:'⚡', color:'from-yellow-400 to-yellow-600',   members:null },
-    { id:'estandoon',      name:'ESTAMOS ON 🎴🎴🎴',         short:'ESTAMOS ON',              emoji:'🔥', color:'from-red-500 to-orange-600',      members:null },
-    { id:'tcgpokeshield',  name:'TCG PokéShield',             short:'TCG PokéShield',          emoji:'🛡️', color:'from-blue-600 to-indigo-800',    members:null },
-    { id:'boogcardshop',   name:'BOOGCARDSHOP 🎴',           short:'BOOGCARDSHOP',            emoji:'🎪', color:'from-pink-500 to-purple-600',     members:null },
-    { id:'armandotcg2',    name:'ArmandoTCG 2',              short:'ArmandoTCG 2',            emoji:'⚔️', color:'from-gray-700 to-gray-900',      members:null },
-    { id:'descontocardgame',name:'Desconto Card game',        short:'Desconto Card Game',      emoji:'💰', color:'from-green-600 to-emerald-700',   members:null },
-    { id:'slarrpokfire',   name:'SLAR FOR POKEFIR AUC...',   short:'SLAR POKFIRE',            emoji:'🌋', color:'from-red-700 to-orange-800',      members:null },
-    { id:'jjamestcg',      name:'# James TCG 🎴',            short:'James TCG',               emoji:'🎭', color:'from-indigo-500 to-purple-700',   members:null },
-    { id:'moretcg',        name:'moretCG 🎴🎴🎴🎴🎴 15%...',  short:'moretCG',                emoji:'💫', color:'from-teal-500 to-cyan-600',       members:null },
-    { id:'hpretcg',        name:'+HPRE - GRUPO OFICIAL...',  short:'+HPRE TCG',               emoji:'🏅', color:'from-gold-400 to-yellow-600',     members:null },
-    { id:'freeletchtcg',   name:'FreeletchTCG 🎴🎴...',      short:'FreeletchTCG',            emoji:'🦅', color:'from-blue-800 to-indigo-900',     members:null },
-    { id:'collectlubishop',name:'COLLECTLUBI SHOP PSA...',   short:'COLLECTLUBI SHOP',        emoji:'🏪', color:'from-emerald-500 to-green-700',   members:null },
-    { id:'ritafire',       name:'RITA DE CHARIZARD DE ELKO', short:'RITA DE CHARIZARD',       emoji:'🔥', color:'from-red-600 to-orange-700',      members:null },
-    { id:'mkabpremium',    name:'M KAB PREMIUM CHAN...',     short:'M KAB PREMIUM',           emoji:'💎', color:'from-purple-600 to-indigo-800',   members:null },
-    { id:'ymgtcg',         name:'YMG TCG 🎴',               short:'YMG TCG',                  emoji:'🌊', color:'from-blue-400 to-teal-600',       members:null },
-    { id:'meoxboxpremium', name:'MEO XBOX PREMIUM CHAN...',  short:'MEO XBOX PREMIUM',        emoji:'🎮', color:'from-green-700 to-emerald-900',   members:null },
-    { id:'meadowtcg',      name:'Meadow TCG',                short:'Meadow TCG',               emoji:'🌿', color:'from-green-500 to-lime-600',      members:null },
-    { id:'silvertcg',      name:'Silver TCG 🎴',             short:'Silver TCG',               emoji:'🥈', color:'from-gray-400 to-slate-600',      members:null },
-    { id:'tabernamento',   name:'TABERNA NERD - TIN...',     short:'TABERNA NERD',            emoji:'🍺', color:'from-amber-600 to-yellow-800',    members:null },
-    { id:'leilaorecovery', name:'LEILÃO RECOVERY 💎 100...',  short:'LEILÃO RECOVERY',        emoji:'💎', color:'from-cyan-600 to-blue-800',       members:null },
-    { id:'leilaomineral',  name:'LEILÃO DE MINERAL (PORTU...', short:'LEILÃO MINERAL',        emoji:'💎', color:'from-purple-700 to-indigo-900',   members:null },
-    { id:'collectfosso',   name:'COLLECTIVOS (PORTUGA...)',   short:'COLLECTIVOS PT',          emoji:'🇵🇹', color:'from-green-600 to-red-600',      members:null },
-    { id:'communiquedesc', name:'COMMUNIQUE - DESCONT...',   short:'COMMUNIQUE',              emoji:'📢', color:'from-blue-500 to-sky-600',        members:null },
-    { id:'yttstore',       name:'YTT STORE TCG 🎴',          short:'YTT STORE',               emoji:'🏬', color:'from-violet-500 to-purple-700',   members:null },
-    { id:'maranatcg',      name:'MaranaTCG TCG',             short:'MaranaTCG',               emoji:'✝️', color:'from-blue-700 to-indigo-900',    members:null },
-    { id:'andreatcgplus',  name:'Andreatcg+ Representante...', short:'Andreatcg+',             emoji:'👩‍💼', color:'from-pink-500 to-rose-600',   members:null },
-    { id:'reidobrasil',    name:'REI DO BRASIL PROMO...',    short:'REI DO BRASIL',           emoji:'👑', color:'from-yellow-500 to-green-600',    members:null },
-    { id:'yyt111store',    name:'YYT 111 STORE TCG 🎴',      short:'YYT 111 STORE',           emoji:'💯', color:'from-orange-500 to-red-600',      members:null },
-    { id:'pokemonoferta',  name:'POKEMON OFERTAS SHOPE...',  short:'POKEMON OFERTAS',         emoji:'🛍️', color:'from-yellow-400 to-orange-500',  members:null },
-    { id:'francisotcg',    name:'Franciscon Pokemon',        short:'Franciscon',               emoji:'🎲', color:'from-teal-400 to-cyan-600',       members:null },
-    { id:'youngtcg',       name:'YOUNG TCG 🎴🎴',            short:'YOUNG TCG',               emoji:'🌱', color:'from-lime-500 to-green-600',      members:null },
-    { id:'leilaonerd',     name:'LEILÃO NO BREAK (TURMA...', short:'LEILÃO NO BREAK',         emoji:'⚡', color:'from-yellow-600 to-orange-700',   members:null },
-    { id:'leilaobrasil',   name:'LEILÃO EM BREAK (TURMA...', short:'LEILÃO EM BREAK',         emoji:'🎪', color:'from-purple-500 to-pink-600',     members:null },
-    { id:'zapzaptcg',      name:'ZapZapCards',               short:'ZapZap Cards',             emoji:'⚡', color:'from-yellow-400 to-amber-500',    members:null },
-    { id:'plantasatopiche', name:'Plantas atopiche OE',      short:'Plantas atopiche',         emoji:'🌺', color:'from-green-400 to-emerald-600',   members:null },
-    { id:'maranatcg2',     name:'MaranaTCG TCG Cópia',       short:'MaranaTCG 2',              emoji:'✝️', color:'from-indigo-700 to-blue-900',    members:null },
-    { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
-  ];
-
-
-    const AuctioneerScreen = () => {
+  const AuctioneerScreen = () => {
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
@@ -1799,26 +1766,26 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    const [step,         setStep]         = useState(1);
-    const [form,         setForm]         = useState({
+    const [step,         setStep]         = React.useState(1);
+    const [form,         setForm]         = React.useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
       eventPhotos: [],
     });
-    const [cardQuery,       setCardQuery]      = useState('');
-    const [cardResults,     setCardResults]    = useState([]);
-    const [cardLoading,     setCardLoading]    = useState(false);
-    const [excluirComunsL,  setExcluirComunsL] = useState(false);
+    const [cardQuery,       setCardQuery]      = React.useState('');
+    const [cardResults,     setCardResults]    = React.useState([]);
+    const [cardLoading,     setCardLoading]    = React.useState(false);
+    const [excluirComunsL,  setExcluirComunsL] = React.useState(false);
     const cardDebounceRef = React.useRef(null);
-    const [groupSearch,  setGroupSearch]  = useState('');
-    const [savedGroups,  setSavedGroups]  = useState(
+    const [groupSearch,  setGroupSearch]  = React.useState('');
+    const [savedGroups,  setSavedGroups]  = React.useState(
       // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
       []
     );
-    const [auctionCards, setAuctionCards] = useState([]);
-    const [savedAuctions,setSavedAuctions]= useState([]);
-    const [showSuccess,  setShowSuccess]  = useState(false);
-    const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
+    const [auctionCards, setAuctionCards] = React.useState([]);
+    const [savedAuctions,setSavedAuctions]= React.useState([]);
+    const [showSuccess,  setShowSuccess]  = React.useState(false);
+    const [photoPreviewUrls, setPhotoPreviewUrls] = React.useState({ announcement: null, content: [] });
 
     const searchCards = (q) => {
       if (!q.trim()) { setCardResults([]); return; }
@@ -1880,54 +1847,67 @@ const App = () => {
     };
 
     const saveAuction = async () => {
-      setShowSuccess(false);
-      try {
-        // 1. Inserir o leilão na tabela leiloes
-        const leilaoData = {
-          titulo:             form.name,
-          organizador:        profile?.nome || user?.email || 'Leiloeiro',
-          grupo_id:           form.groupId || null,
-          data:               form.date,
-          horario:            form.time + ':00',
-          descricao:          form.description || `Leilão com ${auctionCards.length} cartas.`,
-          tipo_leilao:        form.auctionType,
-          metodos_pagamento:  form.paymentMethods || ['PIX'],
-          prazo_pagamento:    form.paymentDeadline || form.date,
-          whatsapp_link:      form.whatsappLink || null,
-          destaque:           false,
-          foto_anuncio:       form.announcementPhoto || null,
-          fotos_evento:       form.eventPhotos || [],
-          ativo:              true,
-        };
-        const leilaoSalvo = await sbDB.createLeilao(leilaoData);
-
-        // 2. Inserir cartas do leilão
-        if (auctionCards.length > 0) {
-          const cartasData = auctionCards.map((ac, idx) => ({
-            leilao_id:     leilaoSalvo.id,
-            nome:          ac.card.name,
-            numero:        ac.card.number || null,
-            set_nome:      ac.card.set?.name || ac.card.set || null,
-            raridade:      ac.card.rarity || null,
-            qualidade:     ac.quality || 'NM',
-            img_url:       ac.card.images?.large || ac.card.images?.small || null,
-            lance_minimo:  parseFloat(ac.minBid) || null,
-            incremento:    parseFloat(ac.increment) || null,
-            opcoes_poll:   ac.pollOptions?.filter(Boolean).map(Number) || null,
-            ordem:         idx,
-          }));
-          await sbDB.createCartas(cartasData);
-        }
-
-        // 3. Recarregar lista de leilões e ir para step 4
-        await loadEvents();
-        setShowSuccess(true);
-        setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
-      } catch(e) {
-        console.error('Erro ao salvar leilão:', e);
-        alert('Erro ao salvar leilão: ' + (e.message || 'Tente novamente.'));
+      const newAuction = {
+        ...form, id:Date.now(), status:'published', createdAt:new Date(),
+        title:form.name, time:form.time, organizer:'Dr. João Silva',
+        description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
+        featured:false,
+        whatsappLink: form.whatsappLink || '#',
+        paymentMethods:['PIX'], paymentDeadline:form.date,
+        auctionType: form.auctionType,
+        announcementPhoto: form.announcementPhoto || null,
+        eventPhotos: form.eventPhotos || [],
+        rawCards: auctionCards,
+        cards: auctionCards.map(ac=>({
+          name:ac.card.name, number:ac.card.number,
+          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
+          img:ac.card.images?.large||ac.card.images?.small,
+          comment:ac.comment, quality:ac.quality,
+          minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
+        })),
+      };
+      // Tentar salvar no Supabase
+      if (supabase) {
+        try {
+          const { data: leilao, error: le } = await sbDB.createLeilao({
+            titulo:            form.name,
+            organizador:       'Dr. João Silva',
+            data:              form.date,
+            horario:           form.time,
+            descricao:         newAuction.description,
+            tipo_leilao:       form.auctionType,
+            metodos_pagamento: ['PIX'],
+            prazo_pagamento:   form.date,
+            whatsapp_link:     form.whatsappLink || '#',
+            destaque:          false,
+            foto_anuncio:      form.announcementPhoto || null,
+            ativo:             true,
+          });
+          if (!le && leilao) {
+            const cartas = auctionCards.map((ac, idx) => ({
+              leilao_id:    leilao.id,
+              nome:         ac.card.name,
+              numero:       ac.card.number,
+              set_nome:     ac.card.set?.name,
+              raridade:     ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
+              qualidade:    ac.quality,
+              img_url:      ac.card.images?.large||ac.card.images?.small,
+              lance_minimo: ac.minBid,
+              incremento:   ac.increment,
+              opcoes_poll:  ac.pollOptions,
+              ordem:        idx,
+            }));
+            await sbDB.createCartas(cartas);
+            newAuction.id = leilao.id;
+          }
+        } catch(e) { console.warn('Supabase save failed, using local:', e); }
       }
+      setSavedAuctions(prev=>[...prev,newAuction]);
+      EVENTS.push(newAuction);
+      setShowSuccess(true);
+      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
     };
+
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
     };
@@ -2530,531 +2510,711 @@ const App = () => {
   /* ════════════════════════════════════════
      SALA DE LEILÃO AO VIVO 🔨
   ════════════════════════════════════════ */
-
-    const LiveAuctionRoom = ({ auction, onEnd }) => {
-    if (!auction) return null;
-    const cards = auction.rawCards || [];
-    const [cardIdx,   setCardIdx]   = useState(0);
-    const [phase,     setPhase]     = useState('waiting');
-    const [timer,     setTimer]     = useState(0);
-    const [timerMax,  setTimerMax]  = useState(60);
-    const [timerInput,setTimerInput]= useState('60');
-    const [bids,      setBids]      = useState({});
-    const [pollVotes, setPollVotes] = useState({});
-    const [chatMsgs,  setChatMsgs]  = useState([
-      {user:'Sistema',msg:'Bem-vindo à sala! Aguardando o leiloeiro iniciar.',ts:new Date(),system:true},
-    ]);
-    const [chatInput, setChatInput] = useState('');
-    const [showReport,setShowReport]= useState(false);
-    // uploads reais: {cardIdx: {front: File|null, back: File|null, video: File|null}}
-    const [uploads,   setUploads]   = useState({});
-    // config inline de bid quando não preenchido antes
-    const [inlineBid, setInlineBid] = useState({ minBid:'', increment:'', pollOptions:['',''] });
-    const [showConfirm, setShowConfirm] = useState(false); // confirmação antes de iniciar
-    const [participants] = useState([
-      {name:'Maria S.',phone:'(11)99999-0001'},
-      {name:'Carlos M.',phone:'(21)98888-0002'},
-      {name:'Ana P.',phone:'(31)97777-0003'},
-    ]);
-
-    const currentCard = cards[cardIdx];
-    const atype = auction.auctionType || 'free';
-
-    // Sincroniza inlineBid quando muda de carta
-    useEffect(()=>{
-      setInlineBid({
-        minBid: currentCard?.minBid || '',
-        increment: currentCard?.increment || '',
-        pollOptions: currentCard?.pollOptions?.length ? [...currentCard.pollOptions] : ['',''],
+      const LiveAuctionRoom = ({ auction, onEnd }) => {
+      if (!auction) return null;
+      const cards = auction.rawCards || [];
+      const atype = auction.auctionType || 'free';
+      const isFree = atype === 'free';
+      const isPoll = atype === 'poll';
+  
+      const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
+  
+      // ── FREE: estado carta-por-carta ─────────────────────────────
+      const [cardIdx,    setCardIdx]    = React.useState(0);
+      const [phase,      setPhase]      = React.useState('waiting');
+      const [timer,      setTimer]      = React.useState(0);
+      const [timerMax,   setTimerMax]   = React.useState(60);
+      const [timerInput, setTimerInput] = React.useState('60');
+      const [bids,       setBids]       = React.useState({});
+  
+      // ── POLL: estado por carta ────────────────────────────────────
+      const [pollBids,     setPollBids]     = React.useState({});
+      const [pollStatus,   setPollStatus]   = React.useState(() => {
+        const s = {}; cards.forEach((_,i) => { s[i] = 'open'; }); return s;
       });
-      setShowConfirm(false);
-    },[cardIdx]);
-
-    // Timer effect
-    useEffect(()=>{
-      if (phase!=='bidding' || timer<=0) return;
-      const t = setTimeout(()=>setTimer(p=>p-1),1000);
-      return ()=>clearTimeout(t);
-    },[phase,timer]);
-
-    useEffect(()=>{
-      if (phase==='bidding' && timer===0) {
-        setChatMsgs(p=>[...p,{user:'Sistema',msg:`⏱️ Tempo esgotado! Carta: ${currentCard?.card?.name}`,ts:new Date(),system:true}]);
+      const [pollArremate, setPollArremate] = React.useState({});
+      const [arrCountdown, setArrCountdown] = React.useState({});
+      // Modo revelação: null = não escolhido, 'all' = todas, 'one' = 1 a 1
+      const [pollMode,     setPollMode]     = React.useState(null);
+      // Quantas cartas o leiloeiro revelou no modo 'one'
+      const [pollRevealed, setPollRevealed] = React.useState(0);
+  
+      // ── Compartilhados ────────────────────────────────────────────
+      const [chatMsgs,    setChatMsgs]   = React.useState([
+        {user:'Sistema', msg:'Bem-vindo à sala! Aguardando o leiloeiro iniciar.', ts:new Date(), system:true},
+      ]);
+      const [chatInput,   setChatInput]  = React.useState('');
+      const [chatMedia,   setChatMedia]  = React.useState(null);   // {file, url, type}
+      const [showReport,  setShowReport] = React.useState(false);
+      const [uploads,     setUploads]    = React.useState({});
+      const [inlineBid,   setInlineBid]  = React.useState({minBid:'', increment:'', pollOptions:['','','']});
+      const [showConfirm, setShowConfirm]= React.useState(false);
+  
+      const currentCard     = cards[cardIdx];
+      const participants    = [{name:'Dr. João (leiloeiro)'}, {name:'Participante 1'}, {name:'Participante 2'}];
+      const effectiveMinBid = inlineBid.minBid    || currentCard?.minBid    || '';
+      const effectiveInc    = inlineBid.increment || currentCard?.increment  || '';
+  
+      // ── Timer countdown (FREE) ───────────────────────────────────
+      React.useEffect(() => {
+        if (phase !== 'bidding' || timer <= 0) return;
+        const t = setTimeout(() => setTimer(p => p - 1), 1000);
+        return () => clearTimeout(t);
+      }, [phase, timer]);
+  
+      React.useEffect(() => {
+        if (phase === 'bidding' && timer === 0) {
+          setChatMsgs(p => [...p, {user:'Sistema', msg:`⏱️ Tempo esgotado! Carta: ${currentCard?.card?.name}`, ts:new Date(), system:true}]);
+          setPhase('sold');
+        }
+      }, [timer, phase]);
+  
+      // ── Countdown arremate poll (3 min) ──────────────────────────
+      React.useEffect(() => {
+        const pending = Object.entries(pollStatus).filter(([,s]) => s === 'arremate_pending');
+        if (!pending.length) return;
+        const t = setInterval(() => {
+          setArrCountdown(prev => {
+            const next = {...prev};
+            pending.forEach(([idx]) => {
+              const i = parseInt(idx);
+              const cur = next[i] ?? 180;
+              if (cur <= 1) {
+                setPollStatus(p => ({...p, [i]: 'closed'}));
+                setChatMsgs(p => [...p, {user:'Sistema', msg:`🔒 Carta ${i+1} (${cards[i]?.card?.name}) FECHADA — arremate confirmado!`, ts:new Date(), system:true}]);
+                delete next[i];
+              } else { next[i] = cur - 1; }
+            });
+            return next;
+          });
+        }, 1000);
+        return () => clearInterval(t);
+      }, [pollStatus]);
+  
+      // ── FREE: funções ────────────────────────────────────────────
+      const startCard = () => {
+        const t = parseInt(timerInput) || 60;
+        setTimerMax(t); setTimer(t); setPhase('bidding');
+        setUploads(p => ({...p, [cardIdx]:{front:null,back:null,video:null}}));
+        setShowConfirm(false);
+        setChatMsgs(p => [...p, {user:'Sistema', msg:`🎴 Carta ${cardIdx+1}/${cards.length}: ${currentCard?.card?.name} | ${currentCard?.quality} | Lance mín: R$ ${effectiveMinBid} (+R$${effectiveInc}) | ⏱️ ${t}s`, ts:new Date(), system:true}]);
+      };
+  
+      const placeBid = (value, user='Dr. João (simulado)') => {
+        setBids(p => ({...p, [cardIdx]:[...(p[cardIdx]||[]), {user, value, ts:new Date()}]}));
+        setChatMsgs(p => [...p, {user, msg:`💰 Lance: R$ ${value}`, ts:new Date()}]);
+      };
+  
+      const markSold = () => {
         setPhase('sold');
-      }
-    },[timer,phase]);
-
-    // Valores efetivos: prefer inlineBid se foram editados, senão usa currentCard
-    const effectiveMinBid   = inlineBid.minBid   || currentCard?.minBid   || '';
-    const effectiveIncrement= inlineBid.increment || currentCard?.increment|| '';
-    const effectivePollOpts = inlineBid.pollOptions.some(Boolean)
-      ? inlineBid.pollOptions
-      : (currentCard?.pollOptions || []);
-
-    const needsConfig = atype==='free'
-      ? (!effectiveMinBid || !effectiveIncrement)
-      : !effectivePollOpts.filter(Boolean).length;
-
-    const startCard = () => {
-      const t = parseInt(timerInput)||60;
-      setTimerMax(t); setTimer(t); setPhase('bidding');
-      setUploads(p=>({...p,[cardIdx]:{front:null,back:null,video:null}}));
-      setShowConfirm(false);
-      const bidInfo = atype==='free'
-        ? `Lance mínimo: R$ ${effectiveMinBid} (+R$${effectiveIncrement})`
-        : `Poll aberta`;
-      setChatMsgs(p=>[...p,{
-        user:'Sistema',
-        msg:`🎴 Carta ${cardIdx+1}/${cards.length}: ${currentCard?.card?.name} | ${currentCard?.quality} | ${bidInfo}`,
-        ts:new Date(),system:true
-      }]);
-      if (atype==='poll') {
-        const opts = effectivePollOpts.filter(Boolean);
-        if (opts.length) setChatMsgs(p=>[...p,{user:'Sistema',msg:`📊 Opções: ${opts.map((v,i)=>`${i+1}) R$${v}`).join(' | ')}`,ts:new Date(),system:true}]);
-      }
-    };
-
-    const placeBid = (value, user='Dr. João (simulado)') => {
-      const entry = {user, value, ts:new Date()};
-      setBids(p=>({...p,[cardIdx]:[...(p[cardIdx]||[]),entry]}));
-      setChatMsgs(p=>[...p,{user,msg:`💰 Lance: R$ ${value}`,ts:new Date()}]);
-    };
-
-    const voteOption = (optIdx, user='Participante') => {
-      const entry = {user,ts:new Date()};
-      setPollVotes(p=>{
-        const card = p[cardIdx]||{};
-        return {...p,[cardIdx]:{...card,[optIdx]:[...(card[optIdx]||[]),entry]}};
-      });
-      setChatMsgs(p=>[...p,{user,msg:`🗳️ Votou: R$ ${currentCard?.pollOptions?.[optIdx]}`,ts:new Date()}]);
-    };
-
-    const markSold = () => { setPhase('sold'); setChatMsgs(p=>[...p,{user:'Sistema',msg:'🔨 VENDIDO!',ts:new Date(),system:true}]); };
-
-    const nextCard = () => {
-      if (cardIdx+1>=cards.length) { setPhase('ended'); setShowReport(true); return; }
-      setCardIdx(p=>p+1); setPhase('waiting'); setTimer(0);
-      setChatMsgs(p=>[...p,{user:'Sistema',msg:`➡️ Próxima carta: ${cards[cardIdx+1]?.card?.name}`,ts:new Date(),system:true}]);
-    };
-
-    const sendChat = () => {
-      if (!chatInput.trim()) return;
-      setChatMsgs(p=>[...p,{user:'Dr. João (leiloeiro)',msg:chatInput.trim(),ts:new Date()}]);
-      setChatInput('');
-    };
-
-    // Vencedor simulado por card
-    const getWinner = (idx) => {
-      const card = cards[idx];
-      if (!card) return null;
-      if (atype==='free') {
-        const cardBids = bids[idx]||[];
-        if (!cardBids.length) return null;
-        const top = [...cardBids].sort((a,b)=>b.value-a.value)[0];
-        return {...top, card};
-      } else {
-        const votes = pollVotes[idx]||{};
-        let best = null, bestCount = 0;
-        Object.entries(votes).forEach(([optIdx,arr])=>{ if(arr.length>bestCount){bestCount=arr.length;best={optIdx:+optIdx,arr,card};}});
-        if (!best) return null;
-        const firstVote = [...(best.arr)].sort((a,b)=>new Date(a.ts)-new Date(b.ts))[0];
-        return { user:firstVote.user, value:card.pollOptions?.[best.optIdx], ts:firstVote.ts, card };
-      }
-    };
-
-    const timerPct = timerMax>0?(timer/timerMax)*100:0;
-    const timerColor = timerPct>50?'bg-green-500':timerPct>20?'bg-yellow-500':'bg-red-500';
-
-    if (showReport) return (
-      <div className="p-4 space-y-4">
-        <div className="text-center py-4">
-          <div className="text-5xl mb-2">📋</div>
-          <h3 className="font-black text-xl text-gray-800">Relatório Final</h3>
-          <p className="text-sm text-gray-500">{auction.title}</p>
-        </div>
-        <div className="space-y-3">
-          {cards.map((ac,i)=>{
-            const w = getWinner(i);
-            return (
-              <div key={i} className={`rounded-xl border-2 p-3 flex items-center gap-3 ${w?'border-green-300 bg-green-50':'border-gray-200 bg-gray-50'}`}>
-                <img src={ac.card?.images?.small} alt="" className="h-14 w-auto object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-gray-800">{ac.card?.name}</p>
-                  <p className="text-xs text-gray-500">{ac.card?.number} · {ac.quality}</p>
-                  {w ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-black text-green-700">🏆 R$ {w.value} — {w.user}</p>
-                      <p className="text-[10px] text-gray-400">{new Date(w.ts).toLocaleTimeString('pt-BR')}</p>
-                    </div>
-                  ) : <p className="text-xs text-gray-400 mt-1">Sem lances</p>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-          <p className="font-bold text-sm text-gray-700 mb-2">📞 Contatos para entrega:</p>
-          {participants.map((p,i)=>(
-            <div key={i} className="flex justify-between text-xs py-1 border-b last:border-0">
-              <span className="font-semibold text-gray-700">{p.name}</span>
-              <span className="text-gray-500">{p.phone}</span>
-            </div>
-          ))}
-          <p className="text-[9px] text-gray-400 mt-2 italic">Informações compartilhadas conforme aceito no cadastro.</p>
-        </div>
-        <p className="text-[10px] text-center text-gray-400">A plataforma não é responsável pelo pagamento e envio das cartas.</p>
-        <button onClick={onEnd} className="w-full bg-gray-800 text-white py-3 rounded-xl font-bold">Encerrar e voltar ao painel</button>
-      </div>
-    );
-
-    return (
-      <div className="space-y-0">
-        {/* Status bar */}
-        <div className="bg-gray-800 text-white px-4 py-2 flex items-center justify-between text-xs">
-          <span className="font-bold">Carta {cardIdx+1}/{cards.length}</span>
-          <span className={`px-2 py-0.5 rounded-full font-bold ${phase==='waiting'?'bg-gray-600':phase==='bidding'?'bg-green-500':phase==='sold'?'bg-yellow-500':'bg-red-500'}`}>
-            {phase==='waiting'?'Aguardando':phase==='bidding'?'Lance aberto':phase==='sold'?'Vendido!':'Encerrado'}
-          </span>
-          <span className="text-gray-400">{participants.length} na sala</span>
-        </div>
-
-        {/* Carta atual */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4">
-          {currentCard && (
-            <div className="flex gap-4 items-start">
-              <div className="relative flex-shrink-0">
-                <img src={currentCard.card?.images?.large||currentCard.card?.images?.small}
-                  alt={currentCard.card?.name}
-                  className="h-32 w-auto object-contain rounded-xl shadow-2xl border-2 border-gray-600"
-                  onError={e=>e.target.style.display='none'} />
-                <span className={`absolute -top-1 -right-1 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]}`}>
-                  {currentCard.quality}
-                </span>
-              </div>
-              <div className="flex-1 text-white min-w-0">
-                <p className="font-black text-base leading-tight">{currentCard.card?.name}</p>
-                <p className="text-xs text-gray-400">{currentCard.card?.set?.name} · {currentCard.card?.number}</p>
-                {currentCard.ligaPrice && (
-                  <p className="text-xs text-green-400 mt-1">📊 Liga: R$ {currentCard.ligaPrice.toLocaleString('pt-BR')} ({currentCard.quality})*</p>
-                )}
-                {currentCard.comment && (
-                  <p className="text-xs text-gray-300 mt-1 italic">💬 {currentCard.comment}</p>
-                )}
-
-                {/* Upload real de foto/vídeo */}
-                <div className="flex gap-1.5 mt-2 flex-wrap">
-                  {[
-                    {key:'front', icon:'📷', label:'Frente', accept:'image/*'},
-                    {key:'back',  icon:'🔄', label:'Verso',  accept:'image/*'},
-                    {key:'video', icon:'🎥', label:'Vídeo',  accept:'video/*'},
-                  ].map(u=>{
-                    const uploaded = uploads[cardIdx]?.[u.key];
-                    return (
-                      <label key={u.key} className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1
-                        ${uploaded ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}>
-                        {u.icon} {uploaded ? `✓ ${uploaded.name.length>8?uploaded.name.slice(0,8)+'…':uploaded.name}` : u.label}
-                        <input type="file" accept={u.accept} className="hidden"
-                          onChange={e=>{
-                            const f = e.target.files?.[0]; if (!f) return;
-                            setUploads(p=>({...p,[cardIdx]:{...(p[cardIdx]||{}), [u.key]:f}}));
-                          }} />
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Timer */}
-          {phase==='bidding' && (
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-gray-300 mb-1">
-                <span>Tempo restante</span>
-                <span className={`font-black text-sm ${timer<=10?'text-red-400':'text-white'}`}>{timer}s</span>
-              </div>
-              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div className={`h-full ${timerColor} transition-all duration-1000 rounded-full`} style={{width:`${timerPct}%`}}></div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Controles do leiloeiro */}
-        <div className="bg-white border-b border-gray-200 p-3 space-y-3">
-          {phase==='waiting' && (
-            <div className="space-y-3">
-
-              {/* ── Config inline quando sem bid ── */}
-              {needsConfig && (
-                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span>⚠️</span>
-                    <p className="text-xs font-bold text-amber-800">
-                      {atype==='free' ? 'Configure lance mínimo e incremento antes de liberar.' : 'Configure as opções de poll antes de liberar.'}
-                    </p>
-                  </div>
-
-                  {atype==='free' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 block mb-1">LANCE MÍNIMO (R$)</label>
-                        <input
-                          value={inlineBid.minBid}
-                          onChange={e=>setInlineBid(p=>({...p,minBid:e.target.value}))}
-                          onKeyDown={e=>e.key==='Enter'&&e.preventDefault()}
-                          placeholder="Ex: 50" type="number" min="0"
-                          className="w-full px-3 py-2 border-2 border-amber-200 rounded-lg text-sm outline-none focus:border-amber-500 bg-white"/>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 block mb-1">INCREMENTO (R$)</label>
-                        <input
-                          value={inlineBid.increment}
-                          onChange={e=>setInlineBid(p=>({...p,increment:e.target.value}))}
-                          onKeyDown={e=>e.key==='Enter'&&e.preventDefault()}
-                          placeholder="Ex: 10" type="number" min="0"
-                          className="w-full px-3 py-2 border-2 border-amber-200 rounded-lg text-sm outline-none focus:border-amber-500 bg-white"/>
-                      </div>
-                    </div>
-                  )}
-
-                  {atype==='poll' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-500 block">OPÇÕES DE POLL (R$)</label>
-                      {inlineBid.pollOptions.map((opt,idx)=>(
-                        <div key={idx} className="flex gap-2 items-center">
-                          <span className="text-xs text-gray-500 w-12 flex-shrink-0 font-semibold">Opção {idx+1}</span>
-                          <input
-                            value={opt}
-                            onChange={e=>{
-                              const opts=[...inlineBid.pollOptions];
-                              opts[idx]=e.target.value;
-                              setInlineBid(p=>({...p,pollOptions:opts}));
-                            }}
-                            onKeyDown={e=>e.key==='Enter'&&e.preventDefault()}
-                            placeholder="R$ 0" type="number" min="0"
-                            className="flex-1 px-3 py-2 border-2 border-amber-200 rounded-lg text-sm outline-none focus:border-amber-500 bg-white"/>
-                          {inlineBid.pollOptions.length>2 && (
-                            <button onClick={()=>setInlineBid(p=>({...p,pollOptions:p.pollOptions.filter((_,j)=>j!==idx)}))}
-                              className="text-red-400 hover:text-red-600 text-xs font-bold px-1">✕</button>
-                          )}
-                        </div>
-                      ))}
-                      {inlineBid.pollOptions.length < 6 && (
-                        <button onClick={()=>setInlineBid(p=>({...p,pollOptions:[...p.pollOptions,'']}))}
-                          className="text-xs text-indigo-600 font-bold hover:text-indigo-800">
-                          + Adicionar opção
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Modal de confirmação inline ── */}
-              {showConfirm && !needsConfig && (
-                <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-3 space-y-2 fade-in">
-                  <p className="text-xs font-bold text-gray-700">✋ Confirmar antes de iniciar:</p>
-                  {atype==='free' ? (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p>Lance mínimo: <strong>R$ {effectiveMinBid}</strong></p>
-                      <p>Incremento: <strong>R$ {effectiveIncrement}</strong></p>
-                      <p>Timer: <strong>{timerInput}s</strong></p>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p>Opções de poll:</p>
-                      {effectivePollOpts.filter(Boolean).map((v,i)=><p key={i} className="font-semibold">• R$ {v}</p>)}
-                      <p>Timer: <strong>{timerInput}s</strong></p>
-                    </div>
-                  )}
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={startCard} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-600">
-                      ✓ Confirmar e Iniciar
-                    </button>
-                    <button onClick={()=>setShowConfirm(false)} className="px-3 py-2 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold">
-                      Voltar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Timer + botão */}
-              {!showConfirm && (
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">TIMER (segundos)</label>
-                    <input value={timerInput} onChange={e=>setTimerInput(e.target.value)}
-                      onKeyDown={e=>e.key==='Enter'&&e.preventDefault()}
-                      type="number" min="10"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm outline-none focus:border-gray-800" />
-                  </div>
-                  <button
-                    onClick={()=>{ if(!needsConfig) setShowConfirm(true); }}
-                    disabled={needsConfig}
-                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all
-                      ${needsConfig ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'}`}>
-                    {needsConfig ? '⚠️ Falta configurar' : '▶ Iniciar Carta'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {phase==='bidding' && atype==='free' && (
-            <div>
-              <p className="text-xs font-bold text-gray-600 mb-2">Lance mín: R$ {currentCard?.minBid||'—'} · Incremento: R$ {currentCard?.increment||'—'}</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[currentCard?.minBid,
-                  currentCard?.minBid&&currentCard?.increment?String(+currentCard.minBid + +currentCard.increment):null,
-                  currentCard?.minBid&&currentCard?.increment?String(+currentCard.minBid + 2*+currentCard.increment):null,
-                ].filter(Boolean).map((v,i)=>(
-                  <button key={i} onClick={()=>placeBid(v,'Participante (sim.)')}
-                    className="bg-blue-50 border-2 border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-100">
-                    R$ {v}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={markSold} className="flex-1 bg-red-500 text-white py-2 rounded-xl font-bold text-sm">🔨 Vendido!</button>
-                <button onClick={()=>setTimer(p=>p+15)} className="bg-gray-200 text-gray-700 px-3 py-2 rounded-xl text-sm font-bold">+15s</button>
-              </div>
-            </div>
-          )}
-
-          {phase==='bidding' && atype==='poll' && (
-            <div>
-              <p className="text-xs font-bold text-gray-600 mb-2">Votos dos participantes (simular):</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(currentCard?.pollOptions||[]).filter(Boolean).map((opt,i)=>{
-                  const count = (pollVotes[cardIdx]?.[i]||[]).length;
-                  const firstVote = (pollVotes[cardIdx]?.[i]||[]).sort((a,b)=>new Date(a.ts)-new Date(b.ts))[0];
-                  return (
-                    <button key={i} onClick={()=>voteOption(i,'Participante (sim.)')}
-                      className="bg-blue-50 border-2 border-blue-200 rounded-lg p-2 text-left hover:bg-blue-100">
-                      <p className="text-xs font-black text-blue-700">R$ {opt}</p>
-                      <p className="text-[10px] text-gray-500">{count} voto(s)</p>
-                      {firstVote && <p className="text-[9px] text-gray-400">1º: {new Date(firstVote.ts).toLocaleTimeString('pt-BR')}</p>}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={markSold} className="flex-1 bg-red-500 text-white py-2 rounded-xl font-bold text-sm">🔨 Encerrar Poll</button>
-                <button onClick={()=>setTimer(p=>p+15)} className="bg-gray-200 text-gray-700 px-3 py-2 rounded-xl text-sm font-bold">+15s</button>
-              </div>
-            </div>
-          )}
-
-          {phase==='sold' && (
-            <div className="space-y-2">
-              {(()=>{ const w=getWinner(cardIdx); return w?(
-                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-3 text-center">
-                  <p className="font-black text-yellow-800">🏆 R$ {w.value} — {w.user}</p>
-                  <p className="text-[10px] text-gray-500">{new Date(w.ts).toLocaleTimeString('pt-BR')}</p>
-                </div>
-              ):null; })()}
-              <button onClick={nextCard} className="w-full bg-gray-800 text-white py-3 rounded-xl font-bold text-sm">
-                {cardIdx+1>=cards.length?'📋 Ver Relatório Final':'➡️ Próxima Carta'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Chat */}
-        <div className="bg-white">
-          <div className="h-36 overflow-y-auto p-3 space-y-1.5 bg-gray-50">
-            {chatMsgs.map((m,i)=>(
+        setChatMsgs(p => [...p, {user:'Sistema', msg:'🔨 VENDIDO!', ts:new Date(), system:true}]);
+      };
+  
+      const nextCard = () => {
+        if (cardIdx + 1 >= cards.length) { setPhase('ended'); setShowReport(true); return; }
+        setCardIdx(p => p + 1); setPhase('waiting'); setTimer(0);
+        setChatMsgs(p => [...p, {user:'Sistema', msg:`➡️ Próxima carta: ${cards[cardIdx+1]?.card?.name}`, ts:new Date(), system:true}]);
+      };
+  
+      const getWinner = (idx) => {
+        const b = bids[idx]; if (!b?.length) return null;
+        return b.reduce((a,c) => (parseFloat(c.value) > parseFloat(a.value) ? c : a));
+      };
+  
+      // ── POLL: funções ────────────────────────────────────────────
+      const pollVote = (cardI, optIdx, user='Participante') => {
+        const card = cards[cardI];
+        const opts = card?.pollOptions || [];
+        const isMax = optIdx === opts.filter(Boolean).length - 1;
+        setPollBids(p => {
+          const c = p[cardI] || {};
+          return {...p, [cardI]: {...c, [optIdx]: [...(c[optIdx]||[]), {user, ts:new Date()}]}};
+        });
+        setChatMsgs(p => [...p, {user, msg:`🗳️ [Carta ${cardI+1}] ${card?.card?.name} — R$ ${opts[optIdx]}`, ts:new Date()}]);
+        if (isMax && pollStatus[cardI] === 'open') {
+          setPollStatus(p => ({...p, [cardI]: 'arremate_pending'}));
+          setArrCountdown(p => ({...p, [cardI]: 180}));
+          setPollArremate(p => ({...p, [cardI]: {optIdx, user, ts:new Date()}}));
+          setChatMsgs(p => [...p, {user:'Sistema', msg:`⚠️ ARREMATE! [Carta ${cardI+1}] ${card?.card?.name} — R$ ${opts[optIdx]} por ${user}. ⏳ 3 minutos para retirar!`, ts:new Date(), system:true}]);
+        }
+      };
+  
+      const retirarLance = (cardI) => {
+        setPollStatus(p => ({...p, [cardI]: 'open'}));
+        setArrCountdown(p => { const n={...p}; delete n[cardI]; return n; });
+        setPollArremate(p => { const n={...p}; delete n[cardI]; return n; });
+        setChatMsgs(p => [...p, {user:'Sistema', msg:`↩️ Lance retirado! [Carta ${cardI+1}] ${cards[cardI]?.card?.name} — aberta para novos lances.`, ts:new Date(), system:true}]);
+      };
+  
+      const fecharPollManual = (cardI) => {
+        setPollStatus(p => ({...p, [cardI]: 'closed'}));
+        setArrCountdown(p => { const n={...p}; delete n[cardI]; return n; });
+        setChatMsgs(p => [...p, {user:'Sistema', msg:`🔒 Carta ${cardI+1} (${cards[cardI]?.card?.name}) fechada pelo leiloeiro.`, ts:new Date(), system:true}]);
+      };
+  
+      const getPollWinner = (cardI) => {
+        const card = cards[cardI];
+        const opts = card?.pollOptions || [];
+        const bidsC = pollBids[cardI] || {};
+        for (let i = opts.filter(Boolean).length - 1; i >= 0; i--) {
+          if (bidsC[i]?.length) {
+            const last = bidsC[i][bidsC[i].length-1];
+            return {optIdx:i, value:opts[i], user:last.user, ts:last.ts};
+          }
+        }
+        return null;
+      };
+  
+      const revelarProxima = () => {
+        const next = pollRevealed + 1;
+        setPollRevealed(next);
+        const card = cards[next - 1];
+        setChatMsgs(p => [...p, {user:'Sistema', msg:`🎴 Carta ${next}/${cards.length} revelada: ${card?.card?.name} | ${card?.quality}`, ts:new Date(), system:true}]);
+      };
+  
+      // ── Chat com mídia ───────────────────────────────────────────
+      const sendChat = () => {
+        if (!chatInput.trim() && !chatMedia) return;
+        const msg = {
+          user: 'Dr. João (leiloeiro)',
+          msg:  chatInput.trim(),
+          ts:   new Date(),
+          media: chatMedia || null,
+        };
+        setChatMsgs(p => [...p, msg]);
+        setChatInput('');
+        setChatMedia(null);
+      };
+  
+      const handleChatMedia = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const url  = URL.createObjectURL(file);
+        const type = file.type.startsWith('video') ? 'video' : 'image';
+        setChatMedia({file, url, type, name: file.name});
+        e.target.value = '';
+      };
+  
+      const timerPct   = timerMax > 0 ? (timer/timerMax)*100 : 0;
+      const timerColor = timerPct > 50 ? 'bg-green-500' : timerPct > 20 ? 'bg-yellow-400' : 'bg-red-500';
+      const allPollClosed = cards.length > 0 && cards.every((_,i) => pollStatus[i]==='closed');
+  
+      // ── Componente Chat (reutilizado nos dois modos) ─────────────
+      const ChatBox = ({fixed=false}) => (
+        <div className={fixed ? 'fixed bottom-16 left-0 right-0 z-30 bg-white border-t shadow-2xl' : 'bg-white border-t'}>
+          {/* Mensagens */}
+          <div className="h-32 overflow-y-auto p-2 space-y-1.5 bg-gray-50">
+            {chatMsgs.slice(-30).map((m,i) => (
               <div key={i} className={`text-xs ${m.system?'text-center text-gray-400 italic':''}`}>
                 {!m.system && <span className="font-bold text-gray-700">{m.user}: </span>}
-                <span className={m.system?'':'text-gray-600'}>{m.msg}</span>
-                {!m.system && <span className="text-gray-300 ml-1">{new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+                {m.msg && <span className={m.system?'':'text-gray-600'}>{m.msg}</span>}
+                {m.media && m.media.type==='image' && (
+                  <img src={m.media.url} alt="foto" className="mt-1 max-h-32 rounded-lg border border-gray-200 object-contain" />
+                )}
+                {m.media && m.media.type==='video' && (
+                  <video src={m.media.url} controls className="mt-1 max-h-32 rounded-lg border border-gray-200 w-full" />
+                )}
+                {!m.system && <span className="text-gray-300 ml-1 text-[10px]">{new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>}
               </div>
             ))}
           </div>
-          <div className="flex gap-2 p-2 border-t">
+          {/* Preview mídia */}
+          {chatMedia && (
+            <div className="px-2 pt-1.5 flex items-center gap-2 bg-blue-50 border-t border-blue-100">
+              {chatMedia.type==='image'
+                ? <img src={chatMedia.url} className="h-10 w-10 object-cover rounded-lg border border-blue-200" />
+                : <span className="text-2xl">🎥</span>
+              }
+              <span className="text-[11px] text-blue-700 font-semibold flex-1 truncate">{chatMedia.name}</span>
+              <button onClick={()=>setChatMedia(null)} className="text-red-400 text-lg font-black px-1">×</button>
+            </div>
+          )}
+          {/* Input */}
+          <div className="flex gap-1.5 p-2 border-t items-center">
+            <label className="flex-shrink-0 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center cursor-pointer transition-all" title="Anexar foto/vídeo">
+              📎
+              <input type="file" accept="image/*,video/*" className="hidden" onChange={handleChatMedia} />
+            </label>
             <input value={chatInput} onChange={e=>setChatInput(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&sendChat()}
-              placeholder="Mensagem para a sala…"
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-gray-800" />
-            <button onClick={sendChat} className="bg-gray-800 text-white px-4 py-2 rounded-xl text-xs font-bold">Enviar</button>
+              placeholder={chatMedia ? 'Legenda (opcional)…' : 'Mensagem para a sala…'}
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-gray-800 bg-white" />
+            <button onClick={sendChat} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${chatInput.trim()||chatMedia?'bg-gray-800 text-white':'bg-gray-200 text-gray-400'}`}>
+              Enviar
+            </button>
           </div>
         </div>
-      </div>
-    );
-  };
-
-  /* ════════════════════════════════════════
-     TELA PERFIL — com acesso ao painel leiloeiro
-  ════════════════════════════════════════ */
-
-    const ProfileScreen = () => {
-      const avatarLetter = (profile?.nome || user?.email || 'U')[0].toUpperCase();
-      const [loggingOut, setLoggingOut] = React.useState(false);
+      );
   
-      const doLogout = async () => {
-        setLoggingOut(true);
-        await sbAuth.signOut();
-        // onAuthChange cuida de voltar para login
-      };
+      // ════════════════════════════════════════════════════════════
+      // UI POLL
+      // ════════════════════════════════════════════════════════════
+      if (isPoll) {
+        // Tela de escolha do modo (antes de começar)
+        if (pollMode === null) return (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-purple-900 flex flex-col items-center justify-center p-6 gap-6">
+            <div className="text-center text-white mb-2">
+              <p className="text-3xl mb-2">🗳️</p>
+              <p className="font-black text-xl">{auction.title}</p>
+              <p className="text-indigo-200 text-sm mt-1">{cards.length} cartas no leilão</p>
+            </div>
+            <p className="text-white font-bold text-center">Como deseja revelar as cartas?</p>
+            <button onClick={()=>{ setPollMode('one'); setPollRevealed(0); }}
+              className="w-full max-w-sm bg-white rounded-2xl p-5 text-left shadow-xl hover:scale-[1.02] transition-all">
+              <p className="text-2xl mb-1">🃏</p>
+              <p className="font-black text-gray-900 text-base">Uma a uma</p>
+              <p className="text-gray-500 text-sm mt-1">Você controla quando cada carta aparece. Ideal para comentar e criar expectativa antes de liberar os lances.</p>
+            </button>
+            <button onClick={()=>{ setPollMode('all'); setPollRevealed(cards.length); }}
+              className="w-full max-w-sm bg-white/15 border-2 border-white/30 rounded-2xl p-5 text-left hover:bg-white/20 transition-all">
+              <p className="text-2xl mb-1">🎴</p>
+              <p className="font-black text-white text-base">Todas de uma vez</p>
+              <p className="text-indigo-200 text-sm mt-1">Todas as cartas ficam visíveis imediatamente. Participantes podem dar lances em qualquer carta.</p>
+            </button>
+          </div>
+        );
   
-      return (
-      <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
-        <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
-          <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
-          <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
-        </div>
-        <div className="px-4 -mt-10 space-y-4">
-          {/* Card principal */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">
-                {avatarLetter}
-              </div>
-              <div>
-                <p className="text-xl font-black text-gray-800">{profile?.nome || 'Usuário'}</p>
-                <p className="text-gray-500 text-sm">{user?.email}</p>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAuctioneer ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {isAuctioneer ? '🏆 Leiloeiro' : '🎴 Colecionador'}
-                </span>
+        // Cartas reveladas até agora
+        const visibleCards = cards.slice(0, pollRevealed);
+        const hasMore = pollRevealed < cards.length;
+  
+        return (
+          <div className="space-y-0 pb-52">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-700 to-purple-700 text-white px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-black text-sm">{auction.title}</p>
+                  <p className="text-indigo-200 text-xs mt-0.5">🗳️ Poll — {pollMode==='one'?'revelação 1 a 1':'todas reveladas'}</p>
+                </div>
+                <div className="text-right text-xs text-indigo-200">
+                  <p>{cards.filter((_,i)=>pollStatus[i]==='closed').length}/{cards.length} fechadas</p>
+                  <p>{pollRevealed}/{cards.length} reveladas</p>
+                </div>
               </div>
             </div>
-          </div>
   
-          {/* Wanted List */}
-          <div className="bg-white rounded-2xl shadow p-4">
-            <p className="font-black text-gray-700 mb-3">⭐ Wanted List ({wantedList.length} cartas)</p>
-            {wantedList.length === 0
-              ? <p className="text-gray-400 text-sm text-center py-4">Nenhuma carta salva ainda.<br/>Use a aba Busca para adicionar.</p>
-              : <div className="space-y-2">
-                  {wantedList.map(card => (
-                    <div key={card.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
-                      <img src={card.images?.small || card.img} className="h-12 w-auto rounded" onError={e=>e.target.style.display='none'} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{card.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{card.set?.name || card.set}</p>
-                      </div>
-                      <button onClick={()=>removeWanted(card.id)} className="text-red-400 hover:text-red-600 text-lg flex-shrink-0">✕</button>
+            {/* Botão revelar próxima (modo one-by-one) */}
+            {pollMode==='one' && hasMore && (
+              <div className="px-3 pt-3">
+                <button onClick={revelarProxima}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]">
+                  🎴 Revelar carta {pollRevealed+1}/{cards.length}
+                  {cards[pollRevealed] && <span className="opacity-70 font-normal text-xs">— {cards[pollRevealed]?.card?.name}</span>}
+                </button>
+              </div>
+            )}
+  
+            {/* Nenhuma carta revelada ainda */}
+            {pollRevealed === 0 && (
+              <div className="mx-3 mt-3 bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-8 text-center">
+                <p className="text-3xl mb-2">🃏</p>
+                <p className="font-bold text-indigo-700">Nenhuma carta revelada ainda</p>
+                <p className="text-indigo-400 text-sm mt-1">Clique acima para revelar a primeira carta</p>
+              </div>
+            )}
+  
+            {/* Cards revelados */}
+            <div className="px-3 py-3 space-y-3">
+              {visibleCards.map((c, cardI) => {
+                const opts       = c?.pollOptions || c?.card?.pollOptions || [];
+                const status     = pollStatus[cardI] || 'open';
+                const winner     = getPollWinner(cardI);
+                const arr        = pollArremate[cardI];
+                const secs       = arrCountdown[cardI];
+                const bidsC      = pollBids[cardI] || {};
+                const isClosed   = status === 'closed';
+                const isPending  = status === 'arremate_pending';
+  
+                return (
+                  <div key={cardI} className={`bg-white rounded-2xl shadow-md overflow-hidden border-2 ${
+                    isClosed  ? 'border-gray-200 opacity-70' :
+                    isPending ? 'border-orange-400 ring-2 ring-orange-200' :
+                    'border-purple-200'
+                  }`}>
+                    {/* Status badge */}
+                    <div className={`px-4 py-1.5 flex items-center justify-between text-[11px] font-black ${
+                      isClosed  ? 'bg-gray-100 text-gray-500' :
+                      isPending ? 'bg-orange-100 text-orange-700' :
+                      'bg-purple-50 text-purple-700'
+                    }`}>
+                      <span>Carta {cardI+1} de {cards.length}</span>
+                      <span>
+                        {isClosed  ? '🔒 Fechada' :
+                         isPending ? `⚠️ ARREMATE — ${Math.floor((secs||0)/60)}:${String((secs||0)%60).padStart(2,'0')}` :
+                         '🟢 Aberta'}
+                      </span>
                     </div>
-                  ))}
+  
+                    {/* Corpo */}
+                    <div className="p-3 flex gap-3">
+                      <div className="flex-shrink-0 relative">
+                        <img src={c?.card?.images?.large || c?.card?.images?.small || c?.card?.img}
+                          alt={c?.card?.name}
+                          className="h-28 w-auto rounded-xl border border-gray-200 shadow-sm object-contain"
+                          onError={e=>e.target.style.display='none'} />
+                        <span className={`absolute -top-1 -right-1 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[c?.quality]||'bg-gray-400'}`}>
+                          {c?.quality}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-gray-900 text-sm leading-tight">{c?.card?.name}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{c?.card?.set?.name || c?.card?.set} · {c?.card?.number}</p>
+                        {c?.comment && <p className="text-[11px] text-gray-500 italic mt-1">💬 {c.comment}</p>}
+  
+                        {/* Winner fechada */}
+                        {isClosed && winner && (
+                          <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl p-2">
+                            <p className="text-xs font-black text-yellow-800">🏆 R$ {winner.value}</p>
+                            <p className="text-[10px] text-gray-500">{winner.user}</p>
+                          </div>
+                        )}
+                        {isClosed && !winner && <p className="mt-2 text-xs text-gray-400 italic">Sem lances</p>}
+  
+                        {/* Arremate pendente */}
+                        {isPending && arr && (
+                          <div className="mt-2 bg-orange-50 border border-orange-200 rounded-xl p-2">
+                            <p className="text-xs font-black text-orange-800">⚡ R$ {opts[arr.optIdx]} — {arr.user}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex-1 h-1.5 bg-orange-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-orange-500 transition-all duration-1000 rounded-full"
+                                  style={{width:`${((secs||0)/180)*100}%`}} />
+                              </div>
+                              <span className="text-[10px] font-black text-orange-700 tabular-nums">
+                                {Math.floor((secs||0)/60)}:{String((secs||0)%60).padStart(2,'0')}
+                              </span>
+                            </div>
+                            <button onClick={()=>retirarLance(cardI)}
+                              className="mt-1.5 w-full bg-orange-500 text-white text-[11px] font-black py-1.5 rounded-lg">
+                              ↩️ Retirar lance
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+  
+                    {/* Opções de lance */}
+                    {!isClosed && (
+                      <div className="px-3 pb-3 space-y-2">
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Lance:</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {opts.filter(Boolean).map((opt, optIdx) => {
+                            const count  = bidsC[optIdx]?.length || 0;
+                            const isMax  = optIdx === opts.filter(Boolean).length - 1;
+                            return (
+                              <button key={optIdx}
+                                disabled={isPending}
+                                onClick={()=>pollVote(cardI, optIdx, 'Participante (sim.)')}
+                                className={`p-2 rounded-xl border-2 text-left transition-all disabled:opacity-40 active:scale-[0.97] ${
+                                  isMax ? 'border-red-300 bg-red-50 hover:bg-red-100' :
+                                  count ? 'border-blue-300 bg-blue-50 hover:bg-blue-100' :
+                                  'border-gray-200 bg-white hover:border-blue-300'
+                                }`}>
+                                <p className={`text-xs font-black ${isMax?'text-red-700':'text-blue-700'}`}>
+                                  {isMax?'🔨 ':''}R$ {opt}
+                                </p>
+                                <p className="text-[10px] text-gray-400">{count} lance(s)</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button onClick={()=>fecharPollManual(cardI)}
+                          className="w-full text-[10px] text-gray-400 hover:text-red-500 py-1 border border-dashed border-gray-200 rounded-lg hover:border-red-300 transition-all">
+                          🔒 Fechar carta manualmente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+  
+            {/* Encerrar */}
+            {allPollClosed && (
+              <div className="px-3 pb-3">
+                <button onClick={()=>setShowReport(true)}
+                  className="w-full bg-gray-800 text-white py-3.5 rounded-xl font-black text-sm">
+                  📋 Ver Relatório Final
+                </button>
+              </div>
+            )}
+  
+            {/* Relatório */}
+            {showReport && (
+              <div className="fixed inset-0 bg-black/80 z-[9999] flex items-end justify-center"
+                onClick={e=>{ if(e.target===e.currentTarget) setShowReport(false); }}>
+                <div className="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6"
+                  onClick={e=>e.stopPropagation()}>
+                  <h2 className="text-xl font-black text-gray-900 mb-4">📋 Relatório — {auction.title}</h2>
+                  <div className="space-y-2">
+                    {cards.map((c,i) => {
+                      const w = getPollWinner(i);
+                      return (
+                        <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100">
+                          <div>
+                            <p className="font-bold text-sm text-gray-800">{c?.card?.name}</p>
+                            <p className="text-[11px] text-gray-400">{c?.card?.set?.name||c?.card?.set} · {c?.quality}</p>
+                          </div>
+                          {w
+                            ? <div className="text-right"><p className="font-black text-green-600 text-sm">R$ {w.value}</p><p className="text-[10px] text-gray-400">{w.user}</p></div>
+                            : <span className="text-xs text-gray-400">Sem lance</span>
+                          }
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button onClick={()=>{ setShowReport(false); onEnd && onEnd(); }}
+                    className="w-full mt-4 bg-gray-800 text-white py-3 rounded-xl font-black">
+                    Encerrar Sala
+                  </button>
                 </div>
-            }
+              </div>
+            )}
+  
+            {/* Chat fixo no rodapé */}
+            <ChatBox fixed={true} />
+          </div>
+        );
+      }
+  
+      // ════════════════════════════════════════════════════════════
+      // UI FREE (arremates) — carta por carta com timer
+      // ════════════════════════════════════════════════════════════
+      const needsConfig = !effectiveMinBid || !effectiveInc;
+  
+      return (
+        <div className="space-y-0">
+          {/* Status bar */}
+          <div className="bg-gray-800 text-white px-4 py-2 flex items-center justify-between text-xs">
+            <span className="font-bold">Carta {cardIdx+1}/{cards.length}</span>
+            <span className={`px-2 py-0.5 rounded-full font-bold ${
+              phase==='waiting'?'bg-gray-600':phase==='bidding'?'bg-green-500':phase==='sold'?'bg-yellow-500':'bg-red-500'
+            }`}>
+              {phase==='waiting'?'Aguardando':phase==='bidding'?'Lance aberto':phase==='sold'?'Vendido!':'Encerrado'}
+            </span>
+            <span className="text-gray-400">{participants.length} na sala</span>
           </div>
   
-          {/* Sair */}
-          <button onClick={doLogout} disabled={loggingOut}
-            className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100 disabled:opacity-60">
-            {loggingOut ? '⏳ Saindo...' : '🚪 Sair da conta'}
-          </button>
+          {/* Carta atual */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4">
+            {currentCard && (
+              <div className="flex gap-4 items-start">
+                <div className="relative flex-shrink-0">
+                  <img src={currentCard.card?.images?.large || currentCard.card?.images?.small || currentCard.card?.img}
+                    alt={currentCard.card?.name}
+                    className="h-32 w-auto object-contain rounded-xl shadow-2xl border-2 border-gray-600"
+                    onError={e=>e.target.style.display='none'} />
+                  <span className={`absolute -top-1 -right-1 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]||'bg-gray-400'}`}>
+                    {currentCard.quality}
+                  </span>
+                </div>
+                <div className="flex-1 text-white min-w-0">
+                  <p className="font-black text-base leading-tight">{currentCard.card?.name}</p>
+                  <p className="text-xs text-gray-400">{currentCard.card?.set?.name||currentCard.card?.set} · {currentCard.card?.number}</p>
+                  {currentCard.ligaPrice && <p className="text-xs text-green-400 mt-1">📊 Liga: R$ {currentCard.ligaPrice.toLocaleString('pt-BR')} ({currentCard.quality})*</p>}
+                  {currentCard.comment && <p className="text-xs text-gray-300 mt-1 italic">💬 {currentCard.comment}</p>}
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {[{key:'front',icon:'📷',label:'Frente',accept:'image/*'},{key:'back',icon:'🔄',label:'Verso',accept:'image/*'},{key:'video',icon:'🎥',label:'Vídeo',accept:'video/*'}].map(u=>{
+                      const up = uploads[cardIdx]?.[u.key];
+                      return (
+                        <label key={u.key} className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1 ${up?'bg-green-500 text-white':'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}>
+                          {u.icon} {up ? `✓ ${up.name.slice(0,8)}…` : u.label}
+                          <input type="file" accept={u.accept} className="hidden"
+                            onChange={e=>{const f=e.target.files?.[0];if(!f)return;setUploads(p=>({...p,[cardIdx]:{...(p[cardIdx]||{}),[u.key]:f}}));}} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            {phase==='bidding' && (
+              <div className="mt-3">
+                <div className="flex justify-between text-xs text-gray-300 mb-1">
+                  <span>Tempo restante</span>
+                  <span className={`font-black text-sm ${timer<=10?'text-red-400':'text-white'}`}>{timer}s</span>
+                </div>
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div className={`h-full ${timerColor} transition-all duration-1000 rounded-full`} style={{width:`${timerPct}%`}}></div>
+                </div>
+              </div>
+            )}
+          </div>
   
-          <div className="text-center text-gray-300 text-xs pb-4">PokEventos v1.0 • Supabase Edition</div>
+          {/* Controles */}
+          <div className="bg-white border-b border-gray-200 p-3 space-y-3">
+            {phase==='waiting' && (
+              <div className="space-y-3">
+                {needsConfig && (
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-bold text-amber-800">⚠️ Configure lance mínimo e incremento.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Lance mín.</label>
+                        <input type="number" value={inlineBid.minBid} onChange={e=>setInlineBid(p=>({...p,minBid:e.target.value}))}
+                          placeholder="R$ 0" className="w-full border border-amber-300 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-amber-500 mt-0.5" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Incremento</label>
+                        <input type="number" value={inlineBid.increment} onChange={e=>setInlineBid(p=>({...p,increment:e.target.value}))}
+                          placeholder="R$ 0" className="w-full border border-amber-300 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-amber-500 mt-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-600">⏱️ Timer:</span>
+                  <input type="number" value={timerInput} onChange={e=>setTimerInput(e.target.value)}
+                    className="w-20 border border-gray-300 rounded-xl px-3 py-1.5 text-sm font-bold text-center outline-none focus:border-gray-600" />
+                  <span className="text-xs text-gray-400">segundos</span>
+                  <div className="flex gap-1 ml-auto">
+                    {[30,60,90,120].map(v=>(
+                      <button key={v} onClick={()=>setTimerInput(String(v))}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${timerInput===String(v)?'bg-gray-800 text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {v}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={startCard} disabled={needsConfig}
+                  className="w-full bg-green-500 text-white py-3 rounded-xl font-black text-sm disabled:opacity-40 hover:bg-green-600">
+                  ▶ Liberar Lance — {currentCard?.card?.name}
+                </button>
+              </div>
+            )}
+            {phase==='bidding' && (
+              <div className="space-y-2">
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+                  <p className="text-xs text-gray-600">Lance mínimo: <span className="font-black text-blue-700">R$ {effectiveMinBid}</span></p>
+                  <p className="text-xs text-gray-600">Incremento: <span className="font-black text-blue-700">+R$ {effectiveInc}</span></p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {[effectiveMinBid, parseFloat(effectiveMinBid||0)+parseFloat(effectiveInc||0), parseFloat(effectiveMinBid||0)+2*parseFloat(effectiveInc||0)].filter(v=>v>0).map((v,i)=>(
+                    <button key={i} onClick={()=>placeBid(v)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700">R$ {v}</button>
+                  ))}
+                  <button onClick={()=>setTimer(p=>p+15)} className="bg-gray-200 text-gray-700 px-3 py-2 rounded-xl text-xs font-bold">+15s</button>
+                  <button onClick={markSold} className="bg-red-500 text-white px-3 py-2 rounded-xl text-xs font-bold">🔨 Encerrar</button>
+                </div>
+                {bids[cardIdx]?.length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-2 max-h-24 overflow-y-auto">
+                    {[...bids[cardIdx]].reverse().slice(0,5).map((b,i)=>(
+                      <div key={i} className="flex justify-between text-xs py-0.5">
+                        <span className="text-gray-600">{b.user}</span>
+                        <span className="font-bold text-green-700">R$ {b.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {phase==='sold' && (
+              <div className="space-y-2">
+                {(()=>{ const w=getWinner(cardIdx); return w?(
+                  <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-3 text-center">
+                    <p className="font-black text-yellow-800">🏆 R$ {w.value} — {w.user}</p>
+                    <p className="text-[10px] text-gray-500">{new Date(w.ts).toLocaleTimeString('pt-BR')}</p>
+                  </div>
+                ):null; })()}
+                <button onClick={nextCard} className="w-full bg-gray-800 text-white py-3 rounded-xl font-bold text-sm">
+                  {cardIdx+1>=cards.length ? '📋 Ver Relatório Final' : '➡️ Próxima Carta'}
+                </button>
+              </div>
+            )}
+            {phase==='ended' && showReport && (
+              <div className="space-y-2">
+                <p className="font-black text-center text-gray-800">📋 Leilão Encerrado</p>
+                {cards.map((c,i)=>{ const w=getWinner(i); return (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <div><p className="font-bold text-xs text-gray-800">{c?.card?.name}</p><p className="text-[10px] text-gray-400">{c?.quality}</p></div>
+                    {w ? <div className="text-right"><p className="font-black text-xs text-green-600">R$ {w.value}</p><p className="text-[10px] text-gray-400">{w.user}</p></div>
+                       : <span className="text-[10px] text-gray-400">Sem lance</span>}
+                  </div>
+                ); })}
+                <button onClick={()=>onEnd&&onEnd()} className="w-full bg-gray-800 text-white py-3 rounded-xl font-black text-sm mt-2">Encerrar Sala</button>
+              </div>
+            )}
+          </div>
+  
+          {/* Chat com mídia */}
+          <ChatBox fixed={false} />
         </div>
-      </div>
       );
     };
 
+  const ProfileScreen = () => (
+    <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
+      <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
+        <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
+        <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
+      </div>
+      <div className="px-4 -mt-10 space-y-4">
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">D</div>
+            <div>
+              <p className="text-xl font-black text-gray-800">Dr. João Silva</p>
+              <p className="text-gray-500 text-sm">joao@email.com</p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
+                {isAuctioneer && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
+              </div>
+            </div>
+          </div>
 
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-100"><p className="text-2xl font-black text-blue-600">{checkins.length}</p><p className="text-xs text-gray-500 font-semibold">Check-ins</p></div>
+            <div className="bg-yellow-50 rounded-xl p-3 text-center border-2 border-yellow-100"><p className="text-2xl font-black text-yellow-600">{wantedList.length}</p><p className="text-xs text-gray-500 font-semibold">Wanted</p></div>
+            <div className="bg-purple-50 rounded-xl p-3 text-center border-2 border-purple-100"><p className="text-2xl font-black text-purple-600">{EVENTS.length}</p><p className="text-xs text-gray-500 font-semibold">Leilões</p></div>
+          </div>
 
+          {/* Histórico de buscas */}
+          {searchLog.length>0 && (
+            <div className="mb-5 bg-white rounded-2xl border-2 border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2"><span className="text-lg">🔍</span><p className="font-bold text-gray-700 text-sm">Minhas buscas recentes</p></div>
+                <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded-full border">{Math.min(searchLog.length,15)}</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {[...searchLog].sort((a,b)=>new Date(b.last)-new Date(a.last)).slice(0,15).map((item,i)=>(
+                  <button key={i} onClick={()=>setScreen('search')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 bg-gray-100 group-hover:bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm">🎴</span></div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700">{item.query}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(item.last).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}{item.count>1&&<span className="ml-2 bg-gray-100 text-gray-500 px-1.5 rounded-full">{item.count}x</span>}</p>
+                      </div>
+                    </div>
+                    <span className="text-gray-300 group-hover:text-blue-400">→</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <button onClick={()=>setScreen('home')}     className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">🏠 Meus Leilões</button>
+            <button onClick={()=>setScreen('calendar')} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">📅 Calendário</button>
+            <button onClick={()=>setScreen('wanted')}   className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl font-semibold border border-yellow-200 text-sm hover:bg-yellow-100">⭐ Wanted List {wantedList.length>0&&`(${wantedList.length})`}</button>
+
+            {/* Área exclusiva leiloeiro */}
+            {isAuctioneer && (
+              <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Área do Leiloeiro</p>
+                <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
+                  🔨 Criar Novo Leilão
+                </button>
+              </div>
+            )}
+
+            <button onClick={()=>setScreen('login')} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
+          </div>
+        </div>
+      </div>
+      <BottomNav current="profile" />
+    </div>
+  );
+
+  /* ─── ROTEAMENTO ─── */
   return (
     <div className="w-full min-h-screen">
       {screen==='login'      && <LoginScreen />}
@@ -3069,7 +3229,7 @@ const App = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />))));
 </script>
 </body>
 </html>
