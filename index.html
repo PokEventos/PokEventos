@@ -1304,7 +1304,7 @@ const App = () => {
                 className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 text-lg font-black">›</button>
             </div>
             <div className="grid grid-cols-7 gap-0.5 mb-1">
-              {['D','S','T','Q','Q','S','S'].map((d,i) =>
+              {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d,i) =>
                 <div key={i} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>
               )}
             </div>
@@ -1324,7 +1324,7 @@ const App = () => {
                         hasWanted      ? 'bg-yellow-100 border-2 border-yellow-400 text-gray-800' :
                         hasEv          ? 'bg-yellow-50 border-2 border-yellow-300 text-gray-800 hover:bg-yellow-100' :
                         'text-gray-400 hover:bg-gray-100'}`}>
-                    <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
+                    <span className="text-2xl font-black opacity-30 leading-none">{date.getDate()}</span>
                     {hasEv && (
                       <div className="flex gap-0.5 mt-0.5">
                         {dayEv.slice(0,3).map((_,i) =>
