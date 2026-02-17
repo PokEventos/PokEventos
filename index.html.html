@@ -60,9 +60,9 @@ const EVENTS = [
     whatsappLink:'https://chat.whatsapp.com/exemplo1',
     description:'Leilão especial com cartas raras em excelente estado!', featured:true,
     cards:[
-      { name:'Charizard VMAX', number:'020/189', set:'Darkness Ablaze', rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Pikachu VMAX',   number:'044/185', set:'Vivid Voltage',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Mewtwo V',       number:'030/192', set:'Rebel Clash',     rarity:'rare',       img:TCG.mewtwov       },
+      { name:'Charizard VMAX',   number:'020/189', set:'Darkness Ablaze', rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Pikachu VMAX',     number:'044/185', set:'Vivid Voltage',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Mewtwo V',         number:'030/192', set:'Rebel Clash',     rarity:'rare',       img:TCG.mewtwov       },
     ],
   },
   {
@@ -87,34 +87,109 @@ const EVENTS = [
       { name:'Venusaur',  number:'015/102', set:'Base Set', rarity:'holo', img:TCG.venusaur  },
     ],
   },
-  /* ── EVENTO DEMO — criado a partir das fotos enviadas ── */
+
+  // ── Novos leilões — próximos 4 dias ──────────────────────────────
+
   {
-    id:4,
-    title:'First Edition TCG 💎',
-    date:'2026-02-15',
-    time:'19:00',
-    organizer:'First Edition TCG',
-    paymentMethods:['PIX'],
-    paymentDeadline:'2026-02-15',
-    whatsappLink:'https://chat.whatsapp.com/FirstEditionTCG',
-    description:'Leilão com cartas japonesas modernas, slabs graduadas e vintage! Teremos vários brindes. ✨',
+    id:5,
+    title:'🔥 Escarlate & Violeta — Ultra Rares & Special IRs',
+    date:'2026-02-18', time:'20:00',
+    organizer:'Raridades TCG',
+    groupId:'raridades',
+    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-20',
+    whatsappLink:'https://chat.whatsapp.com/leilao-sv',
+    description:'As melhores cartas da era Escarlate e Violeta! Special IRs, Illustration Rares e Ultra Rares em perfeito estado.',
     featured:true,
-    auctionType:'free',
-    // Fotos do conteúdo do leilão (as 3 fotos de cartas — sem a do anúncio)
-    eventPhotos:[
-      '/mnt/user-data/uploads/WhatsApp_Image_2026-02-14_at_23_24_19__2_.jpeg', // modernas JP
-      '/mnt/user-data/uploads/WhatsApp_Image_2026-02-14_at_23_24_20.jpeg',     // slabs graduadas
-      '/mnt/user-data/uploads/WhatsApp_Image_2026-02-14_at_23_24_19__1_.jpeg', // vintage JP
-    ],
-    // Foto do anúncio (usada como banner)
-    announcementPhoto: '/mnt/user-data/uploads/WhatsApp_Image_2026-02-14_at_23_24_19.jpeg',
     cards:[
-      { name:'Cartas Japonesas Modernas', number:'—', set:'Japonês moderno',    rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Slabs Graduadas',           number:'—', set:'Beckett / PSA / CGC', rarity:'ultra-rare', img:TCG.charizardBase },
-      { name:'Vintage Japonês',           number:'—', set:'Base Set JP',         rarity:'holo',       img:TCG.blastoise     },
+      { name:'Charizard ex SIR',     number:'234/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/234/high.webp' },
+      { name:'Iono SIR',             number:'237/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/237/high.webp' },
+      { name:'Gardevoir ex SIR',     number:'245/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/245/high.webp' },
+      { name:'Miraidon ex',          number:'081/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/081/high.webp' },
+      { name:'Koraidon ex',          number:'120/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/120/high.webp' },
+      { name:'Roaring Moon ex IR',   number:'228/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/228/high.webp' },
+      { name:'Iron Valiant ex SIR',  number:'232/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/232/high.webp' },
+      { name:'Pidgeot ex IR',        number:'166/167', set:'Obsidian Flames',  rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3/166/high.webp' },
+      { name:'Tyranitar ex SIR',     number:'182/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/182/high.webp' },
+      { name:'Mew ex SIR',           number:'205/165', set:'Pokemon 151',      rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3pt5/205/high.webp' },
+      { name:'Armarouge ex IR',      number:'222/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/222/high.webp' },
+    ],
+  },
+  {
+    id:6,
+    title:'🇯🇵 Vintage Japonês — Base Set & Neo Series',
+    date:'2026-02-19', time:'20:30',
+    organizer:'Japan Cards BR',
+    groupId:'japanesetcg',
+    paymentMethods:['PIX'], paymentDeadline:'2026-02-21',
+    whatsappLink:'https://chat.whatsapp.com/leilao-jp',
+    description:'Seleção especial de cartas japonesas vintage! Base Set JP, Neo Genesis e coleções limitadas importadas.',
+    featured:false,
+    cards:[
+      { name:'Charizard JP Base Set',   number:'006/102', set:'Base Set JP',      rarity:'holo', img:TCG.charizardBase },
+      { name:'Lugia Neo Genesis JP',    number:'009/111', set:'Neo Genesis JP',   rarity:'holo', img:TCG.pikachuVmax   },
+      { name:'Ho-Oh Neo Revelation JP', number:'010/066', set:'Neo Revelation JP',rarity:'holo', img:TCG.rayquazaVmax  },
+      { name:'Mewtwo JP Base Set',      number:'012/102', set:'Base Set JP',      rarity:'holo', img:TCG.mewtwov       },
+      { name:'Gengar JP Fossil',        number:'005/062', set:'Fossil JP',        rarity:'holo', img:'https://assets.tcgdex.net/en/base/base2/5/high.webp' },
+      { name:'Gyarados JP Base Set',    number:'006/102', set:'Base Set JP',      rarity:'holo', img:TCG.blastoise     },
+      { name:'Espeon Neo Discovery JP', number:'001/075', set:'Neo Discovery JP', rarity:'holo', img:TCG.pikachuVmax   },
+      { name:'Umbreon Neo Discovery JP',number:'013/075', set:'Neo Discovery JP', rarity:'holo', img:TCG.rayquazaVmax  },
+      { name:'Blastoise JP Base Set',   number:'002/102', set:'Base Set JP',      rarity:'holo', img:TCG.blastoise     },
+      { name:'Venusaur JP Base Set',    number:'015/102', set:'Base Set JP',      rarity:'holo', img:TCG.venusaur      },
+      { name:'Raichu JP Base Set',      number:'014/102', set:'Base Set JP',      rarity:'holo', img:TCG.pikachuVmax   },
+    ],
+  },
+  {
+    id:7,
+    title:'🐉 Especial Charizard — Todas as Eras',
+    date:'2026-02-20', time:'19:00',
+    organizer:'KARMA TCG',
+    groupId:'karmaytcg',
+    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-22',
+    whatsappLink:'https://chat.whatsapp.com/leilao-charizard',
+    description:'Leilão temático exclusivo! Todas as versões do Charizard, do clássico Base Set até as mais recentes de Paldea.',
+    featured:true,
+    cards:[
+      { name:'Charizard Base Set Holo', number:'004/102', set:'Base Set',           rarity:'holo',       img:TCG.charizardBase },
+      { name:'Charizard VMAX',          number:'020/189', set:'Darkness Ablaze',    rarity:'ultra-rare', img:TCG.charizardVmax },
+      { name:'Charizard VMAX Rainbow',  number:'074/073', set:"Champion's Path",    rarity:'rainbow',    img:TCG.charizardVmax },
+      { name:'Charizard VSTAR',         number:'018/196', set:'Lost Origin',        rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/swsh/swsh11/018/high.webp' },
+      { name:'Charizard ex SIR',        number:'234/193', set:'Paldea Evolved',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/234/high.webp' },
+      { name:'Charizard ex Obsidian',   number:'125/197', set:'Obsidian Flames',    rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3/125/high.webp' },
+      { name:'Charizard AR 151',        number:'006/165', set:'Pokemon 151',        rarity:'art-rare',   img:'https://assets.tcgdex.net/en/sv/sv3pt5/6/high.webp' },
+      { name:'Charizard GX Rainbow',    number:'150/147', set:'Burning Shadows',    rarity:'rainbow',    img:TCG.charizardBase },
+      { name:'Charizard V Alt Art',     number:'154/172', set:'Brilliant Stars',    rarity:'alt-art',    img:'https://assets.tcgdex.net/en/swsh/swsh9/154/high.webp' },
+      { name:'Charizard ex FireRed',    number:'105/112', set:'FireRed & LeafGreen',rarity:'ultra-rare', img:TCG.charizardBase },
+      { name:'Charizard & Braixen GX',  number:'222/236', set:'Cosmic Eclipse',     rarity:'rainbow',    img:TCG.lovebirds     },
+      { name:'Charizard Neo Destiny',   number:'016/105', set:'Neo Destiny',        rarity:'holo',       img:TCG.charizardBase },
+    ],
+  },
+  {
+    id:8,
+    title:'⚡ Pikachu Collection + Slabs PSA & BGS',
+    date:'2026-02-21', time:'21:00',
+    organizer:'Slabs Premium BR',
+    groupId:'slabsbr',
+    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-23',
+    whatsappLink:'https://chat.whatsapp.com/leilao-pikachu',
+    description:'Coleção especial de Pikachus raros e slabs graduados PSA/BGS. Para os colecionadores mais exigentes!',
+    featured:false,
+    cards:[
+      { name:'Pikachu Illustrator (rep)', number:'PROMO', set:'Promo JP 1998',   rarity:'trophy',     img:TCG.pikachuVmax   },
+      { name:'Pikachu VMAX Rainbow',      number:'188/185',set:'Vivid Voltage',  rarity:'rainbow',    img:TCG.pikachuVmax   },
+      { name:'Pikachu V Full Art',        number:'170/185',set:'Vivid Voltage',  rarity:'full-art',   img:TCG.pikachuVmax   },
+      { name:'Flying Pikachu V',          number:'006/025',set:'Celebrations',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Surfing Pikachu VMAX',      number:'009/025',set:'Celebrations',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
+      { name:'Pikachu Yellow Base Set',   number:'058/102',set:'Base Set',       rarity:'common',     img:TCG.pikachuVmax   },
+      { name:'Charizard ex BGS 9.5',      number:'006/193',set:'Paldea Evolved', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/006/high.webp' },
+      { name:'Umbreon VMAX Alt BGS 9',    number:'215/203',set:'Evolving Skies', rarity:'alt-art',    img:TCG.rayquazaVmax  },
+      { name:'Rayquaza VMAX BGS 9',       number:'111/203',set:'Evolving Skies', rarity:'alt-art',    img:TCG.rayquazaVmax  },
+      { name:'Lugia V Alt Art PSA 10',    number:'186/195',set:'Silver Tempest', rarity:'alt-art',    img:TCG.pikachuVmax   },
+      { name:'Arceus VSTAR PSA 10',       number:'123/172',set:'Brilliant Stars', rarity:'ultra-rare',img:TCG.pikachuVmax   },
+      { name:'Mew ex SIR PSA 10',         number:'205/165',set:'Pokemon 151',    rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3pt5/205/high.webp' },
     ],
   },
 ];
+
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
@@ -1055,53 +1130,6 @@ const App = () => {
 
         <div className="px-3 -mt-3 space-y-4 pb-4">
 
-          {/* ── Mini calendário ── */}
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
-            <div className="flex justify-between items-center mb-3">
-              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1))}
-                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 text-lg font-black">‹</button>
-              <h2 className="text-sm font-black text-gray-800 capitalize">
-                {currentMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
-              </h2>
-              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1))}
-                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 text-lg font-black">›</button>
-            </div>
-            <div className="grid grid-cols-7 gap-0.5 mb-1">
-              {['D','S','T','Q','Q','S','S'].map((d,i) =>
-                <div key={i} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>
-              )}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((date, idx) => {
-                if (!date) return <div key={idx} className="aspect-square" />;
-                const dayEv    = getEventsForDate(date);
-                const isToday  = date.toDateString() === today.toDateString();
-                const hasEv    = dayEv.length > 0;
-                const hasWanted= hasEv && dayEv.some(ev => ev.cards.some(c => wantedList.some(w => matchWanted(w,c))));
-                const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString() && showDayModal;
-                return (
-                  <button key={idx} onClick={() => handleDayClick(date)}
-                    className={`aspect-square rounded-lg flex flex-col items-center justify-center relative transition-all text-xs font-bold
-                      ${isToday        ? 'bg-red-500 text-white shadow-md' :
-                        isSelected     ? 'bg-gray-800 text-white ring-2 ring-yellow-400' :
-                        hasWanted      ? 'bg-yellow-100 border-2 border-yellow-400 text-gray-800' :
-                        hasEv          ? 'bg-yellow-50 border-2 border-yellow-300 text-gray-800 hover:bg-yellow-100' :
-                        'text-gray-400 hover:bg-gray-100'}`}>
-                    <span>{date.getDate()}</span>
-                    {hasEv && (
-                      <div className="flex gap-0.5 mt-0.5">
-                        {dayEv.slice(0,3).map((_,i) =>
-                          <span key={i} className={`w-1 h-1 rounded-full ${isToday?'bg-white':'bg-yellow-500'}`} />
-                        )}
-                      </div>
-                    )}
-                    {hasWanted && !isToday && <span className="absolute -top-0.5 -right-0.5 text-[8px]">⭐</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* ── Lista de leilões do mês ── */}
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
@@ -1230,6 +1258,53 @@ const App = () => {
             )}
           </div>
         </div>
+          {/* ── Mini calendário ── */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
+            <div className="flex justify-between items-center mb-3">
+              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1))}
+                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 text-lg font-black">‹</button>
+              <h2 className="text-sm font-black text-gray-800 capitalize">
+                {currentMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
+              </h2>
+              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1))}
+                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 text-lg font-black">›</button>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
+              {['D','S','T','Q','Q','S','S'].map((d,i) =>
+                <div key={i} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>
+              )}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((date, idx) => {
+                if (!date) return <div key={idx} className="aspect-square" />;
+                const dayEv    = getEventsForDate(date);
+                const isToday  = date.toDateString() === today.toDateString();
+                const hasEv    = dayEv.length > 0;
+                const hasWanted= hasEv && dayEv.some(ev => ev.cards.some(c => wantedList.some(w => matchWanted(w,c))));
+                const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString() && showDayModal;
+                return (
+                  <button key={idx} onClick={() => handleDayClick(date)}
+                    className={`aspect-square rounded-lg flex flex-col items-center justify-center relative transition-all text-xs font-bold
+                      ${isToday        ? 'bg-red-500 text-white shadow-md' :
+                        isSelected     ? 'bg-gray-800 text-white ring-2 ring-yellow-400' :
+                        hasWanted      ? 'bg-yellow-100 border-2 border-yellow-400 text-gray-800' :
+                        hasEv          ? 'bg-yellow-50 border-2 border-yellow-300 text-gray-800 hover:bg-yellow-100' :
+                        'text-gray-400 hover:bg-gray-100'}`}>
+                    <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
+                    {hasEv && (
+                      <div className="flex gap-0.5 mt-0.5">
+                        {dayEv.slice(0,3).map((_,i) =>
+                          <span key={i} className={`w-1 h-1 rounded-full ${isToday?'bg-white':'bg-yellow-500'}`} />
+                        )}
+                      </div>
+                    )}
+                    {hasWanted && !isToday && <span className="absolute -top-0.5 -right-0.5 text-[8px]">⭐</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
 
         {/* ── Modal dia (clique no calendário) ── */}
         {showDayModal && selectedDate && (
