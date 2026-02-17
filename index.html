@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PokéEventos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState } = React;
+    
+    const App = () => {
+      const [screen, setScreen] = useState('home');
+      
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-400 via-yellow-300 to-blue-400 p-8">
+          <div className="max-w-md mx-auto bg-white rounded-3xl shadow-2xl p-8">
+            <h1 className="text-3xl font-black text-gray-900 mb-4">
+              🎴 PokéEventos
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Plataforma funcionando! ✅
+            </p>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => alert('Clique funciona!')}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700"
+              >
+                Testar Interação
+              </button>
+              
+              <button 
+                onClick={() => setScreen(screen === 'home' ? 'test' : 'home')}
+                className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700"
+              >
+                Testar Estado: {screen}
+              </button>
+            </div>
+            
+            <p className="text-xs text-gray-400 mt-8 text-center">
+              Se você está vendo isso, React + Babel estão OK ✨
+            </p>
+          </div>
+        </div>
+      );
+    };
+    
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
