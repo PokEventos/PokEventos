@@ -29,7 +29,27 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="text/babel">
+
+  <script>
+    // Error handler visual
+    window.addEventListener('error', function(e) {
+      document.body.innerHTML = '<div style="padding:20px;font-family:monospace;background:#fee;border:3px solid red;margin:20px;border-radius:10px;">' +
+        '<h2 style="color:red;margin:0 0 15px 0;">❌ Erro JavaScript Detectado:</h2>' +
+        '<p style="margin:10px 0;"><strong>Mensagem:</strong> ' + e.message + '</p>' +
+        '<p style="margin:10px 0;"><strong>Arquivo:</strong> ' + e.filename + '</p>' +
+        '<p style="margin:10px 0;"><strong>Linha:</strong> ' + e.lineno + ':' + e.colno + '</p>' +
+        '<details style="margin-top:15px;"><summary style="cursor:pointer;font-weight:bold;">Stack Trace</summary><pre style="background:#fff;padding:10px;overflow:auto;margin-top:10px;">' + (e.error?.stack || 'Stack não disponível') + '</pre></details>' +
+        '</div>';
+    });
+    
+    console.log('%c🎴 PokéEventos v39 inicializando...', 'font-size:16px;font-weight:bold;color:#e63946;');
+    console.log('✓ React:', typeof React !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
+    console.log('✓ ReactDOM:', typeof ReactDOM !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
+    console.log('✓ Babel:', typeof Babel !== 'undefined' ? '✅ Carregado' : '❌ FALTANDO');
+    console.log('✓ Supabase:', typeof window.supabase !== 'undefined' ? '✅ Carregado' : '⚠️  Opcional');
+  </script>
+
+  <script type="text/babel">
   // ══════════════════════════════════════════════════════════════
   // SUPABASE SETUP
   // ══════════════════════════════════════════════════════════════
