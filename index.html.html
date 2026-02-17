@@ -24,11 +24,10 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
-const { useState, useMemo, useEffect, useCallback } = React;
-
-/* ─── IMAGENS ESTÁTICAS ─── */
 const TCG = {
   charizardBase : 'https://assets.tcgdex.net/en/base/base1/4/high.png',
   lovebirds     : 'https://assets.tcgdex.net/en/swsh/swsh7/215/high.png',
@@ -52,146 +51,112 @@ const POKE = {
 };
 
 /* ─── LEILÕES MOCKADOS ─── */
-const EVENTS = [
-  {
-    id:1, title:'Leilão Cartas Raras — Colecionador Premium',
-    date:'2026-02-15', time:'20:00', organizer:'Cards Premium Brasil',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-17',
-    whatsappLink:'https://chat.whatsapp.com/exemplo1',
-    description:'Leilão especial com cartas raras em excelente estado!', featured:true,
-    cards:[
-      { name:'Charizard VMAX',   number:'020/189', set:'Darkness Ablaze', rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Pikachu VMAX',     number:'044/185', set:'Vivid Voltage',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Mewtwo V',         number:'030/192', set:'Rebel Clash',     rarity:'rare',       img:TCG.mewtwov       },
-    ],
-  },
-  {
-    id:2, title:'Mega Leilão Japonês — Edições Limitadas',
-    date:'2026-02-15', time:'21:30', organizer:'Japan Cards BR',
-    paymentMethods:['PIX'], paymentDeadline:'2026-02-16',
-    whatsappLink:'https://chat.whatsapp.com/exemplo2',
-    description:'Cartas japonesas raríssimas importadas direto do Japão!', featured:false,
-    cards:[
-      { name:'Latias & Latios GX', number:'170/236', set:'Unified Minds',  rarity:'ultra-rare', img:TCG.lovebirds    },
-      { name:'Rayquaza VMAX',      number:'111/203', set:'Evolving Skies',  rarity:'ultra-rare', img:TCG.rayquazaVmax },
-    ],
-  },
-  {
-    id:3, title:'Leilão Vintage — Base Set & Clássicos',
-    date:'2026-02-16', time:'19:00', organizer:'Vintage Pokemon Cards',
-    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-18',
-    whatsappLink:'https://chat.whatsapp.com/exemplo3',
-    description:'Nostalgia pura! Base Set e coleções clássicas dos anos 90.', featured:false,
-    cards:[
-      { name:'Blastoise', number:'002/102', set:'Base Set', rarity:'holo', img:TCG.blastoise },
-      { name:'Venusaur',  number:'015/102', set:'Base Set', rarity:'holo', img:TCG.venusaur  },
-    ],
-  },
-
-  // ── Novos leilões — próximos 4 dias ──────────────────────────────
-
-  {
-    id:5,
-    title:'🔥 Escarlate & Violeta — Ultra Rares & Special IRs',
-    date:'2026-02-18', time:'20:00',
-    organizer:'Raridades TCG',
-    groupId:'raridades',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-20',
-    whatsappLink:'https://chat.whatsapp.com/leilao-sv',
-    description:'As melhores cartas da era Escarlate e Violeta! Special IRs, Illustration Rares e Ultra Rares em perfeito estado.',
-    featured:true,
-    cards:[
-      { name:'Charizard ex SIR',     number:'234/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/234/high.webp' },
-      { name:'Iono SIR',             number:'237/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/237/high.webp' },
-      { name:'Gardevoir ex SIR',     number:'245/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/245/high.webp' },
-      { name:'Miraidon ex',          number:'081/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/081/high.webp' },
-      { name:'Koraidon ex',          number:'120/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv1/120/high.webp' },
-      { name:'Roaring Moon ex IR',   number:'228/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/228/high.webp' },
-      { name:'Iron Valiant ex SIR',  number:'232/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/232/high.webp' },
-      { name:'Pidgeot ex IR',        number:'166/167', set:'Obsidian Flames',  rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3/166/high.webp' },
-      { name:'Tyranitar ex SIR',     number:'182/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/182/high.webp' },
-      { name:'Mew ex SIR',           number:'205/165', set:'Pokemon 151',      rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3pt5/205/high.webp' },
-      { name:'Armarouge ex IR',      number:'222/182', set:'Paradox Rift',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv4/222/high.webp' },
-    ],
-  },
-  {
-    id:6,
-    title:'🇯🇵 Vintage Japonês — Base Set & Neo Series',
-    date:'2026-02-19', time:'20:30',
-    organizer:'Japan Cards BR',
-    groupId:'japanesetcg',
-    paymentMethods:['PIX'], paymentDeadline:'2026-02-21',
-    whatsappLink:'https://chat.whatsapp.com/leilao-jp',
-    description:'Seleção especial de cartas japonesas vintage! Base Set JP, Neo Genesis e coleções limitadas importadas.',
-    featured:false,
-    cards:[
-      { name:'Charizard JP Base Set',   number:'006/102', set:'Base Set JP',      rarity:'holo', img:TCG.charizardBase },
-      { name:'Lugia Neo Genesis JP',    number:'009/111', set:'Neo Genesis JP',   rarity:'holo', img:TCG.pikachuVmax   },
-      { name:'Ho-Oh Neo Revelation JP', number:'010/066', set:'Neo Revelation JP',rarity:'holo', img:TCG.rayquazaVmax  },
-      { name:'Mewtwo JP Base Set',      number:'012/102', set:'Base Set JP',      rarity:'holo', img:TCG.mewtwov       },
-      { name:'Gengar JP Fossil',        number:'005/062', set:'Fossil JP',        rarity:'holo', img:'https://assets.tcgdex.net/en/base/base2/5/high.webp' },
-      { name:'Gyarados JP Base Set',    number:'006/102', set:'Base Set JP',      rarity:'holo', img:TCG.blastoise     },
-      { name:'Espeon Neo Discovery JP', number:'001/075', set:'Neo Discovery JP', rarity:'holo', img:TCG.pikachuVmax   },
-      { name:'Umbreon Neo Discovery JP',number:'013/075', set:'Neo Discovery JP', rarity:'holo', img:TCG.rayquazaVmax  },
-      { name:'Blastoise JP Base Set',   number:'002/102', set:'Base Set JP',      rarity:'holo', img:TCG.blastoise     },
-      { name:'Venusaur JP Base Set',    number:'015/102', set:'Base Set JP',      rarity:'holo', img:TCG.venusaur      },
-      { name:'Raichu JP Base Set',      number:'014/102', set:'Base Set JP',      rarity:'holo', img:TCG.pikachuVmax   },
-    ],
-  },
-  {
-    id:7,
-    title:'🐉 Especial Charizard — Todas as Eras',
-    date:'2026-02-20', time:'19:00',
-    organizer:'KARMA TCG',
-    groupId:'karmaytcg',
-    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-22',
-    whatsappLink:'https://chat.whatsapp.com/leilao-charizard',
-    description:'Leilão temático exclusivo! Todas as versões do Charizard, do clássico Base Set até as mais recentes de Paldea.',
-    featured:true,
-    cards:[
-      { name:'Charizard Base Set Holo', number:'004/102', set:'Base Set',           rarity:'holo',       img:TCG.charizardBase },
-      { name:'Charizard VMAX',          number:'020/189', set:'Darkness Ablaze',    rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Charizard VMAX Rainbow',  number:'074/073', set:"Champion's Path",    rarity:'rainbow',    img:TCG.charizardVmax },
-      { name:'Charizard VSTAR',         number:'018/196', set:'Lost Origin',        rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/swsh/swsh11/018/high.webp' },
-      { name:'Charizard ex SIR',        number:'234/193', set:'Paldea Evolved',     rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/234/high.webp' },
-      { name:'Charizard ex Obsidian',   number:'125/197', set:'Obsidian Flames',    rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3/125/high.webp' },
-      { name:'Charizard AR 151',        number:'006/165', set:'Pokemon 151',        rarity:'art-rare',   img:'https://assets.tcgdex.net/en/sv/sv3pt5/6/high.webp' },
-      { name:'Charizard GX Rainbow',    number:'150/147', set:'Burning Shadows',    rarity:'rainbow',    img:TCG.charizardBase },
-      { name:'Charizard V Alt Art',     number:'154/172', set:'Brilliant Stars',    rarity:'alt-art',    img:'https://assets.tcgdex.net/en/swsh/swsh9/154/high.webp' },
-      { name:'Charizard ex FireRed',    number:'105/112', set:'FireRed & LeafGreen',rarity:'ultra-rare', img:TCG.charizardBase },
-      { name:'Charizard & Braixen GX',  number:'222/236', set:'Cosmic Eclipse',     rarity:'rainbow',    img:TCG.lovebirds     },
-      { name:'Charizard Neo Destiny',   number:'016/105', set:'Neo Destiny',        rarity:'holo',       img:TCG.charizardBase },
-    ],
-  },
-  {
-    id:8,
-    title:'⚡ Pikachu Collection + Slabs PSA & BGS',
-    date:'2026-02-21', time:'21:00',
-    organizer:'Slabs Premium BR',
-    groupId:'slabsbr',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-23',
-    whatsappLink:'https://chat.whatsapp.com/leilao-pikachu',
-    description:'Coleção especial de Pikachus raros e slabs graduados PSA/BGS. Para os colecionadores mais exigentes!',
-    featured:false,
-    cards:[
-      { name:'Pikachu Illustrator (rep)', number:'PROMO', set:'Promo JP 1998',   rarity:'trophy',     img:TCG.pikachuVmax   },
-      { name:'Pikachu VMAX Rainbow',      number:'188/185',set:'Vivid Voltage',  rarity:'rainbow',    img:TCG.pikachuVmax   },
-      { name:'Pikachu V Full Art',        number:'170/185',set:'Vivid Voltage',  rarity:'full-art',   img:TCG.pikachuVmax   },
-      { name:'Flying Pikachu V',          number:'006/025',set:'Celebrations',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Surfing Pikachu VMAX',      number:'009/025',set:'Celebrations',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Pikachu Yellow Base Set',   number:'058/102',set:'Base Set',       rarity:'common',     img:TCG.pikachuVmax   },
-      { name:'Charizard ex BGS 9.5',      number:'006/193',set:'Paldea Evolved', rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv2/006/high.webp' },
-      { name:'Umbreon VMAX Alt BGS 9',    number:'215/203',set:'Evolving Skies', rarity:'alt-art',    img:TCG.rayquazaVmax  },
-      { name:'Rayquaza VMAX BGS 9',       number:'111/203',set:'Evolving Skies', rarity:'alt-art',    img:TCG.rayquazaVmax  },
-      { name:'Lugia V Alt Art PSA 10',    number:'186/195',set:'Silver Tempest', rarity:'alt-art',    img:TCG.pikachuVmax   },
-      { name:'Arceus VSTAR PSA 10',       number:'123/172',set:'Brilliant Stars', rarity:'ultra-rare',img:TCG.pikachuVmax   },
-      { name:'Mew ex SIR PSA 10',         number:'205/165',set:'Pokemon 151',    rarity:'ultra-rare', img:'https://assets.tcgdex.net/en/sv/sv3pt5/205/high.webp' },
-    ],
-  },
-];
 
 
-/* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  SUPABASE — Configure suas credenciais aqui                  ║
+// ║  Encontre em: supabase.com → Project Settings → API          ║
+// ╚══════════════════════════════════════════════════════════════╝
+const SUPABASE_URL  = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Helpers de autenticação
+const sbAuth = {
+  signUp:  (email, password, meta) => sb.auth.signUp({ email, password, options:{ data: meta } }),
+  signIn:  (email, password)       => sb.auth.signInWithPassword({ email, password }),
+  signOut: ()                      => sb.auth.signOut(),
+  getUser: ()                      => sb.auth.getUser(),
+  onAuthChange: (cb)               => sb.auth.onAuthStateChange(cb),
+};
+
+// Helpers de banco de dados
+const sbDB = {
+  // Leilões
+  getLeiloes: async () => {
+    const { data, error } = await sb.from('leiloes')
+      .select(\`*, leilao_cartas(*)\`)
+      .eq('ativo', true)
+      .order('data', { ascending: true })
+      .order('horario', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+  createLeilao: async (leilao) => {
+    const { data, error } = await sb.from('leiloes').insert([leilao]).select().single();
+    if (error) throw error;
+    return data;
+  },
+  createCartas: async (cartas) => {
+    const { data, error } = await sb.from('leilao_cartas').insert(cartas).select();
+    if (error) throw error;
+    return data;
+  },
+  // Grupos
+  getGrupos: async () => {
+    const { data, error } = await sb.from('grupos').select('*').eq('ativo', true);
+    if (error) throw error;
+    return data || [];
+  },
+  // Perfil
+  getProfile: async (userId) => {
+    const { data } = await sb.from('profiles').select('*').eq('id', userId).single();
+    return data;
+  },
+  upsertProfile: async (profile) => {
+    const { data, error } = await sb.from('profiles').upsert(profile).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// Converter registro do Supabase para formato do app
+const leilaoToEvent = (row) => ({
+  id:              row.id,
+  title:           row.titulo,
+  date:            row.data,
+  time:            row.horario ? row.horario.slice(0,5) : '00:00',
+  organizer:       row.organizador,
+  groupId:         row.grupo_id,
+  description:     row.descricao,
+  featured:        row.destaque,
+  auctionType:     row.tipo_leilao,
+  paymentMethods:  row.metodos_pagamento || ['PIX'],
+  paymentDeadline: row.prazo_pagamento,
+  whatsappLink:    row.whatsapp_link || '#',
+  announcementPhoto: row.foto_anuncio,
+  eventPhotos:     row.fotos_evento || [],
+  cards: (row.leilao_cartas || []).sort((a,b) => a.ordem - b.ordem).map(c => ({
+    id:       c.id,
+    name:     c.nome,
+    number:   c.numero,
+    set:      c.set_nome,
+    rarity:   c.raridade,
+    quality:  c.qualidade,
+    img:      c.img_url,
+    minBid:   c.lance_minimo,
+    increment:c.incremento,
+    pollOptions: c.opcoes_poll,
+    ligaPrice: null,
+  })),
+});
+
+const grupoToGroup = (row) => ({
+  id:      row.id,
+  name:    row.nome,
+  short:   row.short,
+  emoji:   row.emoji,
+  color:   row.cor || 'from-gray-400 to-gray-600',
+  members: row.membros,
+  whatsappLink: row.whatsapp_link,
+});
+
+
+// EVENTS começa vazio — preenchido pelo Supabase
+let EVENTS_STATIC = [];
+
+
 const matchWanted = (wantedCard, eventCard) => {
   const wName = wantedCard.name.toLowerCase();
   const wNum  = (wantedCard.number || '').toLowerCase();
@@ -212,6 +177,8 @@ const matchWanted = (wantedCard, eventCard) => {
    Estrutura idêntica ao retorno da PokemonTCG API para futura substituição.
    No futuro: trocar searchLocalCards() por chamada real à API.
 ──────────────────────────────────────────────────────────────────────────── */
+
+
 const LOCAL_CARDS = [
   { id:'base1-4', name:'Charizard', number:'4', set:'base1', setName:'Base Set', rarity:'Rare', image:'https://assets.tcgdex.net/en/base/base1/4/low.png', imageLarge:'https://assets.tcgdex.net/en/base/base1/4/high.png' },
   { id:'base1-10', name:'Mewtwo', number:'10', set:'base1', setName:'Base Set', rarity:'Rare', image:'https://assets.tcgdex.net/en/base/base1/10/low.png', imageLarge:'https://assets.tcgdex.net/en/base/base1/10/high.png' },
@@ -408,6 +375,8 @@ const buscarNomesPt = async (cartas) => {
 };
 
 // Executa a busca TCGdex completa com suporte bilíngue
+
+
 const tcgdexBuscar = async (q) => {
   const busca = detectarTipoBusca(q);
 
@@ -502,6 +471,8 @@ const tcgdexBuscar = async (q) => {
 };
 
 /* ─── BlocoCarrossel — componente reutilizável para fotos dos blocos ─── */
+
+
 const BlocoCarrossel = ({ fotos, dark = true }) => {
   const [ativo, setAtivo] = React.useState(0);
   if (!fotos || fotos.length === 0) return null;
@@ -602,6 +573,8 @@ const SET_NAMES = {
 const getSetName = (setId, fallback) => SET_NAMES[setId] || fallback || setId;
 
 
+
+
 const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModalEvent, addToWanted, removeWanted }) => {
   const { card, setName, imgSrc, rarity, auctions, rarityColor } = data;
   const inWanted = wantedList.find(w => w.id === card.id);
@@ -691,6 +664,8 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
     </div>
   );
 };
+
+
 
 
 const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin }) => {
@@ -837,24 +812,91 @@ const EventModal = ({ event, onClose, isInterested, toggleInterest, wantedList, 
 
 /* ─── BOTTOM NAV ─── */
 
+
+
 const App = () => {
+  // ── Auth state ─────────────────────────────────────────────
+  const [user,        setUser]        = useState(null);    // usuario Supabase
+  const [profile,     setProfile]     = useState(null);    // perfil do banco
+  const [authLoading, setAuthLoading] = useState(true);    // checando sessao
+
+  // ── App state ──────────────────────────────────────────────
   const [screen,      setScreen]      = useState('login');
+  const [events,      setEvents]      = useState([]);      // leiloes do Supabase
+  const [eventsLoading,setEventsLoading]=useState(false);
+  const [groups,      setGroups]      = useState([]);      // grupos do Supabase
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
   const [searchLog,   setSearchLog]   = useState([]);
   const [wantedList,  setWantedList]  = useState([]);
   const [alerts,      setAlerts]      = useState([]);
-  // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
   const [interests,   setInterests]   = useState({});
+  const [liveAuction, setLiveAuction] = useState(null);
+
+  const isAuctioneer = profile?.tipo === 'leiloeiro';
+
+  // ── Escuta mudanças de autenticação ───────────────────────
+  useEffect(() => {
+    const { data: { subscription } } = sbAuth.onAuthChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        // Buscar perfil do banco
+        const p = await sbDB.getProfile(session.user.id);
+        setProfile(p);
+        setScreen('home');
+      } else {
+        setUser(null);
+        setProfile(null);
+        setScreen('login');
+      }
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ── Carregar leilões do Supabase ──────────────────────────
+  const loadEvents = async () => {
+    setEventsLoading(true);
+    try {
+      const rows = await sbDB.getLeiloes();
+      setEvents(rows.map(leilaoToEvent));
+    } catch(e) {
+      console.error('Erro ao carregar leilões:', e);
+      // Fallback: manter lista vazia ou mostrar mensagem
+    }
+    setEventsLoading(false);
+  };
+
+  // ── Carregar grupos do Supabase ───────────────────────────
+  const loadGroups = async () => {
+    try {
+      const rows = await sbDB.getGrupos();
+      setGroups(rows.map(grupoToGroup));
+    } catch(e) {
+      console.error('Erro ao carregar grupos:', e);
+    }
+  };
+
+  // Carregar dados quando logar
+  useEffect(() => {
+    if (user) {
+      loadEvents();
+      loadGroups();
+    }
+  }, [user]);
+
+  // Usar events como EVENTS para compatibilidade com código existente
+  const EVENTS = events;
+  const AUCTION_GROUPS = groups;
+
+  // ── Interest / checkins ───────────────────────────────────
   const toggleInterest = (eventId, cardIdx) => {
     const key = eventId + '_' + cardIdx;
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
 
-  /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
+  // ── Alertas wanted list ───────────────────────────────────
   useEffect(() => {
     const newAlerts = [];
     wantedList.forEach(wc => {
@@ -863,41 +905,35 @@ const App = () => {
           if (matchWanted(wc, ec)) {
             const key = `${wc.id}-${ev.id}`;
             const already = alerts.find(a => a.key === key);
-            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img, eventTitle:ev.title, eventId:ev.id, eventDate:ev.date, eventTime:ev.time, seen:false });
+            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img,
+              eventTitle:ev.title, eventId:ev.id, eventDate:ev.date,
+              eventTime:ev.time, seen:false });
           }
         });
       });
     });
     if (newAlerts.length) setAlerts(prev => [...prev, ...newAlerts]);
-  }, [wantedList]);
+  }, [wantedList, events]);
 
   const unseenAlerts = alerts.filter(a => !a.seen).length;
   const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
   const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
   const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
   const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
-  const logSearch = query => {
-    if (!query.trim()) return;
-    setSearchLog(prev => {
-      const existing = prev.find(x=>x.query.toLowerCase()===query.toLowerCase());
-      const updated  = existing
-        ? prev.map(x=>x.query.toLowerCase()===query.toLowerCase()?{...x,count:x.count+1,last:new Date()}:x)
-        : [...prev,{query:query.trim(),count:1,last:new Date()}];
-      const sorted = [...updated].sort((a,b)=>b.count-a.count);
-      console.group('%c📊 PokEventos — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
-      console.table(sorted.map((s,i)=>({'#':i+1,'Carta':s.query,'Buscas':s.count,'Última':new Date(s.last).toLocaleString('pt-BR')})));
-      console.groupEnd();
-      return updated;
-    });
-  };
 
-  /* ─── MODAL DETALHES ─── */
-  /* ════════════════════════════════════════
-     MODAL CARTA — popup ao clicar em resultado
-  ════════════════════════════════════════ */
+  // ── Loading inicial (verificando sessão) ──────────────────
+  if (authLoading) return (
+    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center">
+      <div className="text-center text-white">
+        <div className="text-6xl mb-4 animate-bounce">🎴</div>
+        <p className="font-black text-2xl" style={{fontFamily:'Arial Black'}}>PokEventos</p>
+        <p className="mt-2 opacity-80">Carregando...</p>
+      </div>
+    </div>
+  );
 
 
-  const BottomNav = ({ current }) => (
+    const BottomNav = ({ current }) => (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-yellow-400 px-2 py-3 shadow-2xl z-40">
       <div className="flex justify-around items-center">
         {[
@@ -925,7 +961,22 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
+
+  const LoginScreen = () => {
+    const [email,    setEmail]    = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [loading,  setLoading]  = React.useState(false);
+    const [error,    setError]    = React.useState('');
+
+    const doLogin = async () => {
+      if (!email || !password) { setError('Preencha e-mail e senha.'); return; }
+      setLoading(true); setError('');
+      const { error: err } = await sbAuth.signIn(email, password);
+      if (err) { setError('E-mail ou senha incorretos.'); setLoading(false); }
+      // onAuthChange cuida do redirect para home
+    };
+
+    return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -942,107 +993,136 @@ const App = () => {
               { src:TCG.venusaur,      label:'Venusaur',   border:'border-green-400', size:'w-16', shift:'' },
               { src:TCG.charizardBase, label:'Charizard',  border:'border-red-400',   size:'w-16', shift:'-translate-y-2' },
               { src:TCG.blastoise,     label:'Blastoise',  border:'border-blue-400',  size:'w-16', shift:'' },
-            ].map((c,i)=>(
-              <div key={i} className="flex flex-col items-center gap-1">
-                <img src={c.src} alt={c.label} className={`${c.size} ${c.shift} rounded-lg shadow-xl border-2 ${c.border} card-img`} />
-                <span className="text-[9px] text-gray-500 font-semibold">{c.label}</span>
+            ].map(c=>(
+              <div key={c.label} className={`flex flex-col items-center ${c.shift}`}>
+                <img src={c.src} className={`${c.size} rounded-xl border-2 ${c.border} shadow-md`} />
+                <p className="text-[9px] font-bold text-gray-400 mt-1">{c.label}</p>
               </div>
             ))}
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
-          <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
-        </div>
-      </div>
-    </div>
-  );
-
-  /* ════════════════════════════════════════
-     TELA CADASTRO
-  ════════════════════════════════════════ */
-  const RegisterScreen = () => {
-    const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
-    const isAuc = accountType === 'auctioneer';
-    return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
-      <img src={POKE.mewtwo}  className="absolute top-8 right-4 w-20 opacity-10 animate-bounce" style={{animationDuration:'3.5s'}} />
-      <img src={POKE.eevee}   className="absolute bottom-12 left-4 w-16 opacity-10 animate-bounce" style={{animationDuration:'4.5s'}} />
-      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative z-10 overflow-y-auto max-h-[96vh]">
-
-        {/* Header — Jolteon */}
-        <div className="text-center mb-5">
-          <button onClick={()=>setScreen('login')} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 text-lg">←</button>
-          <div className="relative inline-block mb-2">
-            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-70"></div>
-            <img src={POKE.jolteon} className="w-16 h-16 relative z-10 drop-shadow-lg" />
-          </div>
-          <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Criar Conta</h1>
-          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
-        </div>
-
-        {/* Tipo de conta — com estado */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <button onClick={()=>setAccountType('collector')}
-            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
-            <span className="text-2xl">👤</span>
-            <span>Colecionador</span>
-            <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
+          <input type="email" placeholder="E-mail" value={email}
+            onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&doLogin()}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" value={password}
+            onChange={e=>setPassword(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&doLogin()}
+            autoComplete="current-password"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          {error && <p className="text-red-500 text-xs text-center font-medium">{error}</p>}
+          <button onClick={doLogin} disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-black rounded-xl shadow-lg disabled:opacity-60 text-sm">
+            {loading ? '⏳ Entrando...' : '⚡ Entrar'}
           </button>
-          <button onClick={()=>setAccountType('auctioneer')}
-            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
-            <span className="text-2xl">🔨</span>
-            <span>Leiloeiro</span>
-            <span className={`text-[10px] font-normal ${accountType==='auctioneer'?'text-yellow-600':'text-gray-400'}`}>Organiza leilões</span>
+          <button onClick={()=>setScreen('register')}
+            className="w-full py-3 text-gray-500 text-sm hover:text-gray-700">
+            Não tem conta? <span className="text-blue-600 font-bold">Criar conta grátis</span>
           </button>
-        </div>
-
-        <div className="space-y-2.5">
-          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-
-          {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
-          <div>
-            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
-              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
-            {!isAuc && (
-              <p className="text-[10px] text-gray-400 mt-1 ml-1">
-                ⚡ Necessário para participar de leilões
-              </p>
-            )}
-          </div>
-
-          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-
-          <div className="flex items-start gap-2 pt-1">
-            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
-            <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
-              Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
-            </label>
-          </div>
-
-          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
-            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
-            <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
-            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
-          </button>
-
-          <p className="text-center text-sm">
-            Já tem conta? <button onClick={()=>setScreen('login')} className="text-purple-600 hover:underline font-semibold">Entrar</button>
-          </p>
         </div>
       </div>
     </div>
     );
   };
 
-  /* ════════════════════════════════════════
-     TELA HOME
-  ════════════════════════════════════════ */
-  const HomeScreen = () => {
+
+  const RegisterScreen = () => {
+    const [nome,     setNome]     = React.useState('');
+    const [email,    setEmail]    = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [confirm,  setConfirm]  = React.useState('');
+    const [tipo,     setTipo]     = React.useState('usuario');
+    const [whatsapp, setWhatsapp] = React.useState('');
+    const [loading,  setLoading]  = React.useState(false);
+    const [error,    setError]    = React.useState('');
+    const [success,  setSuccess]  = React.useState(false);
+
+    const doRegister = async () => {
+      if (!nome || !email || !password) { setError('Preencha todos os campos obrigatórios.'); return; }
+      if (password !== confirm) { setError('As senhas não conferem.'); return; }
+      if (password.length < 6) { setError('Senha deve ter pelo menos 6 caracteres.'); return; }
+      setLoading(true); setError('');
+      const { data, error: err } = await sbAuth.signUp(email, password, { nome, tipo, whatsapp });
+      if (err) {
+        if (err.message.includes('already registered')) setError('Este e-mail já está cadastrado.');
+        else setError('Erro ao criar conta. Tente novamente.');
+        setLoading(false);
+        return;
+      }
+      // Criar perfil na tabela profiles
+      if (data.user) {
+        await sbDB.upsertProfile({ id: data.user.id, nome, tipo, whatsapp });
+      }
+      setSuccess(true);
+      setLoading(false);
+    };
+
+    if (success) return (
+      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl">
+          <div className="text-6xl mb-4">🎉</div>
+          <h2 className="text-2xl font-black text-gray-800 mb-2">Conta criada!</h2>
+          <p className="text-gray-500 text-sm mb-6">Verifique seu e-mail para confirmar o cadastro, depois faça login.</p>
+          <button onClick={()=>setScreen('login')}
+            className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-black rounded-xl">
+            Ir para Login
+          </button>
+        </div>
+      </div>
+    );
+
+    return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm my-4">
+        <button onClick={()=>setScreen('login')} className="text-gray-400 hover:text-gray-600 text-lg mb-4">← Voltar</button>
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">✨</div>
+          <h2 className="text-2xl font-black text-gray-800">Criar conta</h2>
+          <p className="text-gray-400 text-sm">Junte-se à comunidade PokEventos</p>
+        </div>
+
+        {/* Tipo de conta */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {[{v:'usuario',label:'🎴 Colecionador',desc:'Sigo leilões'},{v:'leiloeiro',label:'🏆 Leiloeiro',desc:'Realizo leilões'}].map(t=>(
+            <button key={t.v} onClick={()=>setTipo(t.v)}
+              className={`p-3 rounded-xl border-2 text-left transition-all ${tipo===t.v?'border-purple-500 bg-purple-50':'border-gray-200'}`}>
+              <p className="font-black text-sm">{t.label}</p>
+              <p className="text-xs text-gray-400">{t.desc}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <input type="text" placeholder="Nome completo *" value={nome}
+            onChange={e=>setNome(e.target.value)}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="email" placeholder="E-mail *" value={email}
+            onChange={e=>setEmail(e.target.value)}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="tel" placeholder="WhatsApp (opcional)" value={whatsapp}
+            onChange={e=>setWhatsapp(e.target.value)}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha *" value={password}
+            onChange={e=>setPassword(e.target.value)}
+            autoComplete="new-password"
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="password" placeholder="Confirmar senha *" value={confirm}
+            onChange={e=>setConfirm(e.target.value)}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          {error && <p className="text-red-500 text-xs text-center font-medium">{error}</p>}
+          <button onClick={doRegister} disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-black rounded-xl shadow-lg disabled:opacity-60">
+            {loading ? '⏳ Criando conta...' : '🚀 Criar conta'}
+          </button>
+        </div>
+      </div>
+    </div>
+    );
+  };
+
+
+    const HomeScreen = () => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
       <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
@@ -1087,7 +1167,8 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
-  const CalendarScreen = () => {
+
+    const CalendarScreen = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [showDayModal, setShowDayModal] = useState(false);
@@ -1374,7 +1455,8 @@ const App = () => {
     );
   };
 
-  const SearchWantedScreen = () => {
+
+    const SearchWantedScreen = () => {
     const [query,       setQuery]      = useState('');
     const [results,     setResults]    = useState([]);
     const [loading,     setLoading]    = useState(false);
@@ -1650,7 +1732,8 @@ const App = () => {
 
 
 
-  /* ════════════════════════════════════════
+
+    /* ════════════════════════════════════════
      GRUPOS DE LEILÃO — cadastro dos grupos do WhatsApp
   ════════════════════════════════════════ */
   const AUCTION_GROUPS = [
@@ -1705,7 +1788,8 @@ const App = () => {
     { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
   ];
 
-  const AuctioneerScreen = () => {
+
+    const AuctioneerScreen = () => {
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
@@ -1795,32 +1879,55 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = () => {
-      const newAuction = {
-        ...form, id:Date.now(), status:'published', createdAt:new Date(),
-        title:form.name, time:form.time, organizer:'Dr. João Silva',
-        description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
-        featured:false,
-        whatsappLink: form.whatsappLink || '#',
-        paymentMethods:['PIX'], paymentDeadline:form.date,
-        auctionType: form.auctionType,
-        announcementPhoto: form.announcementPhoto || null,
-        eventPhotos: form.eventPhotos || [],
-        rawCards: auctionCards,
-        cards: auctionCards.map(ac=>({
-          name:ac.card.name, number:ac.card.number,
-          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
-          img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
-          minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
-        })),
-      };
-      setSavedAuctions(prev=>[...prev,newAuction]);
-      EVENTS.push(newAuction);
-      setShowSuccess(true);
-      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
-    };
+    const saveAuction = async () => {
+      setShowSuccess(false);
+      try {
+        // 1. Inserir o leilão na tabela leiloes
+        const leilaoData = {
+          titulo:             form.name,
+          organizador:        profile?.nome || user?.email || 'Leiloeiro',
+          grupo_id:           form.groupId || null,
+          data:               form.date,
+          horario:            form.time + ':00',
+          descricao:          form.description || `Leilão com ${auctionCards.length} cartas.`,
+          tipo_leilao:        form.auctionType,
+          metodos_pagamento:  form.paymentMethods || ['PIX'],
+          prazo_pagamento:    form.paymentDeadline || form.date,
+          whatsapp_link:      form.whatsappLink || null,
+          destaque:           false,
+          foto_anuncio:       form.announcementPhoto || null,
+          fotos_evento:       form.eventPhotos || [],
+          ativo:              true,
+        };
+        const leilaoSalvo = await sbDB.createLeilao(leilaoData);
 
+        // 2. Inserir cartas do leilão
+        if (auctionCards.length > 0) {
+          const cartasData = auctionCards.map((ac, idx) => ({
+            leilao_id:     leilaoSalvo.id,
+            nome:          ac.card.name,
+            numero:        ac.card.number || null,
+            set_nome:      ac.card.set?.name || ac.card.set || null,
+            raridade:      ac.card.rarity || null,
+            qualidade:     ac.quality || 'NM',
+            img_url:       ac.card.images?.large || ac.card.images?.small || null,
+            lance_minimo:  parseFloat(ac.minBid) || null,
+            incremento:    parseFloat(ac.increment) || null,
+            opcoes_poll:   ac.pollOptions?.filter(Boolean).map(Number) || null,
+            ordem:         idx,
+          }));
+          await sbDB.createCartas(cartasData);
+        }
+
+        // 3. Recarregar lista de leilões e ir para step 4
+        await loadEvents();
+        setShowSuccess(true);
+        setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
+      } catch(e) {
+        console.error('Erro ao salvar leilão:', e);
+        alert('Erro ao salvar leilão: ' + (e.message || 'Tente novamente.'));
+      }
+    };
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
     };
@@ -2423,7 +2530,8 @@ const App = () => {
   /* ════════════════════════════════════════
      SALA DE LEILÃO AO VIVO 🔨
   ════════════════════════════════════════ */
-  const LiveAuctionRoom = ({ auction, onEnd }) => {
+
+    const LiveAuctionRoom = ({ auction, onEnd }) => {
     if (!auction) return null;
     const cards = auction.rawCards || [];
     const [cardIdx,   setCardIdx]   = useState(0);
@@ -2879,80 +2987,74 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA PERFIL — com acesso ao painel leiloeiro
   ════════════════════════════════════════ */
-  const ProfileScreen = () => (
-    <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
-      <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
-        <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
-        <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
-      </div>
-      <div className="px-4 -mt-10 space-y-4">
-        <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">D</div>
-            <div>
-              <p className="text-xl font-black text-gray-800">Dr. João Silva</p>
-              <p className="text-gray-500 text-sm">joao@email.com</p>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
-                {isAuctioneer && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
+
+    const ProfileScreen = () => {
+      const avatarLetter = (profile?.nome || user?.email || 'U')[0].toUpperCase();
+      const [loggingOut, setLoggingOut] = React.useState(false);
+  
+      const doLogout = async () => {
+        setLoggingOut(true);
+        await sbAuth.signOut();
+        // onAuthChange cuida de voltar para login
+      };
+  
+      return (
+      <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
+        <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
+          <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
+          <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
+        </div>
+        <div className="px-4 -mt-10 space-y-4">
+          {/* Card principal */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">
+                {avatarLetter}
+              </div>
+              <div>
+                <p className="text-xl font-black text-gray-800">{profile?.nome || 'Usuário'}</p>
+                <p className="text-gray-500 text-sm">{user?.email}</p>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAuctioneer ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {isAuctioneer ? '🏆 Leiloeiro' : '🎴 Colecionador'}
+                </span>
               </div>
             </div>
           </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-100"><p className="text-2xl font-black text-blue-600">{checkins.length}</p><p className="text-xs text-gray-500 font-semibold">Check-ins</p></div>
-            <div className="bg-yellow-50 rounded-xl p-3 text-center border-2 border-yellow-100"><p className="text-2xl font-black text-yellow-600">{wantedList.length}</p><p className="text-xs text-gray-500 font-semibold">Wanted</p></div>
-            <div className="bg-purple-50 rounded-xl p-3 text-center border-2 border-purple-100"><p className="text-2xl font-black text-purple-600">{EVENTS.length}</p><p className="text-xs text-gray-500 font-semibold">Leilões</p></div>
-          </div>
-
-          {/* Histórico de buscas */}
-          {searchLog.length>0 && (
-            <div className="mb-5 bg-white rounded-2xl border-2 border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b flex items-center justify-between">
-                <div className="flex items-center gap-2"><span className="text-lg">🔍</span><p className="font-bold text-gray-700 text-sm">Minhas buscas recentes</p></div>
-                <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded-full border">{Math.min(searchLog.length,15)}</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {[...searchLog].sort((a,b)=>new Date(b.last)-new Date(a.last)).slice(0,15).map((item,i)=>(
-                  <button key={i} onClick={()=>setScreen('search')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 bg-gray-100 group-hover:bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm">🎴</span></div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700">{item.query}</p>
-                        <p className="text-[10px] text-gray-400">{new Date(item.last).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}{item.count>1&&<span className="ml-2 bg-gray-100 text-gray-500 px-1.5 rounded-full">{item.count}x</span>}</p>
+  
+          {/* Wanted List */}
+          <div className="bg-white rounded-2xl shadow p-4">
+            <p className="font-black text-gray-700 mb-3">⭐ Wanted List ({wantedList.length} cartas)</p>
+            {wantedList.length === 0
+              ? <p className="text-gray-400 text-sm text-center py-4">Nenhuma carta salva ainda.<br/>Use a aba Busca para adicionar.</p>
+              : <div className="space-y-2">
+                  {wantedList.map(card => (
+                    <div key={card.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
+                      <img src={card.images?.small || card.img} className="h-12 w-auto rounded" onError={e=>e.target.style.display='none'} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate">{card.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{card.set?.name || card.set}</p>
                       </div>
+                      <button onClick={()=>removeWanted(card.id)} className="text-red-400 hover:text-red-600 text-lg flex-shrink-0">✕</button>
                     </div>
-                    <span className="text-gray-300 group-hover:text-blue-400">→</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <button onClick={()=>setScreen('home')}     className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">🏠 Meus Leilões</button>
-            <button onClick={()=>setScreen('calendar')} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">📅 Calendário</button>
-            <button onClick={()=>setScreen('wanted')}   className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl font-semibold border border-yellow-200 text-sm hover:bg-yellow-100">⭐ Wanted List {wantedList.length>0&&`(${wantedList.length})`}</button>
-
-            {/* Área exclusiva leiloeiro */}
-            {isAuctioneer && (
-              <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Área do Leiloeiro</p>
-                <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
-                  🔨 Criar Novo Leilão
-                </button>
-              </div>
-            )}
-
-            <button onClick={()=>setScreen('login')} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
+                  ))}
+                </div>
+            }
           </div>
+  
+          {/* Sair */}
+          <button onClick={doLogout} disabled={loggingOut}
+            className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100 disabled:opacity-60">
+            {loggingOut ? '⏳ Saindo...' : '🚪 Sair da conta'}
+          </button>
+  
+          <div className="text-center text-gray-300 text-xs pb-4">PokEventos v1.0 • Supabase Edition</div>
         </div>
       </div>
-      <BottomNav current="profile" />
-    </div>
-  );
+      );
+    };
 
-  /* ─── ROTEAMENTO ─── */
+
+
   return (
     <div className="w-full min-h-screen">
       {screen==='login'      && <LoginScreen />}
@@ -2970,3 +3072,4 @@ const App = () => {
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
+</html>
