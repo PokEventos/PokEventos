@@ -103,7 +103,8 @@
   const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
 
-  // Tentar criar cliente imediatamente (se SDK já carregou)
+  // Criar cliente Supabase
+  let supabase = null;
   if (window.supabase) {
     try {
       supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -115,7 +116,47 @@
     console.warn('⚠️ Supabase SDK não encontrado - modo offline');
   }
 
-const leilaoToEvent = (row) => ({
+  // Helpers de autenticação
+  const sbAuth = {
+    signUp: async (email, password, meta) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.auth.signUp({ email, password, options: { data: meta } });
+    },
+    signIn: async (email, password) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.auth.signInWithPassword({ email, password });
+    },
+    signOut: async () => {
+      if (!supabase) return { error: null };
+      return await supabase.auth.signOut();
+    },
+    onAuthChange: (cb) => {
+      if (!supabase) return { data: { subscription: { unsubscribe: () => {} } } };
+      return supabase.auth.onAuthStateChange(cb);
+    },
+    getUser: async () => {
+      if (!supabase) return { data: { user: null }, error: null };
+      return await supabase.auth.getUser();
+    },
+  };
+
+  // Helpers de banco de dados
+  const sbDB = {
+    getLeiloes: async () => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data');
+    },
+    createLeilao: async (data) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leiloes').insert(data).select().single();
+    },
+    createCartas: async (cartas) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leilao_cartas').insert(cartas);
+    },
+  };
+
+  const leilaoToEvent = (row) => ({
     id: row.id,
     title: row.titulo,
     date: row.data,
