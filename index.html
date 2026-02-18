@@ -17,6 +17,7 @@
     .wanted-glow { box-shadow:0 0 0 3px rgba(251,191,36,.6), 0 4px 20px rgba(0,0,0,.15); }
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
   </style>
 </head>
 <body>
@@ -25,67 +26,54 @@
       <div style="text-align:center;color:white;">
         <div style="font-size:4rem;margin-bottom:20px;animation:bounce 1s infinite;">🎴</div>
         <h1 style="font-size:2rem;font-weight:bold;margin:0;">PokéEventos</h1>
-        <p style="opacity:0.9;margin-top:10px;font-size:1.1rem;">Carregando recursos...</p>
-        <div style="margin-top:20px;opacity:0.7;font-size:0.9rem;" id="loading-status">Iniciando...</div>
+        <p style="opacity:0.9;margin-top:10px;font-size:1.1rem;">Carregando...</p>
       </div>
     </div>
   </div>
 
-  <style>
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-20px); }
-    }
-  </style>
-
-  <!-- Carregamento Sequencial de CDNs -->
+  <!-- Carregar CDNs sequencialmente -->
   <script>
     (function() {
-      const status = document.getElementById('loading-status');
-      
-      function updateStatus(msg) {
-        if (status) status.textContent = msg;
-        console.log(msg);
-      }
-      
       function loadScript(src, name) {
         return new Promise((resolve, reject) => {
-          updateStatus(`📦 Carregando ${name}...`);
+          console.log('📦 Carregando ' + name + '...');
           const script = document.createElement('script');
           if (src.includes('react')) script.crossOrigin = 'anonymous';
           script.src = src;
           script.onload = () => {
-            updateStatus(`✅ ${name} OK`);
+            console.log('✅ ' + name + ' carregado');
             resolve();
           };
-          script.onerror = () => {
-            updateStatus(`❌ Erro: ${name}`);
-            reject(new Error(`Failed to load ${name}`));
-          };
+          script.onerror = () => reject(new Error('Falha: ' + name));
           document.head.appendChild(script);
         });
       }
 
-      // Carregar tudo sequencialmente
       loadScript('https://unpkg.com/react@18/umd/react.production.min.js', 'React')
         .then(() => loadScript('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'ReactDOM'))
         .then(() => loadScript('https://unpkg.com/@babel/standalone/babel.min.js', 'Babel'))
         .then(() => loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'Supabase'))
         .then(() => {
-          updateStatus('🚀 Compilando app...');
-          
-          // Verificações
-          if (typeof React === 'undefined') throw new Error('React não disponível');
-          if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM não disponível');
-          if (typeof Babel === 'undefined') throw new Error('Babel não disponível');
-          
-          console.log('✅ Todos os CDNs carregados');
-          console.log('Supabase disponível:', typeof window.supabase !== 'undefined');
-          
-          // Criar e executar script Babel com o código do app
-          const script = document.createElement('script');
-          script.type = 'text/babel';
-          script.textContent = `
+          console.log('✅ Todos CDNs OK - Supabase disponível:', typeof window.supabase !== 'undefined');
+          // Ativar o script Babel
+          const babelScript = document.getElementById('main-app');
+          if (babelScript) {
+            babelScript.removeAttribute('data-wait');
+            Babel.registerPreset('env-preset', { presets: [[Babel.availablePresets.env, {}]] });
+            const transformed = Babel.transform(babelScript.textContent, { presets: ['env-preset', 'react'] });
+            eval(transformed.code);
+          }
+        })
+        .catch(err => {
+          console.error('❌ Erro:', err);
+          document.getElementById('root').innerHTML = '<div style="padding:40px;text-align:center;color:red;"><h1>Erro ao carregar</h1><p>' + err.message + '</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;">Tentar Novamente</button></div>';
+        });
+    })();
+  </script>
+
+  <!-- Script principal (só executa depois dos CDNs) -->
+  <script id="main-app" type="text/plain" data-wait="true">
+
 
 
   // ══════════════════════════════════════════════════════════════
@@ -3385,24 +3373,7 @@ const App = () => {
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-`;
-          document.body.appendChild(script);
-          
-          updateStatus('✨ App pronto!');
-        })
-        .catch(error => {
-          console.error('❌ Erro fatal:', error);
-          document.getElementById('root').innerHTML = `
-            <div style="padding:40px;text-align:center;background:#fee;min-height:100vh;display:flex;align-items:center;justify-content:center;">
-              <div>
-                <h1 style="color:#d00;font-size:2rem;margin-bottom:20px;">❌ Erro ao Carregar</h1>
-                <p style="color:#666;">${error.message}</p>
-                <p style="margin-top:20px;"><button onclick="location.reload()" style="padding:10px 20px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;">🔄 Tentar Novamente</button></p>
-              </div>
-            </div>
-          `;
-        });
-    })();
+
   </script>
 </body>
 </html>
