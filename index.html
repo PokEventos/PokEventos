@@ -18,12 +18,6 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
-  <!-- React & ReactDOM -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -56,6 +50,95 @@
   </script>
 
   <script type="text/babel">
+
+
+  // ══════════════════════════════════════════════════════════════
+  // SUPABASE (Opcional - graceful fallback se não carregar)
+  // ══════════════════════════════════════════════════════════════
+  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
+  
+  let supabase = null;
+  try {
+    if (window.supabase) {
+      supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+      console.log('✅ Supabase conectado');
+    } else {
+      console.warn('⚠️  Supabase SDK não carregado - usando modo offline');
+    }
+  } catch(e) {
+    console.warn('⚠️  Erro ao conectar Supabase:', e.message);
+  }
+
+  // Helpers de autenticação (retornam null se Supabase não disponível)
+  const sbAuth = {
+    signUp: async (email, password, meta) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.auth.signUp({ email, password, options: { data: meta } });
+    },
+    signIn: async (email, password) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.auth.signInWithPassword({ email, password });
+    },
+    signOut: async () => {
+      if (!supabase) return { error: null };
+      return await supabase.auth.signOut();
+    },
+    onAuthChange: (cb) => {
+      if (!supabase) return { data: { subscription: { unsubscribe: () => {} } } };
+      return supabase.auth.onAuthStateChange(cb);
+    },
+    getUser: async () => {
+      if (!supabase) return { data: { user: null }, error: null };
+      return await supabase.auth.getUser();
+    },
+  };
+
+  // Helpers de banco de dados
+  const sbDB = {
+    getLeiloes: async () => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data');
+    },
+    createLeilao: async (data) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leiloes').insert(data).select().single();
+    },
+    createCartas: async (cartas) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leilao_cartas').insert(cartas);
+    },
+  };
+
+  // Converter dados do Supabase para formato do app
+  const leilaoToEvent = (row) => ({
+    id: row.id,
+    title: row.titulo,
+    date: row.data,
+    time: row.horario,
+    organizer: row.organizador,
+    groupId: row.grupo_id,
+    description: row.descricao,
+    paymentMethods: row.metodos_pagamento || [],
+    paymentDeadline: row.prazo_pagamento,
+    whatsappLink: row.whatsapp_link,
+    featured: row.destaque || false,
+    announcementPhoto: row.foto_anuncio,
+    auctionType: row.tipo_leilao || 'free',
+    cards: (row.leilao_cartas || [])
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+      .map(c => ({
+        name: c.nome,
+        number: c.numero,
+        set: c.set_nome,
+        rarity: c.raridade || 'common',
+        quality: c.qualidade || 'NM',
+        img: c.img_url,
+        minBid: c.lance_minimo,
+        increment: c.incremento,
+        pollOptions: c.opcoes_poll || [],
+      })),
+  });
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -897,7 +980,20 @@ const App = () => {
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
   const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
+  const [liveAuction, setLiveAuction] = useState(null);
+  const [authUser, setAuthUser] = React.useState(null);
+
+  // Auth listener - redireciona automaticamente ao logar
+  React.useEffect(() => {
+    const { data: { subscription } } = sbAuth.onAuthChange((event, session) => {
+      console.log('🔐 Auth event:', event);
+      setAuthUser(session?.user || null);
+      if (event === 'SIGNED_IN') setScreen('home');
+      if (event === 'SIGNED_OUT') setScreen('login');
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
+   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
   useEffect(() => {
@@ -970,7 +1066,50 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
+  const LoginScreen = () => {
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Preencha e-mail e senha');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Tentar Supabase primeiro
+      const { data, error: authError } = await sbAuth.signIn(email, password);
+      
+      if (authError) {
+        // Se erro for "Supabase offline", vai pro mock
+        if (authError.message === 'Supabase offline') {
+          console.log('🔄 Modo offline - entrando direto');
+          setScreen('home');
+        } else {
+          throw authError;
+        }
+      } else if (data?.session) {
+        console.log('✅ Login via Supabase OK');
+        // onAuthChange vai redirecionar automaticamente
+      }
+    } catch(e) {
+      setError(e.message || 'Erro ao entrar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const skipLogin = () => {
+    console.log('⏭️ Pulando login (modo demo)');
+    setScreen('home');
+  };
+
+  return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -996,14 +1135,19 @@ const App = () => {
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
+          <input type="email" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+                    {error && <p className="text-red-500 text-sm font-semibold text-center">{error}</p>}
+<button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loading ? "⏳ Entrando..." : "⚡ Entrar"}</button>
+          <button onClick={skipLogin} className="w-full bg-gray-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-700">
+            🎮 Entrar sem Login (Modo Demo)
+          </button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
   );
+  };
 
   /* ════════════════════════════════════════
      TELA CADASTRO
@@ -1783,30 +1927,100 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = () => {
+    const saveAuction = async () => {
       const newAuction = {
-        ...form, id:Date.now(), status:'published', createdAt:new Date(),
-        title:form.name, time:form.time, organizer:'Dr. João Silva',
-        description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
-        featured:false,
+        ...form,
+        id: Date.now(),
+        status: 'published',
+        createdAt: new Date(),
+        title: form.name,
+        time: form.time,
+        organizer: 'Leiloeiro',
+        description: `Leilão criado via painel. ${auctionCards.length} cartas.`,
+        featured: false,
         whatsappLink: form.whatsappLink || '#',
-        paymentMethods:['PIX'], paymentDeadline:form.date,
+        paymentMethods: ['PIX'],
+        paymentDeadline: form.date,
         auctionType: form.auctionType,
         announcementPhoto: form.announcementPhoto || null,
         eventPhotos: form.eventPhotos || [],
         rawCards: auctionCards,
-        cards: auctionCards.map(ac=>({
-          name:ac.card.name, number:ac.card.number,
-          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
-          img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
-          minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
+        cards: auctionCards.map(ac => ({
+          name: ac.card.name,
+          number: ac.card.number,
+          set: ac.card.set?.name,
+          rarity: ac.quality === 'M' || ac.quality === 'NM' ? 'ultra-rare' : 'holo',
+          img: ac.card.images?.large || ac.card.images?.small,
+          comment: ac.comment,
+          quality: ac.quality,
+          minBid: ac.minBid,
+          increment: ac.increment,
+          pollOptions: ac.pollOptions,
+          ligaPrice: ac.ligaPrice,
         })),
       };
-      setSavedAuctions(prev=>[...prev,newAuction]);
+
+      // Tentar salvar no Supabase
+      if (supabase) {
+        try {
+          console.log('💾 Salvando no Supabase...');
+          
+          const { data: leilao, error: leilaoError } = await sbDB.createLeilao({
+            titulo: form.name,
+            organizador: 'Leiloeiro',
+            data: form.date,
+            horario: form.time,
+            descricao: newAuction.description,
+            tipo_leilao: form.auctionType,
+            metodos_pagamento: ['PIX'],
+            prazo_pagamento: form.date,
+            whatsapp_link: form.whatsappLink || '#',
+            destaque: false,
+            foto_anuncio: form.announcementPhoto || null,
+            ativo: true,
+          });
+
+          if (leilaoError) throw leilaoError;
+
+          if (leilao) {
+            // Salvar cartas
+            const cartas = auctionCards.map((ac, idx) => ({
+              leilao_id: leilao.id,
+              nome: ac.card.name,
+              numero: ac.card.number,
+              set_nome: ac.card.set?.name,
+              raridade: ac.quality === 'M' || ac.quality === 'NM' ? 'ultra-rare' : 'holo',
+              qualidade: ac.quality,
+              img_url: ac.card.images?.large || ac.card.images?.small,
+              lance_minimo: ac.minBid,
+              incremento: ac.increment,
+              opcoes_poll: ac.pollOptions,
+              ordem: idx,
+            }));
+
+            const { error: cartasError } = await sbDB.createCartas(cartas);
+            if (cartasError) throw cartasError;
+
+            newAuction.id = leilao.id;
+            console.log('✅ Leilão salvo no Supabase! ID:', leilao.id);
+          }
+        } catch (e) {
+          console.warn('⚠️ Erro ao salvar no Supabase:', e.message);
+          console.log('💾 Salvando localmente...');
+        }
+      } else {
+        console.log('💾 Supabase offline - salvando localmente');
+      }
+
+      // Sempre salvar localmente também (backup)
+      setSavedAuctions(prev => [...prev, newAuction]);
       EVENTS.push(newAuction);
+      
       setShowSuccess(true);
-      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setStep(4);
+      }, 1500);
     };
 
     const toggleCategory = (cat) => {
