@@ -41,9 +41,37 @@
   const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supabase conectado',supabase);}else setTimeout(initSupa,100);};
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
+  const sbAuth={
+    signUp:async(email,password,meta)=>{
+      if(!supabase)return{data:null,error:new Error('offline')};
+      return await supabase.auth.signUp({email,password,options:{data:meta}});
+    },
+    signIn:async(email,password)=>{
+      if(!supabase)return{data:null,error:new Error('offline')};
+      return await supabase.auth.signInWithPassword({email,password});
+    },
+    signOut:async()=>{
+      if(!supabase)return{error:null};
+      return await supabase.auth.signOut();
+    },
+    onAuthChange:(cb)=>{
+      if(!supabase)return{data:{subscription:{unsubscribe:()=>{}}}};
+      return supabase.auth.onAuthStateChange(cb);
+    },
+    getUser:async()=>{
+      if(!supabase)return{data:{user:null},error:null};
+      return await supabase.auth.getUser();
+    }
+  };
   const sbDB={
     createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
-    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{data:null,error:new Error('offline')}
+    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{data:null,error:new Error('offline')},
+    getProfile:async(id)=>supabase?await supabase.from('profiles').select('*').eq('id',id).single():{data:null,error:new Error('offline')},
+    isLeiloeiro:async(userId)=>{
+      if(!supabase)return false;
+      const{data}=await supabase.from('profiles').select('tipo,aprovado').eq('id',userId).single();
+      return data?.tipo==='leiloeiro'&&data?.aprovado===true;
+    }
   };
 
 
@@ -888,7 +916,21 @@ const App = () => {
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
   const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
+  const [liveAuction, setLiveAuction] = useState(null);
+  const [authUser, setAuthUser] = React.useState(null);
+
+  // Auth listener
+  React.useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = sbAuth.onAuthChange((event, session) => {
+      console.log('🔐 Auth event:', event);
+      setAuthUser(session?.user || null);
+      if (event === 'SIGNED_IN') setScreen('home');
+      if (event === 'SIGNED_OUT') setScreen('login');
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
+   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
   useEffect(() => {
@@ -961,7 +1003,42 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
+  const LoginScreen = () => {
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Preencha e-mail e senha');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: authError } = await sbAuth.signIn(email, password);
+      if (authError) {
+        if (authError.message === 'offline') {
+          console.log('🔄 Modo offline - entrando direto');
+          setScreen('home');
+        } else {
+          setError(authError.message);
+        }
+      }
+    } catch(e) {
+      setError(e.message || 'Erro ao entrar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const skipLogin = () => {
+    console.log('⏭️ Modo demo');
+    setScreen('home');
+  };
+
+  return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -987,14 +1064,18 @@ const App = () => {
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
+          <input type="email" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          {error&&<p className="text-red-500 text-sm text-center mb-2">{error}</p>}
+            <button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loading?"⏳ Entrando...":"⚡ Entrar"}</button>
+            <button onClick={skipLogin} className="w-full bg-gray-600 text-white py-3 rounded-xl font-bold hover:bg-gray-700">🎮 Modo Demo</button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
+  
   );
+  }
 
   /* ════════════════════════════════════════
      TELA CADASTRO
@@ -1685,6 +1766,54 @@ const App = () => {
 
 
   const AuctioneerScreen = () => {
+
+  const [isAuthorized, setIsAuthorized] = React.useState(null);
+  
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      if (!authUser) {
+        setIsAuthorized(false);
+        return;
+      }
+      const authorized = await sbDB.isLeiloeiro(authUser.id);
+      setIsAuthorized(authorized);
+    };
+    checkAuth();
+  }, [authUser]);
+
+  if (isAuthorized === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">Verificando permissões...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-8 max-w-md text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-red-800 mb-2">Acesso Negado</h2>
+          <p className="text-red-700 mb-4">
+            {authUser 
+              ? 'Sua conta ainda não foi aprovada como leiloeiro. Você receberá um email quando for aprovada.'
+              : 'Você precisa estar logado como leiloeiro para acessar esta área.'}
+          </p>
+          <button
+            onClick={() => setScreen(authUser ? 'home' : 'login')}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600"
+          >
+            {authUser ? 'Voltar ao Início' : 'Fazer Login'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
