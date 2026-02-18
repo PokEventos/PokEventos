@@ -9,7 +9,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
     .pokeball-bg { background-image: radial-gradient(circle at 20% 30%,rgba(239,68,68,.07) 0%,transparent 50%), radial-gradient(circle at 80% 70%,rgba(59,130,246,.07) 0%,transparent 50%); }
@@ -65,6 +65,10 @@
   } else {
     console.error('❌ Supabase SDK não encontrado em nenhum namespace');
     console.log('Namespaces disponíveis:', Object.keys(window).filter(k => k.toLowerCase().includes('supa')));
+    
+    // WORKAROUND: Modo offline forçado
+    console.warn('⚠️ Usando modo OFFLINE - leilões salvam apenas localmente');
+    supabase = null; // Confirma que é null para os helpers funcionarem
   }
   
   const sbAuth = {
