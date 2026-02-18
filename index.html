@@ -37,15 +37,19 @@
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
   let supabase = null;
   
-  if (window.supabase) {
+  console.log('Verificando Supabase...');
+  console.log('  window.supabase:', window.supabase);
+  console.log('  typeof:', typeof window.supabase);
+  
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
     try {
       supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-      console.log('✅ Supabase conectado');
+      console.log('✅ Supabase conectado:', supabase);
     } catch(e) {
-      console.warn('⚠️ Erro Supabase:', e.message);
+      console.error('❌ Erro ao criar cliente:', e);
     }
   } else {
-    console.warn('⚠️ Supabase não disponível');
+    console.error('❌ Supabase SDK não disponível. window.supabase =', window.supabase);
   }
   
   const sbAuth = {
