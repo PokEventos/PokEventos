@@ -1793,6 +1793,55 @@ const App = () => {
       setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
     };
 
+    const saveAuction = async () => {
+      console.log('🎯 saveAuction CHAMADO!');
+      console.log('  supabase:', supabase);
+      
+      const newAuction = {
+        ...form, id:Date.now(), status:'published', createdAt:new Date(),
+        title:form.name, time:form.time, organizer:'Dr. João Silva',
+        description:`Leilão ${form.name}`,
+        featured:false, whatsappLink: form.whatsappLink || '#',
+        paymentMethods:['PIX'], paymentDeadline:form.date,
+        auctionType:form.auctionType, announcementPhoto: form.announcementPhoto,
+        cards: auctionCards.map(ac => ({
+          name: ac.card.name, number: ac.card.number,
+          set: ac.card.set?.name, img: ac.card.images?.large,
+        })),
+      };
+
+      console.log('🔍 Tentando salvar no Supabase...');
+      if (supabase) {
+        try {
+          console.log('💾 Salvando no Supabase...');
+          const { data: leilao, error: e1 } = await sbDB.createLeilao({
+            titulo: form.name, organizador: 'Dr. João Silva',
+            data: form.date, horario: form.time,
+            descricao: `Leilão ${form.name}`, tipo_leilao: form.auctionType || 'free',
+            whatsapp_link: form.whatsappLink || '#', ativo: true,
+          });
+          if (!e1 && leilao) {
+            const cartas = auctionCards.map((ac, i) => ({
+              leilao_id: leilao.id, nome: ac.card.name,
+              numero: ac.card.number, ordem: i,
+            }));
+            await sbDB.createCartas(cartas);
+            console.log('✅ Salvo! ID:', leilao.id);
+          } else if (e1) {
+            console.error('❌ Erro:', e1);
+          }
+        } catch (e) {
+          console.error('❌ Exception:', e);
+        }
+      }
+
+      console.log('💾 Salvando localmente...');
+      setSavedAuctions(prev => [...prev, newAuction]);
+      EVENTS.push(newAuction);
+      setShowSuccess(true);
+      setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
+    };
+
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
     };
