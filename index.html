@@ -18,26 +18,33 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    const s=document.createElement('script');
+    s.type='module';
+    s.textContent=`import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))`;
+    document.head.appendChild(s);
+  </script>
 </head>
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>const s=document.createElement('script');s.type='module';s.textContent=`import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))`;document.head.appendChild(s);</script>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel">
+<div id="root"></div>
+  <script type="text/babel">  // Supabase
   const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
   let supabase=null;
-  const init=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supa OK');}else setTimeout(init,100);};init();
-  window.addEventListener('supabase-ready',init);
-  const sbDB={createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('off')},createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('off')}};
+  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supabase conectado',supabase);}else setTimeout(initSupa,100);};
+  initSupa();
+  window.addEventListener('supabase-ready',initSupa);
+  const sbDB={
+    createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
+    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{data:null,error:new Error('offline')}
+  };
 
 
 
@@ -1767,7 +1774,9 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = () => {
+    const saveAuction = async () => {
+      console.log('🎯 saveAuction CHAMADO!');
+      
       const newAuction = {
         ...form, id:Date.now(), status:'published', createdAt:new Date(),
         title:form.name, time:form.time, organizer:'Dr. João Silva',
@@ -1775,64 +1784,67 @@ const App = () => {
         featured:false,
         whatsappLink: form.whatsappLink || '#',
         paymentMethods:['PIX'], paymentDeadline:form.date,
-        auctionType: form.auctionType,
+        auctionType:form.auctionType,
         announcementPhoto: form.announcementPhoto || null,
         eventPhotos: form.eventPhotos || [],
         rawCards: auctionCards,
-        cards: auctionCards.map(ac=>({
-          name:ac.card.name, number:ac.card.number,
-          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
-          img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
-          minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
-        })),
-      };
-      setSavedAuctions(prev=>[...prev,newAuction]);
-      EVENTS.push(newAuction);
-      setShowSuccess(true);
-      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
-    };
-
-    const saveAuction = async () => {
-      console.log('🎯 saveAuction CHAMADO!');
-      console.log('  supabase:', supabase);
-      
-      const newAuction = {
-        ...form, id:Date.now(), status:'published', createdAt:new Date(),
-        title:form.name, time:form.time, organizer:'Dr. João Silva',
-        description:`Leilão ${form.name}`,
-        featured:false, whatsappLink: form.whatsappLink || '#',
-        paymentMethods:['PIX'], paymentDeadline:form.date,
-        auctionType:form.auctionType, announcementPhoto: form.announcementPhoto,
         cards: auctionCards.map(ac => ({
-          name: ac.card.name, number: ac.card.number,
-          set: ac.card.set?.name, img: ac.card.images?.large,
+          name: ac.card.name,
+          number: ac.card.number,
+          set: ac.card.set?.name,
+          rarity: ac.quality === 'M' || ac.quality === 'NM' ? 'ultra-rare' : 'holo',
+          img: ac.card.images?.large || ac.card.images?.small,
+          comment: ac.comment,
+          quality: ac.quality,
+          minBid: ac.minBid,
+          increment: ac.increment,
+          pollOptions: ac.pollOptions,
+          ligaPrice: ac.ligaPrice,
         })),
       };
 
-      console.log('🔍 Tentando salvar no Supabase...');
-      if (supabase) {
+      // Salvar no Supabase
+      if (window.supabase && supabase) {
         try {
           console.log('💾 Salvando no Supabase...');
           const { data: leilao, error: e1 } = await sbDB.createLeilao({
-            titulo: form.name, organizador: 'Dr. João Silva',
-            data: form.date, horario: form.time,
-            descricao: `Leilão ${form.name}`, tipo_leilao: form.auctionType || 'free',
-            whatsapp_link: form.whatsappLink || '#', ativo: true,
+            titulo: form.name,
+            organizador: 'Dr. João Silva',
+            data: form.date,
+            horario: form.time,
+            descricao: newAuction.description,
+            tipo_leilao: form.auctionType || 'free',
+            whatsapp_link: form.whatsappLink || '#',
+            ativo: true,
           });
-          if (!e1 && leilao) {
-            const cartas = auctionCards.map((ac, i) => ({
-              leilao_id: leilao.id, nome: ac.card.name,
-              numero: ac.card.number, ordem: i,
+          
+          if (e1) {
+            console.error('❌ Erro ao salvar leilão:', e1);
+          } else if (leilao) {
+            console.log('✅ Leilão criado! ID:', leilao.id);
+            
+            // Salvar cartas
+            const cartas = auctionCards.map((ac, idx) => ({
+              leilao_id: leilao.id,
+              nome: ac.card.name,
+              numero: ac.card.number,
+              set_nome: ac.card.set?.name,
+              ordem: idx,
             }));
-            await sbDB.createCartas(cartas);
-            console.log('✅ Salvo! ID:', leilao.id);
-          } else if (e1) {
-            console.error('❌ Erro:', e1);
+            
+            const { error: e2 } = await sbDB.createCartas(cartas);
+            if (e2) {
+              console.error('❌ Erro ao salvar cartas:', e2);
+            } else {
+              console.log('✅ Cartas salvas!');
+              newAuction.id = leilao.id;
+            }
           }
         } catch (e) {
           console.error('❌ Exception:', e);
         }
+      } else {
+        console.log('⚠️ Supabase não disponível - salvando só localmente');
       }
 
       console.log('💾 Salvando localmente...');
@@ -1840,7 +1852,7 @@ const App = () => {
       EVENTS.push(newAuction);
       setShowSuccess(true);
       setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
-    };
+    }
 
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
