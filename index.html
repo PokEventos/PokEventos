@@ -76,95 +76,11 @@
 
 
 
+
   // ══════════════════════════════════════════════════════════════
   // SUPABASE (Opcional - graceful fallback se não carregar)
   // ══════════════════════════════════════════════════════════════
   
-  // ══════════════════════════════════════════════════════════════
-  // CARREGAR SUPABASE INLINE (Fallback se CDN falhar)
-  // ══════════════════════════════════════════════════════════════
-  const loadSupabase = async () => {
-    // Tentar usar o SDK global primeiro
-    if (window.supabase) {
-      console.log('✅ Supabase SDK já carregado globalmente');
-      return window.supabase;
-    }
-    
-    // Se não tiver, carregar dinamicamente
-    console.log('📦 Carregando Supabase SDK...');
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      script.onload = () => {
-        console.log('✅ Supabase SDK carregado dinamicamente');
-        resolve(window.supabase);
-      };
-      script.onerror = () => {
-        console.warn('⚠️ Falha ao carregar Supabase SDK - modo offline');
-        resolve(null);
-      };
-      document.head.appendChild(script);
-    });
-  };
-
-  // Inicializar Supabase
-  let supabase = null;
-  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
-  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
-
-  // Criar cliente Supabase
-  let supabase = null;
-  if (window.supabase) {
-    try {
-      supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-      console.log('✅ Supabase conectado:', SUPA_URL);
-    } catch(e) {
-      console.warn('⚠️ Erro ao criar cliente:', e.message);
-    }
-  } else {
-    console.warn('⚠️ Supabase SDK não encontrado - modo offline');
-  }
-
-  // Helpers de autenticação
-  const sbAuth = {
-    signUp: async (email, password, meta) => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.auth.signUp({ email, password, options: { data: meta } });
-    },
-    signIn: async (email, password) => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.auth.signInWithPassword({ email, password });
-    },
-    signOut: async () => {
-      if (!supabase) return { error: null };
-      return await supabase.auth.signOut();
-    },
-    onAuthChange: (cb) => {
-      if (!supabase) return { data: { subscription: { unsubscribe: () => {} } } };
-      return supabase.auth.onAuthStateChange(cb);
-    },
-    getUser: async () => {
-      if (!supabase) return { data: { user: null }, error: null };
-      return await supabase.auth.getUser();
-    },
-  };
-
-  // Helpers de banco de dados
-  const sbDB = {
-    getLeiloes: async () => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.from('leiloes').select('*, leilao_cartas(*)').eq('ativo', true).order('data');
-    },
-    createLeilao: async (data) => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.from('leiloes').insert(data).select().single();
-    },
-    createCartas: async (cartas) => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.from('leilao_cartas').insert(cartas);
-    },
-  };
-
   const leilaoToEvent = (row) => ({
     id: row.id,
     title: row.titulo,
@@ -3374,6 +3290,7 @@ const App = () => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 
+  
   </script>
 </body>
 </html>
