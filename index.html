@@ -18,27 +18,13 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>const s=document.createElement('script');s.type='module';s.textContent=\`import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))\`;document.head.appendChild(s);</script>
 </head>
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="text/babel">  const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
-  const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
-  let supabase=null;
-  const init=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supa OK');}else setTimeout(init,100);};
-  init();
-  window.addEventListener('supabase-ready',init);
-  const sbDB={createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('off')},createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('off')}};
-
-
+<script type="text/babel">
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -1686,50 +1672,6 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    
-    const handleImageUpload = (e) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
-      
-      console.log('📷 Upload iniciado:', files.length, 'arquivo(s)');
-      
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const imageUrl = event.target.result;
-          console.log('✅ Imagem carregada:', file.name);
-          
-          const newCard = {
-            card: {
-              name: file.name.replace(/\.[^/.]+$/, ""),
-              number: '',
-              set: { name: 'Upload' },
-              images: {
-                large: imageUrl,
-                small: imageUrl
-              }
-            },
-            imageUrl: imageUrl,
-            quality: 'NM',
-            minBid: 10,
-            increment: 5,
-            comment: '',
-            pollOptions: ['10', '20', '30'],
-            ligaPrice: 0
-          };
-          
-          setAuctionCards(prev => {
-            const updated = [...prev, newCard];
-            console.log('📋 Total de cartas agora:', updated.length);
-            return updated;
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-      
-      e.target.value = '';
-    };
-
     const [step,         setStep]         = useState(1);
     const [form,         setForm]         = useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
@@ -1810,77 +1752,32 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = async () => {
-      console.log('🎯 saveAuction CHAMADO');
-      console.log('  Form:', form);
-      console.log('  Cartas:', auctionCards.length);
-      
+    const saveAuction = () => {
       const newAuction = {
-        ...form, 
-        id: Date.now(), 
-        status: 'published', 
-        createdAt: new Date(),
-        title: form.name, 
-        time: form.time, 
-        organizer: 'Leiloeiro',
-        description: 'Leilão ' + form.name,
-        cards: auctionCards.map(ac => ({
-          name: ac.card?.name || 'Carta',
-          img: ac.card?.images?.large || ac.card?.images?.small || ac.imageUrl || ''
-        }))
+        ...form, id:Date.now(), status:'published', createdAt:new Date(),
+        title:form.name, time:form.time, organizer:'Dr. João Silva',
+        description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
+        featured:false,
+        whatsappLink: form.whatsappLink || '#',
+        paymentMethods:['PIX'], paymentDeadline:form.date,
+        auctionType: form.auctionType,
+        announcementPhoto: form.announcementPhoto || null,
+        eventPhotos: form.eventPhotos || [],
+        rawCards: auctionCards,
+        cards: auctionCards.map(ac=>({
+          name:ac.card.name, number:ac.card.number,
+          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
+          img:ac.card.images?.large||ac.card.images?.small,
+          comment:ac.comment, quality:ac.quality,
+          minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
+        })),
       };
-      
-      if (supabase) {
-        try {
-          console.log('💾 Salvando no Supabase...');
-          
-          const { data: leilao, error: e1 } = await sbDB.createLeilao({
-            titulo: form.name,
-            organizador: 'Leiloeiro',
-            data: form.date,
-            horario: form.time,
-            descricao: newAuction.description,
-            tipo_leilao: form.auctionType || 'free',
-            whatsapp_link: form.whatsappLink || '#',
-            ativo: true
-          });
-          
-          if (e1) {
-            console.error('❌ Erro ao salvar leilão:', e1);
-          } else if (leilao) {
-            console.log('✅ Leilão criado! ID:', leilao.id);
-            
-            if (auctionCards.length > 0) {
-              const cartas = auctionCards.map((ac, i) => ({
-                leilao_id: leilao.id,
-                nome: ac.card?.name || 'Carta',
-                numero: ac.card?.number || '',
-                ordem: i
-              }));
-              
-              const { error: e2 } = await sbDB.createCartas(cartas);
-              if (e2) {
-                console.error('❌ Erro ao salvar cartas:', e2);
-              } else {
-                console.log('✅ Cartas salvas!');
-              }
-            }
-            
-            newAuction.id = leilao.id;
-          }
-        } catch (e) {
-          console.error('❌ Exception:', e);
-        }
-      } else {
-        console.warn('⚠️ Supabase não disponível');
-      }
-      
-      console.log('💾 Salvando localmente...');
-      setSavedAuctions(prev => [...prev, newAuction]);
+      setSavedAuctions(prev=>[...prev,newAuction]);
       EVENTS.push(newAuction);
       setShowSuccess(true);
-      setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
-    }
+      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
+    };
+
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
     };
@@ -2069,7 +1966,10 @@ const App = () => {
                       )}
                     </div>
                     <input type="file" accept="image/*" className="hidden"
-                      ));
+                      onChange={e=>{
+                        const f = e.target.files?.[0]; if (!f) return;
+                        const url = URL.createObjectURL(f);
+                        setPhotoPreviewUrls(p=>({...p,announcement:url}));
                         setForm(p=>({...p,announcementPhoto:url}));
                         // Atualiza avatar no grupo salvo também
                         if (form.groupId) {
@@ -2077,7 +1977,7 @@ const App = () => {
                             g.id === form.groupId ? {...g, avatarUrl: url} : g
                           ));
                         }
-                      }}  onChange={handleImageUpload} />
+                      }} />
                   </label>
                 </div>
 
