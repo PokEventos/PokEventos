@@ -30,29 +30,32 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="text/babel">
-window.addEventListener('DOMContentLoaded', () => {
-  console.log('🔧 Inicializando handlers de upload...');
+<script>
+// Handler global de upload - executado ANTES do React
+window.uploadHandlerReady = false;
+
+function setupUploadHandlers() {
+  console.log('🔧 Setup upload handlers...');
   
-  // Função para processar upload
-  window.handleCardUpload = (files, setCards) => {
+  // Função global para processar upload
+  window.processImageUpload = function(files) {
     if (!files || files.length === 0) return;
-    console.log('📷 Upload:', files.length, 'arquivo(s)');
+    console.log('📷 Processando', files.length, 'arquivo(s)...');
     
     Array.from(files).forEach(file => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const url = e.target.result;
-        console.log('✅ Carregada:', file.name);
+      reader.onload = function(e) {
+        const imageUrl = e.target.result;
+        console.log('✅ Imagem carregada:', file.name);
         
         const newCard = {
           card: {
             name: file.name.replace(/\.[^/.]+$/, ""),
             number: '',
             set: { name: 'Upload' },
-            images: { large: url, small: url }
+            images: { large: imageUrl, small: imageUrl }
           },
-          imageUrl: url,
+          imageUrl: imageUrl,
           quality: 'NM',
           minBid: 10,
           increment: 5,
@@ -61,30 +64,47 @@ window.addEventListener('DOMContentLoaded', () => {
           ligaPrice: 0
         };
         
-        // Adicionar ao estado (precisa ser chamado de dentro do React)
-        if (window.addCardCallback) {
-          window.addCardCallback(newCard);
-          console.log('📋 Carta adicionada via callback');
+        // Chamar callback do React se disponível
+        if (window.reactAddCard) {
+          window.reactAddCard(newCard);
+          console.log('📋 Carta adicionada ao React');
+        } else {
+          console.warn('⚠️ React callback ainda não registrado');
         }
       };
       reader.readAsDataURL(file);
     });
   };
   
-  // Adicionar listener a todos os inputs file
-  document.querySelectorAll('input[type="file"]').forEach(input => {
-    input.addEventListener('change', (e) => {
-      if (window.handleCardUpload) {
-        window.handleCardUpload(e.target.files);
-        e.target.value = ''; // Limpar
+  // Observer para detectar novos inputs adicionados dinamicamente
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+      if (!input.dataset.handlerAdded) {
+        input.dataset.handlerAdded = 'true';
+        input.addEventListener('change', function(e) {
+          window.processImageUpload(e.target.files);
+          e.target.value = '';
+        });
+        console.log('✅ Handler adicionado ao input');
       }
     });
   });
   
-  console.log('✅ Handlers instalados');
-});
+  observer.observe(document.body, { childList: true, subtree: true });
+  
+  window.uploadHandlerReady = true;
+  console.log('✅ Upload handlers prontos');
+}
 
+// Iniciar quando DOM estiver pronto
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupUploadHandlers);
+} else {
+  setupUploadHandlers();
+}
+</script>
 
+<script type="text/babel">
   // === SUPABASE ===
   const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
@@ -1762,15 +1782,7 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-        
-    React.useEffect(() => {
-      window.addCardCallback = (newCard) => {
-        setAuctionCards(prev => [...prev, newCard]);
-      };
-      return () => { window.addCardCallback = null; };
-    }, []);
-
-    const [step,         setStep]         = useState(1);
+        React.useEffect(()=>{window.reactAddCard=(c)=>setAuctionCards(p=>[...p,c]);return()=>{window.reactAddCard=null;};},[]); const [step,         setStep]         = useState(1);
     const [form,         setForm]         = useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
