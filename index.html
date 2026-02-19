@@ -1444,16 +1444,45 @@ React.useEffect(() => {
                         hasEv          ? 'bg-yellow-50 border-2 border-yellow-300 text-gray-800 hover:bg-yellow-100' :
                         'text-gray-400 hover:bg-gray-100'}`}>
                     <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
-                    {hasEv && (
-                      <div className="flex gap-0.5 mt-0.5">
-                        {dayEv.slice(0,3).map((_,i) =>
-                          <span key={i} className={`w-1 h-1 rounded-full ${isToday?'bg-white':'bg-yellow-500'}`} />
-                        )}
-                      </div>
-                    )}
-                    {hasWanted && !isToday && <span className="absolute -top-0.5 -right-0.5 text-[8px]">⭐</span>}
-                  </button>
-                );
+                    {hasEv && dayEv.length > 0 && (
+                    <div className="absolute inset-0 pt-10 px-1 pb-1 flex flex-col gap-1 overflow-hidden z-10">
+                      {dayEv.slice(0, 2).map((ev, idx) => (
+                        <div 
+                          key={ev.id}
+                          onClick={() => handleDayClick(date)}
+                          className="bg-white rounded-lg shadow-md p-1.5 cursor-pointer hover:shadow-lg transition-shadow relative"
+                          style={{fontSize: '9px'}}
+                        >
+                          <div className="font-bold text-gray-700 mb-0.5">{ev.time}</div>
+                          <div className="font-semibold text-gray-900 truncate" style={{fontSize: '10px'}}>
+                            {ev.title}
+                          </div>
+                          {ev.cards && ev.cards.length > 0 && (
+                            <div className="flex gap-0.5 mt-1 overflow-hidden">
+                              {ev.cards.slice(0, 6).map((card, i) => (
+                                <img 
+                                  key={i}
+                                  src={card.img} 
+                                  alt={card.name}
+                                  className="w-4 h-6 object-cover rounded shadow-sm"
+                                />
+                              ))}
+                              {ev.cards.length > 6 && (
+                                <div className="w-4 h-6 bg-gray-200 rounded flex items-center justify-center text-[6px] font-bold">
+                                  +{ev.cards.length - 6}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {dayEv.length > 2 && (
+                        <div className="text-center text-[8px] text-gray-600 font-semibold">
+                          +{dayEv.length - 2} mais
+                        </div>
+                      )}
+                    </div>
+                  );
               })}
             </div>
           </div>
