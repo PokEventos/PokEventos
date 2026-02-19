@@ -1138,16 +1138,202 @@ const App = () => {
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
   const CalendarScreen = () => {
-  const [curr, setCurr] = React.useState(new Date());
-  const [showDayModal, setShowDayModal] = React.useState(false);
-  const [showEventModal, setShowEventModal] = React.useState(false);
-  const [selectedDate, setSelectedDate] = React.useState(null);
-  const [selectedEvent, setSelectedEvent] = React.useState(null);
-  const [dayEvents, setDayEvents] = React.useState([]);
-  
-  const year = curr.getFullYear();
-  const month = curr.getMonth();
-  const firstDay = new Date(year, month, 1);
+    const [curr, setCurr] = React.useState(new Date());
+    const [showDayModal, setShowDayModal] = React.useState(false);
+    const [showEventModal, setShowEventModal] = React.useState(false);
+    const [selectedDate, setSelectedDate] = React.useState(null);
+    const [selectedEvent, setSelectedEvent] = React.useState(null);
+    const [dayEvents, setDayEvents] = React.useState([]);
+    
+    const year = curr.getFullYear();
+    const month = curr.getMonth();
+    const monthName = curr.toLocaleDateString('pt-BR', {month:'long'}).toUpperCase();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPad = firstDay.getDay();
+    const endPad = 6 - lastDay.getDay();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    const days = [];
+    
+    for (let i = startPad; i > 0; i--) days.push(new Date(year, month - 1, prevMonthDays - i + 1));
+    for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
+    for (let i = 1; i <= endPad; i++) days.push(new Date(year, month + 1, i));
+    
+    const upcomingEvents = React.useMemo(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const sevenDays = new Date(today);
+      sevenDays.setDate(today.getDate() + 7);
+      return EVENTS.filter(ev => {
+        const evDate = new Date(ev.date);
+        return evDate >= today && evDate <= sevenDays;
+      }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    }, []);
+    
+    const handleDayClick = (date) => {
+      const dateStr = date.toISOString().split('T')[0];
+      const evs = EVENTS.filter(e => e.date === dateStr);
+      if (evs.length > 0) {
+        setSelectedDate(date);
+        setDayEvents(evs);
+        setShowDayModal(true);
+      }
+    };
+    
+    const handleEventClick = (ev) => {
+      setShowDayModal(false);
+      setSelectedEvent(ev);
+      setShowEventModal(true);
+    };
+    
+    const EventBanner = ({ ev, onClick }) => (
+      <div onClick={onClick} className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl p-4 cursor-pointer hover:from-red-600 hover:to-pink-600 transition-all shadow-lg flex items-center gap-3">
+        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl flex-shrink-0">👤</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-bold text-lg truncate">{ev.title}</div>
+          <div className="text-white/90 text-sm">{ev.organizer || 'Leiloeiro'}</div>
+          <div className="text-white/80 text-sm">{new Date(ev.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})} às {ev.time}</div>
+        </div>
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    );
+    
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 bg-white shadow-md z-20 p-4">
+          <h1 className="text-3xl font-black text-center text-gray-800">{monthName}</h1>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            <button onClick={() => setCurr(new Date(year, month - 1, 1))} className="p-2 hover:bg-gray-100 rounded-full">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="text-gray-600 font-semibold">{year}</span>
+            <button onClick={() => setCurr(new Date(year, month + 1, 1))} className="p-2 hover:bg-gray-100 rounded-full">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-4">
+          {upcomingEvents.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-xl font-black text-gray-800 mb-3">📅 Próximos Leilões</h2>
+              <div className="space-y-3">
+                {upcomingEvents.map(ev => <EventBanner key={ev.id} ev={ev} onClick={() => handleEventClick(ev)} />)}
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-white rounded-3xl shadow-lg p-4">
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['D','S','T','Q','Q','S','S'].map((d, i) => (
+                <div key={i} className="text-center text-sm font-bold text-gray-700 py-2">{d}</div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((date, idx) => {
+                const sameMonth = date.getMonth() === month;
+                const dateStr = date.toISOString().split('T')[0];
+                const evs = EVENTS.filter(e => e.date === dateStr);
+                const hasEvs = evs.length > 0;
+                return (
+                  <div key={idx} className={'relative aspect-square border border-gray-200 rounded-lg ' + (sameMonth ? 'bg-white' : 'bg-gray-100') + (hasEvs ? ' cursor-pointer hover:bg-blue-50' : '')} onClick={() => handleDayClick(date)}>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className={'font-black text-gray-300 ' + (sameMonth ? 'text-4xl' : 'text-3xl opacity-30')}>{date.getDate()}</span>
+                    </div>
+                    {hasEvs && (
+                      <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-0.5 pointer-events-none">
+                        {evs.slice(0, 3).map(ev => <div key={ev.id} className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] shadow-md">👤</div>)}
+                        {evs.length > 3 && <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-bold">+{evs.length - 3}</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        
+        {showDayModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50" onClick={() => setShowDayModal(false)}>
+            <div className="bg-white rounded-t-3xl md:rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-black text-gray-800">{selectedDate && selectedDate.toLocaleDateString('pt-BR', {day: '2-digit', month: 'long'})}</h2>
+                  <button onClick={() => setShowDayModal(false)} className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center">
+                    <span className="text-gray-600 text-2xl">×</span>
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {dayEvents.map(ev => <EventBanner key={ev.id} ev={ev} onClick={() => handleEventClick(ev)} />)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {showEventModal && selectedEvent && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowEventModal(false)}>
+            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-500 to-pink-500 p-6 rounded-t-3xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl">👤</div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-black text-white">{selectedEvent.title}</h2>
+                    <p className="text-white/90">{selectedEvent.organizer || 'Leiloeiro'}</p>
+                  </div>
+                  <button onClick={() => setShowEventModal(false)} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <span className="text-white text-2xl">×</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 text-white flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-sm">{new Date(selectedEvent.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long'})}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span className="text-sm">{selectedEvent.time}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                {selectedEvent.cards && selectedEvent.cards.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-gray-800 mb-3">Cartas do Leilão</h3>
+                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                      {selectedEvent.cards.slice(0, 12).map((card, i) => (
+                        <div key={i} className="aspect-[2/3] rounded-lg overflow-hidden shadow-md">
+                          <img src={card.img} alt={card.name} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                    {selectedEvent.cards.length > 12 && <p className="text-center text-gray-600 mt-3 text-sm">+{selectedEvent.cards.length - 12} cartas</p>}
+                  </div>
+                )}
+                <div className="space-y-3">
+                  <button onClick={() => { setLiveAuction(selectedEvent.id); setScreen('live'); setShowEventModal(false); }} className="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-4 rounded-xl font-bold shadow-lg">👁️ Ver Cartas Detalhadas</button>
+                  <button className="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg">✓ Check-in</button>
+                  {selectedEvent.whatsappLink && <a href={selectedEvent.whatsappLink} target="_blank" rel="noopener noreferrer" className="block w-full bg-green-600 text-white py-4 rounded-xl font-bold text-center shadow-lg">Grupo WhatsApp</a>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <BottomNav current="calendar" />
+      </div>
+    );
+  };
+
+
   const SearchWantedScreen = () => {
     const [query,       setQuery]      = useState('');
     const [results,     setResults]    = useState([]);
