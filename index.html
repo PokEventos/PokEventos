@@ -1708,8 +1708,7 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    const handleImageUpload=(e)=>{const files=e.target.files;if(!files||files.length===0)return;console.log('📷 Upload:',files.length,'arquivo(s)');Array.from(files).forEach(file=>{const reader=new FileReader();reader.onload=(event)=>{const imageUrl=event.target.result;console.log('✅ Carregada:',file.name);const newCard={card:{name:file.name.replace(/\.[^/.]+$/,""),number:'',set:{name:'Upload'},images:{large:imageUrl,small:imageUrl}},imageUrl:imageUrl,quality:'NM',minBid:10,increment:5,comment:'',pollOptions:['10','20','30'],ligaPrice:0};setAuctionCards(prev=>{const updated=[...prev,newCard];console.log('📋 Total cartas:',updated.length);return updated;});};reader.readAsDataURL(file);});e.target.value='';};
-    const [step,         setStep]         = useState(1);
+        const [step,         setStep]         = useState(1);
     const [form,         setForm]         = useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
@@ -2003,15 +2002,30 @@ const App = () => {
                         </div>
                       )}
                     </div>
-                    <input type="file" accept="image/*" className="hidden"));
-                        setForm(p=>({...p,announcementPhoto:url}));
-                        // Atualiza avatar no grupo salvo também
-                        if (form.groupId) {
-                          setSavedGroups(prev => prev.map(g =>
-                            g.id === form.groupId ? {...g, avatarUrl: url} : g
-                          ));
-                        }
-                      }}  onChange={handleImageUpload} />
+                    <input 
+              type="file" 
+              accept="image/*" 
+              multiple
+              className="hidden"
+              onChange={(e)=>{
+                const files=e.target.files;
+                if(!files||files.length===0)return;
+                console.log('📷',files.length,'arquivo(s)');
+                Array.from(files).forEach(file=>{
+                  const reader=new FileReader();
+                  reader.onload=(ev)=>{
+                    const url=ev.target.result;
+                    console.log('✅',file.name);
+                    setAuctionCards(prev=>[...prev,{
+                      card:{name:file.name.split('.')[0],number:'',set:{name:'Upload'},images:{large:url,small:url}},
+                      imageUrl:url,quality:'NM',minBid:10,increment:5,comment:'',pollOptions:['10','20','30'],ligaPrice:0
+                    }]);
+                  };
+                  reader.readAsDataURL(file);
+                });
+                e.target.value='';
+              }}
+            />
                   </label>
                 </div>
 
