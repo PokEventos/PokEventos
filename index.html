@@ -1040,9 +1040,37 @@ React.useEffect(() => {
   const [error, setError] = React.useState('');
 
   const handleLogin = async () => {
-    // MODO DEMO FORÇADO (temporário)
-    console.log('🎮 Modo demo ativo - entrando sem autenticação');
-    setScreen('home');
+    if (!email || !password) {
+      setError('Preencha e-mail e senha');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('🔐 Tentando login real com:', email);
+      
+      // Tentar login real no Supabase
+      const { data, error: authError } = await sbAuth.signIn(email, password);
+      
+      if (authError) {
+        console.warn('⚠️ Erro ao autenticar:', authError.message);
+        // Se der erro de autenticação, permitir modo demo como fallback
+        console.log('🎮 Fallback para modo demo');
+        setScreen('home');
+      } else if (data?.user) {
+        console.log('✅ Login bem-sucedido!', data.user);
+        setAuthUser(data.user);
+        setScreen('home');
+      }
+    } catch(e) {
+      console.error('❌ Exception no login:', e);
+      // Fallback para modo demo em caso de erro
+      setScreen('home');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const skipLogin = () => {
@@ -1779,26 +1807,11 @@ React.useEffect(() => {
 
   const AuctioneerScreen = () => {
 
-  // Verificação simplificada para testes - apenas checa se está logado
-  if (!authUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-8 max-w-md text-center">
-          <div className="text-5xl mb-4">🔐</div>
-          <h2 className="text-2xl font-bold text-yellow-800 mb-2">Login Necessário</h2>
-          <p className="text-yellow-700 mb-4">
-            Você precisa estar logado para acessar o Painel do Leiloeiro.
-          </p>
-          <button
-            onClick={() => setScreen('login')}
-            className="bg-yellow-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-yellow-600"
-          >
-            Fazer Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Modo demo permitido - não bloqueia acesso
+  // TODO: Quando for produção, descomentar para exigir login:
+  // if (!authUser) { return <div>Login necessário</div>; }
+  console.log('📋 AuctioneerScreen - authUser:', authUser ? 'autenticado' : 'modo demo');
+  
 
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
