@@ -918,9 +918,39 @@ const App = () => {
   const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
   const [liveAuction, setLiveAuction] = useState(null);
   const [authUser, setAuthUser] = React.useState(null);
+  const [liveRooms, setLiveRooms] = React.useState([]); // IDs dos leilões ao vivo
+  
+  // Função para iniciar sala
+  const startLiveRoom = (auctionId) => {
+    setLiveRooms(prev => [...prev, auctionId]);
+    setLiveAuction(auctionId);
+    setScreen('live');
+  };
+  
+  // Função para entrar em sala existente
+  const joinLiveRoom = (auctionId) => {
+    setLiveAuction(auctionId);
+    setScreen('live');
+  };
+
 
   // Auth listener
+  
+  // Checar se tem sala na URL (para entrar via link compartilhado)
   React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const salaId = params.get('sala');
+    if (salaId) {
+      const numSalaId = parseInt(salaId);
+      // Marcar sala como ao vivo e entrar nela
+      setLiveRooms(prev => [...prev, numSalaId]);
+      setLiveAuction(numSalaId);
+      setScreen('live');
+      // Limpar URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+React.useEffect(() => {
     if (!supabase) return;
     const { data: { subscription } } = sbAuth.onAuthChange((event, session) => {
       console.log('🔐 Auth event:', event);
@@ -1010,27 +1040,9 @@ const App = () => {
   const [error, setError] = React.useState('');
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Preencha e-mail e senha');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const { data, error: authError } = await sbAuth.signIn(email, password);
-      if (authError) {
-        if (authError.message === 'offline') {
-          console.log('🔄 Modo offline - entrando direto');
-          setScreen('home');
-        } else {
-          setError(authError.message);
-        }
-      }
-    } catch(e) {
-      setError(e.message || 'Erro ao entrar');
-    } finally {
-      setLoading(false);
-    }
+    // MODO DEMO FORÇADO (temporário)
+    console.log('🎮 Modo demo ativo - entrando sem autenticação');
+    setScreen('home');
   };
 
   const skipLogin = () => {
@@ -1405,6 +1417,12 @@ const App = () => {
                         'text-gray-400 hover:bg-gray-100'}`}>
                     <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
                     {hasEv && (
+                      {/* Badge AO VIVO */}
+                      {dayEv.some(e => liveRooms.includes(e.id)) && (
+                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded animate-pulse">
+                          LIVE
+                        </div>
+                      )}
                       <div className="flex gap-0.5 mt-0.5">
                         {dayEv.slice(0,3).map((_,i) =>
                           <span key={i} className={`w-1 h-1 rounded-full ${isToday?'bg-white':'bg-yellow-500'}`} />
@@ -1767,47 +1785,21 @@ const App = () => {
 
   const AuctioneerScreen = () => {
 
-  const [isAuthorized, setIsAuthorized] = React.useState(null);
-  
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      if (!authUser) {
-        setIsAuthorized(false);
-        return;
-      }
-      const authorized = await sbDB.isLeiloeiro(authUser.id);
-      setIsAuthorized(authorized);
-    };
-    checkAuth();
-  }, [authUser]);
-
-  if (isAuthorized === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">Verificando permissões...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isAuthorized === false) {
+  // Verificação simplificada para testes - apenas checa se está logado
+  if (!authUser) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-8 max-w-md text-center">
-          <div className="text-5xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-red-800 mb-2">Acesso Negado</h2>
-          <p className="text-red-700 mb-4">
-            {authUser 
-              ? 'Sua conta ainda não foi aprovada como leiloeiro. Você receberá um email quando for aprovada.'
-              : 'Você precisa estar logado como leiloeiro para acessar esta área.'}
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-8 max-w-md text-center">
+          <div className="text-5xl mb-4">🔐</div>
+          <h2 className="text-2xl font-bold text-yellow-800 mb-2">Login Necessário</h2>
+          <p className="text-yellow-700 mb-4">
+            Você precisa estar logado para acessar o Painel do Leiloeiro.
           </p>
           <button
-            onClick={() => setScreen(authUser ? 'home' : 'login')}
-            className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600"
+            onClick={() => setScreen('login')}
+            className="bg-yellow-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-yellow-600"
           >
-            {authUser ? 'Voltar ao Início' : 'Fazer Login'}
+            Fazer Login
           </button>
         </div>
       </div>
