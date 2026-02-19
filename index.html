@@ -1171,7 +1171,7 @@ React.useEffect(() => {
   /* ════════════════════════════════════════
      TELA HOME
   ════════════════════════════════════════ */
-  const HomeScreen = () => {
+  const HomeScreen = ({ liveRooms = [], startLiveRoom, joinLiveRoom }) => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
       <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
@@ -1216,7 +1216,7 @@ React.useEffect(() => {
   /* ════════════════════════════════════════
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
-  const CalendarScreen = () => {
+  const CalendarScreen = ({ liveRooms = [] }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [showDayModal, setShowDayModal] = useState(false);
@@ -1417,12 +1417,6 @@ React.useEffect(() => {
                         'text-gray-400 hover:bg-gray-100'}`}>
                     <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
                     {hasEv && (
-                      {/* Badge AO VIVO */}
-                      {dayEv.some(e => liveRooms.includes(e.id)) && (
-                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded animate-pulse">
-                          LIVE
-                        </div>
-                      )}
                       <div className="flex gap-0.5 mt-0.5">
                         {dayEv.slice(0,3).map((_,i) =>
                           <span key={i} className={`w-1 h-1 rounded-full ${isToday?'bg-white':'bg-yellow-500'}`} />
@@ -3260,8 +3254,8 @@ React.useEffect(() => {
     <div className="w-full min-h-screen">
       {screen==='login'      && <LoginScreen />}
       {screen==='register'   && <RegisterScreen />}
-      {screen==='home'       && <HomeScreen />}
-      {screen==='calendar'   && <CalendarScreen />}
+      {screen==='home'       && <HomeScreen liveRooms={liveRooms} startLiveRoom={startLiveRoom} joinLiveRoom={joinLiveRoom} />}
+      {screen==='calendar'   && <CalendarScreen liveRooms={liveRooms} />}
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
       {screen==='auctioneer' && <AuctioneerScreen />}
