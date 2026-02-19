@@ -18,6 +18,12 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <script>
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.textContent = "import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))";
+    document.head.appendChild(s);
+  </script>
 </head>
 <body>
 <div id="root"></div>
@@ -25,6 +31,36 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
+  // === SUPABASE ===
+  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
+  let supabase = null;
+  
+  const initSupabase = () => {
+    if (window.supabaseCreateClient) {
+      supabase = window.supabaseCreateClient(SUPA_URL, SUPA_KEY);
+      console.log('✅ Supabase conectado');
+    } else {
+      setTimeout(initSupabase, 100);
+    }
+  };
+  
+  initSupabase();
+  window.addEventListener('supabase-ready', initSupabase);
+  
+  const sbDB = {
+    createLeilao: async (data) => {
+      if (!supabase) return { data: null, error: new Error('Supabase offline') };
+      return await supabase.from('leiloes').insert(data).select().single();
+    },
+    createCartas: async (cartas) => {
+      if (!supabase) return { error: new Error('Supabase offline') };
+      return await supabase.from('leilao_cartas').insert(cartas);
+    }
+  };
+  // === FIM SUPABASE ===
+
+
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -1752,7 +1788,7 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = () => {
+    const saveAuction = async () => {
       const newAuction = {
         ...form, id:Date.now(), status:'published', createdAt:new Date(),
         title:form.name, time:form.time, organizer:'Dr. João Silva',
