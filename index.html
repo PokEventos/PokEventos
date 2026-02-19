@@ -18,62 +18,31 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>
-    const s=document.createElement('script');
-    s.type='module';
-    s.textContent=`import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))`;
-    document.head.appendChild(s);
-  </script>
+  <script>const s=document.createElement('script');s.type='module';s.textContent=`import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))`;document.head.appendChild(s);</script>
 </head>
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<div id="root"></div>
-  <script type="text/babel">  // Supabase
+<script type="text/babel">
+  // Supabase
   const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
   let supabase=null;
-  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supabase conectado',supabase);}else setTimeout(initSupa,100);};
+  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
-  const sbAuth={
-    signUp:async(email,password,meta)=>{
-      if(!supabase)return{data:null,error:new Error('offline')};
-      return await supabase.auth.signUp({email,password,options:{data:meta}});
-    },
-    signIn:async(email,password)=>{
-      if(!supabase)return{data:null,error:new Error('offline')};
-      return await supabase.auth.signInWithPassword({email,password});
-    },
-    signOut:async()=>{
-      if(!supabase)return{error:null};
-      return await supabase.auth.signOut();
-    },
-    onAuthChange:(cb)=>{
-      if(!supabase)return{data:{subscription:{unsubscribe:()=>{}}}};
-      return supabase.auth.onAuthStateChange(cb);
-    },
-    getUser:async()=>{
-      if(!supabase)return{data:{user:null},error:null};
-      return await supabase.auth.getUser();
-    }
-  };
+  const sbAuth={signIn:async(e,p)=>supabase?await supabase.auth.signInWithPassword({email:e,password:p}):{data:null,error:new Error('offline')}};
   const sbDB={
     createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
-    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{data:null,error:new Error('offline')},
-    getProfile:async(id)=>supabase?await supabase.from('profiles').select('*').eq('id',id).single():{data:null,error:new Error('offline')},
-    isLeiloeiro:async(userId)=>{
-      if(!supabase)return false;
-      const{data}=await supabase.from('profiles').select('tipo,aprovado').eq('id',userId).single();
-      return data?.tipo==='leiloeiro'&&data?.aprovado===true;
-    }
+    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{data:null,error:new Error('offline')}
   };
-
 
 
 const { useState, useMemo, useEffect, useCallback } = React;
@@ -916,51 +885,7 @@ const App = () => {
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
   const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);
-  const [authUser, setAuthUser] = React.useState(null);
-  const [liveRooms, setLiveRooms] = React.useState([]); // IDs dos leilões ao vivo
-  
-  // Função para iniciar sala
-  const startLiveRoom = (auctionId) => {
-    setLiveRooms(prev => [...prev, auctionId]);
-    setLiveAuction(auctionId);
-    setScreen('live');
-  };
-  
-  // Função para entrar em sala existente
-  const joinLiveRoom = (auctionId) => {
-    setLiveAuction(auctionId);
-    setScreen('live');
-  };
-
-
-  // Auth listener
-  
-  // Checar se tem sala na URL (para entrar via link compartilhado)
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const salaId = params.get('sala');
-    if (salaId) {
-      const numSalaId = parseInt(salaId);
-      // Marcar sala como ao vivo e entrar nela
-      setLiveRooms(prev => [...prev, numSalaId]);
-      setLiveAuction(numSalaId);
-      setScreen('live');
-      // Limpar URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-React.useEffect(() => {
-    if (!supabase) return;
-    const { data: { subscription } } = sbAuth.onAuthChange((event, session) => {
-      console.log('🔐 Auth event:', event);
-      setAuthUser(session?.user || null);
-      if (event === 'SIGNED_IN') setScreen('home');
-      if (event === 'SIGNED_OUT') setScreen('login');
-    });
-    return () => subscription?.unsubscribe();
-  }, []);
-   // leilão ao vivo em andamento
+  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
   useEffect(() => {
@@ -1033,52 +958,7 @@ React.useEffect(() => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState('');
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Preencha e-mail e senha');
-      return;
-    }
-    
-    setLoading(true);
-    setError('');
-    
-    try {
-      console.log('🔐 Tentando login real com:', email);
-      
-      // Tentar login real no Supabase
-      const { data, error: authError } = await sbAuth.signIn(email, password);
-      
-      if (authError) {
-        console.warn('⚠️ Erro ao autenticar:', authError.message);
-        // Se der erro de autenticação, permitir modo demo como fallback
-        console.log('🎮 Fallback para modo demo');
-        setScreen('home');
-      } else if (data?.user) {
-        console.log('✅ Login bem-sucedido!', data.user);
-        setAuthUser(data.user);
-        setScreen('home');
-      }
-    } catch(e) {
-      console.error('❌ Exception no login:', e);
-      // Fallback para modo demo em caso de erro
-      setScreen('home');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const skipLogin = () => {
-    console.log('⏭️ Modo demo');
-    setScreen('home');
-  };
-
-  return (
+  const LoginScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -1104,18 +984,14 @@ React.useEffect(() => {
           </div>
         </div>
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          {error&&<p className="text-red-500 text-sm text-center mb-2">{error}</p>}
-            <button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50">{loading?"⏳ Entrando...":"⚡ Entrar"}</button>
-            <button onClick={skipLogin} className="w-full bg-gray-600 text-white py-3 rounded-xl font-bold hover:bg-gray-700">🎮 Modo Demo</button>
+          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
-  
   );
-  }
 
   /* ════════════════════════════════════════
      TELA CADASTRO
@@ -1199,7 +1075,7 @@ React.useEffect(() => {
   /* ════════════════════════════════════════
      TELA HOME
   ════════════════════════════════════════ */
-  const HomeScreen = ({ liveRooms = [], startLiveRoom, joinLiveRoom }) => {
+  const HomeScreen = () => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
       <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
@@ -1255,6 +1131,219 @@ React.useEffect(() => {
   const year = curr.getFullYear();
   const month = curr.getMonth();
   const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay();
+  const endPad = 6 - lastDay.getDay();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  const days = [];
+  
+  for (let i = startPad; i > 0; i--) days.push(new Date(year, month - 1, prevMonthDays - i + 1));
+  for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
+  for (let i = 1; i <= endPad; i++) days.push(new Date(year, month + 1, i));
+  
+  const monthName = curr.toLocaleDateString('pt-BR', {month:'long'}).toUpperCase();
+  
+  const upcomingEvents = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysLater = new Date(today);
+    sevenDaysLater.setDate(today.getDate() + 7);
+    return EVENTS.filter(ev => {
+      const evDate = new Date(ev.date);
+      return evDate >= today && evDate <= sevenDaysLater;
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, []);
+  
+  const handleDayClick = (date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const evs = EVENTS.filter(e => e.date === dateStr);
+    if (evs.length > 0) {
+      setSelectedDate(date);
+      setDayEvents(evs);
+      setShowDayModal(true);
+    }
+  };
+  
+  const handleEventClick = (ev) => {
+    setShowDayModal(false);
+    setSelectedEvent(ev);
+    setShowEventModal(true);
+  };
+  
+  const EventBanner = ({ ev, onClick }) => (
+    <div onClick={onClick} className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl p-4 cursor-pointer hover:from-red-600 hover:to-pink-600 transition-all shadow-lg flex items-center gap-3">
+      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl flex-shrink-0">👤</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-white font-bold text-lg truncate">{ev.title}</div>
+        <div className="text-white/90 text-sm">{ev.organizer || 'Leiloeiro'}</div>
+        <div className="text-white/80 text-sm">{new Date(ev.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})} às {ev.time}</div>
+      </div>
+      <svg className="w-6 h-6 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  );
+  
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="sticky top-0 bg-white shadow-md z-20 p-4">
+        <h1 className="text-3xl font-black text-center text-gray-800">{monthName}</h1>
+        <div className="flex items-center justify-center gap-4 mt-2">
+          <button onClick={() => setCurr(new Date(year, month - 1, 1))} className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span className="text-gray-600 font-semibold">{year}</span>
+          <button onClick={() => setCurr(new Date(year, month + 1, 1))} className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-4">
+        {upcomingEvents.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-black text-gray-800 mb-3">📅 Próximos Leilões</h2>
+            <div className="space-y-3">
+              {upcomingEvents.map(ev => (
+                <EventBanner key={ev.id} ev={ev} onClick={() => handleEventClick(ev)} />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        <div className="bg-white rounded-3xl shadow-lg p-4">
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['D','S','T','Q','Q','S','S'].map((d, i) => (
+              <div key={i} className="text-center text-sm font-bold text-gray-700 py-2">{d}</div>
+            ))}
+          </div>
+          
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((date, idx) => {
+              const sameMonth = date.getMonth() === month;
+              const dateStr = date.toISOString().split('T')[0];
+              const eventsThisDay = EVENTS.filter(e => e.date === dateStr);
+              const hasEvents = eventsThisDay.length > 0;
+              
+              const dayBg = sameMonth ? 'bg-white' : 'bg-gray-100';
+              const dayCursor = hasEvents ? 'cursor-pointer hover:bg-blue-50' : '';
+              const dayClasses = 'relative aspect-square border border-gray-200 rounded-lg ' + dayBg + ' ' + dayCursor;
+              const numSize = sameMonth ? 'text-4xl' : 'text-3xl opacity-30';
+              const numClasses = 'font-black text-gray-300 ' + numSize;
+              
+              return (
+                <div key={idx} className={dayClasses} onClick={() => handleDayClick(date)}>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className={numClasses}>{date.getDate()}</span>
+                  </div>
+                  {hasEvents && (
+                    <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-0.5 pointer-events-none">
+                      {eventsThisDay.slice(0, 3).map((ev) => (
+                        <div key={ev.id} className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] shadow-md">👤</div>
+                      ))}
+                      {eventsThisDay.length > 3 && (
+                        <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-bold">+{eventsThisDay.length - 3}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      
+      {showDayModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50" onClick={() => setShowDayModal(false)}>
+          <div className="bg-white rounded-t-3xl md:rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-black text-gray-800">
+                  {selectedDate && selectedDate.toLocaleDateString('pt-BR', {day: '2-digit', month: 'long'})}
+                </h2>
+                <button onClick={() => setShowDayModal(false)} className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center">
+                  <span className="text-gray-600 text-2xl">×</span>
+                </button>
+              </div>
+              <div className="space-y-3">
+                {dayEvents.map(ev => (
+                  <EventBanner key={ev.id} ev={ev} onClick={() => handleEventClick(ev)} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showEventModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowEventModal(false)}>
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 p-6 rounded-t-3xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl">👤</div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-black text-white">{selectedEvent.title}</h2>
+                  <p className="text-white/90">{selectedEvent.organizer || 'Leiloeiro'}</p>
+                </div>
+                <button onClick={() => setShowEventModal(false)} className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center">
+                  <span className="text-white text-2xl">×</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-4 text-white flex-wrap">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm">{new Date(selectedEvent.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long'})}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm">{selectedEvent.time}</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {selectedEvent.cards && selectedEvent.cards.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-bold text-gray-800 mb-3">Cartas do Leilão</h3>
+                  <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                    {selectedEvent.cards.slice(0, 12).map((card, i) => (
+                      <div key={i} className="aspect-[2/3] rounded-lg overflow-hidden shadow-md">
+                        <img src={card.img} alt={card.name} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                  {selectedEvent.cards.length > 12 && (
+                    <p className="text-center text-gray-600 mt-3 text-sm">+{selectedEvent.cards.length - 12} cartas</p>
+                  )}
+                </div>
+              )}
+              <div className="space-y-3">
+                <button onClick={() => { setLiveAuction(selectedEvent.id); setScreen('live'); setShowEventModal(false); }} className="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-4 rounded-xl font-bold shadow-lg">
+                  👁️ Ver Cartas Detalhadas
+                </button>
+                <button className="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg">✓ Check-in</button>
+                {selectedEvent.whatsappLink && (
+                  <a href={selectedEvent.whatsappLink} target="_blank" rel="noopener noreferrer" className="block w-full bg-green-600 text-white py-4 rounded-xl font-bold text-center shadow-lg">
+                    Grupo WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  };
+
+
   const SearchWantedScreen = () => {
     const [query,       setQuery]      = useState('');
     const [results,     setResults]    = useState([]);
@@ -1533,13 +1622,6 @@ React.useEffect(() => {
 
 
   const AuctioneerScreen = () => {
-
-  // Modo demo permitido - não bloqueia acesso
-  // TODO: Quando for produção, descomentar para exigir login:
-  // if (!authUser) { return <div>Login necessário</div>; }
-  console.log('📋 AuctioneerScreen - authUser:', authUser ? 'autenticado' : 'modo demo');
-  
-
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
@@ -1630,84 +1712,22 @@ React.useEffect(() => {
     };
 
     const saveAuction = async () => {
-      console.log('🎯 saveAuction CHAMADO!');
-      
-      const newAuction = {
-        ...form, id:Date.now(), status:'published', createdAt:new Date(),
+      const newAuction = {...form, id:Date.now(), status:'published', createdAt:new Date(),
         title:form.name, time:form.time, organizer:'Dr. João Silva',
-        description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
-        featured:false,
-        whatsappLink: form.whatsappLink || '#',
-        paymentMethods:['PIX'], paymentDeadline:form.date,
-        auctionType:form.auctionType,
-        announcementPhoto: form.announcementPhoto || null,
-        eventPhotos: form.eventPhotos || [],
-        rawCards: auctionCards,
-        cards: auctionCards.map(ac => ({
-          name: ac.card.name,
-          number: ac.card.number,
-          set: ac.card.set?.name,
-          rarity: ac.quality === 'M' || ac.quality === 'NM' ? 'ultra-rare' : 'holo',
-          img: ac.card.images?.large || ac.card.images?.small,
-          comment: ac.comment,
-          quality: ac.quality,
-          minBid: ac.minBid,
-          increment: ac.increment,
-          pollOptions: ac.pollOptions,
-          ligaPrice: ac.ligaPrice,
-        })),
+        description:'Leilão criado via painel', featured:false,
+        whatsappLink:form.whatsappLink||'#', paymentMethods:['PIX'], paymentDeadline:form.date,
+        auctionType:form.auctionType, announcementPhoto:form.announcementPhoto||null,
+        rawCards:auctionCards,
+        cards:auctionCards.map(ac=>({name:ac.card.name, number:ac.card.number, set:ac.card.set?.name, img:ac.card.images?.large||ac.card.images?.small}))
       };
-
-      // Salvar no Supabase
-      if (window.supabase && supabase) {
-        try {
-          console.log('💾 Salvando no Supabase...');
-          const { data: leilao, error: e1 } = await sbDB.createLeilao({
-            titulo: form.name,
-            organizador: 'Dr. João Silva',
-            data: form.date,
-            horario: form.time,
-            descricao: newAuction.description,
-            tipo_leilao: form.auctionType || 'free',
-            whatsapp_link: form.whatsappLink || '#',
-            ativo: true,
-          });
-          
-          if (e1) {
-            console.error('❌ Erro ao salvar leilão:', e1);
-          } else if (leilao) {
-            console.log('✅ Leilão criado! ID:', leilao.id);
-            
-            // Salvar cartas
-            const cartas = auctionCards.map((ac, idx) => ({
-              leilao_id: leilao.id,
-              nome: ac.card.name,
-              numero: ac.card.number,
-              set_nome: ac.card.set?.name,
-              ordem: idx,
-            }));
-            
-            const { error: e2 } = await sbDB.createCartas(cartas);
-            if (e2) {
-              console.error('❌ Erro ao salvar cartas:', e2);
-            } else {
-              console.log('✅ Cartas salvas!');
-              newAuction.id = leilao.id;
-            }
-          }
-        } catch (e) {
-          console.error('❌ Exception:', e);
-        }
-      } else {
-        console.log('⚠️ Supabase não disponível - salvando só localmente');
-      }
-
-      console.log('💾 Salvando localmente...');
-      setSavedAuctions(prev => [...prev, newAuction]);
+      if(supabase){try{console.log('💾 Salvando...');const{data:l,error:e1}=await sbDB.createLeilao({titulo:form.name,organizador:'Dr. João Silva',data:form.date,horario:form.time,descricao:newAuction.description,tipo_leilao:form.auctionType||'free',whatsapp_link:form.whatsappLink||'#',ativo:true});if(!e1&&l){const cartas=auctionCards.map((ac,i)=>({leilao_id:l.id,nome:ac.card.name,numero:ac.card.number,ordem:i}));await sbDB.createCartas(cartas);console.log('✅ Salvo! ID:',l.id);}}catch(e){console.warn('⚠️',e.message);}}
+      setSavedAuctions(prev=>[...prev,newAuction]);EVENTS.push(newAuction);setShowSuccess(true);setTimeout(()=>{setShowSuccess(false);setStep(4);},1500);
+    };
+      setSavedAuctions(prev=>[...prev,newAuction]);
       EVENTS.push(newAuction);
       setShowSuccess(true);
-      setTimeout(() => { setShowSuccess(false); setStep(4); }, 1500);
-    }
+      setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
+    };
 
     const toggleCategory = (cat) => {
       setForm(prev=>({...prev, categories:prev.categories.includes(cat)?prev.categories.filter(c=>c!==cat):[...prev.categories,cat]}));
@@ -2994,8 +3014,8 @@ React.useEffect(() => {
     <div className="w-full min-h-screen">
       {screen==='login'      && <LoginScreen />}
       {screen==='register'   && <RegisterScreen />}
-      {screen==='home'       && <HomeScreen liveRooms={liveRooms} startLiveRoom={startLiveRoom} joinLiveRoom={joinLiveRoom} />}
-      {screen==='calendar'   && <CalendarScreen liveRooms={liveRooms} />}
+      {screen==='home'       && <HomeScreen />}
+      {screen==='calendar'   && <CalendarScreen />}
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
       {screen==='auctioneer' && <AuctioneerScreen />}
