@@ -1808,6 +1808,7 @@ const App = () => {
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
+      if(supabase){try{console.log('💾 Salvando...');const{data:l,error:e1}=await sbDB.createLeilao({titulo:form.name,organizador:'Leiloeiro',data:form.date,horario:form.time,descricao:'Leilão '+form.name,tipo_leilao:form.auctionType||'free',whatsapp_link:form.whatsappLink||'#',ativo:true});if(e1)console.error('❌',e1);else if(l){console.log('✅ ID:',l.id);newAuction.id=l.id;if(auctionCards.length>0){const c=auctionCards.map((ac,i)=>({leilao_id:l.id,nome:ac.card.name,numero:ac.card.number||'',ordem:i}));const{error:e2}=await sbDB.createCartas(c);if(!e2)console.log('✅ Cartas OK');}}}catch(e){console.error('❌',e);}}
       setSavedAuctions(prev=>[...prev,newAuction]);
       EVENTS.push(newAuction);
       setShowSuccess(true);
