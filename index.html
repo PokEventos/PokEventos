@@ -1012,34 +1012,34 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
-    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
-      <img src={
+  const LoginScreen = ({ setUser }) => {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [error, setError] = React.useState('');
     const [loading, setLoading] = React.useState(false);
     
     const handleLogin = async (e) => {
-      e.preventDefault();
+      e?.preventDefault();
       setError('');
       setLoading(true);
       
-      console.log('🔑 Tentando login com:', email);
+      console.log('🔑 Tentando login:', email);
       
       const { data, error: err } = await sbAuth.signIn(email, password);
       
       if (err) {
-        console.error('❌ Erro no login:', err.message);
+        console.error('❌ Erro:', err.message);
         setError(err.message);
         setLoading(false);
       } else if (data?.user) {
-        console.log('✅ Login bem-sucedido!');
+        console.log('✅ Login OK!');
         setUser(data.user);
-        // LoginScreen vai ser desmontado automaticamente quando user for setado
       }
     };
-    POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
+    
+    return (
+<div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
+      <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm relative z-10">
         <div className="text-center mb-6">
@@ -1070,7 +1070,9 @@ const App = () => {
         </div>
       </div>
     </div>
-  );
+  
+    );
+  };
 
   /* ════════════════════════════════════════
      TELA CADASTRO
