@@ -913,6 +913,7 @@ const LoginScreen = ({ setUser }) => {
     
     const handleLogin = async (e) => {
       e.preventDefault();
+      console.log("🐛 DEBUG: handleLogin CHAMADO!");
       setError('');
       setLoading(true);
       
