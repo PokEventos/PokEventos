@@ -797,6 +797,26 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                 {event.cards.map((card, i) => {
                   const isWanted = wantedList.find(w => matchWanted(w, card));
                   return (
+      
+      // Verificar autenticação
+      if (loading) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+            <div className="text-white text-center">
+              <div className="text-6xl mb-4">⚡</div>
+              <p className="text-xl font-bold">Carregando...</p>
+            </div>
+          </div>
+        );
+      }
+      
+      if (!user) {
+        return screen === 'register' 
+          ? <RegisterScreen setUser={setUser} />
+          : <LoginScreen setUser={setUser} />;
+      }
+      
+      // Usuário logado - mostrar app normal
                     <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300' : 'border-gray-200'}`}>
                       {/* Badge Wanted */}
                       {isWanted && (
