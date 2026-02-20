@@ -797,26 +797,6 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                 {event.cards.map((card, i) => {
                   const isWanted = wantedList.find(w => matchWanted(w, card));
                   return (
-      
-      // Verificar autenticação
-      if (loading) {
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-            <div className="text-white text-center">
-              <div className="text-6xl mb-4">⚡</div>
-              <p className="text-xl font-bold">Carregando...</p>
-            </div>
-          </div>
-        );
-      }
-      
-      if (!user) {
-        return screen === 'register' 
-          ? <RegisterScreen setUser={setUser} />
-          : <LoginScreen setUser={setUser} />;
-      }
-      
-      // Usuário logado - mostrar app normal
                     <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300' : 'border-gray-200'}`}>
                       {/* Badge Wanted */}
                       {isWanted && (
@@ -1057,7 +1037,12 @@ const App = () => {
       }
     };
     
-    return (
+
+  // Auth check
+  if (loading) return <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center"><div className="text-white text-6xl">⚡</div></div>;
+  if (!user) return screen === 'register' ? <RegisterScreen setUser={setUser} /> : <LoginScreen setUser={setUser} />;
+  
+      return (
       <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
           <div className="text-center mb-6">
