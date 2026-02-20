@@ -41,6 +41,41 @@
     createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
     createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')}
   };
+  const sbAuth={
+    signUp:async(email,password,displayName)=>{
+      if(!supabase)return{data:null,error:new Error('Supabase offline')};
+      console.log('📝 Criando usuário...');
+      const{data,error}=await supabase.auth.signUp({
+        email:email,
+        password:password,
+        options:{data:{display_name:displayName}}
+      });
+      if(error)console.error('❌ Erro signup:',error);
+      else console.log('✅ Usuário criado!',data);
+      return{data,error};
+    },
+    signIn:async(email,password)=>{
+      if(!supabase)return{data:null,error:new Error('Supabase offline')};
+      console.log('🔑 Fazendo login...');
+      const{data,error}=await supabase.auth.signInWithPassword({email,password});
+      if(error)console.error('❌ Erro login:',error);
+      else console.log('✅ Login OK!',data);
+      return{data,error};
+    },
+    signOut:async()=>{
+      if(!supabase)return{error:new Error('Supabase offline')};
+      console.log('👋 Saindo...');
+      const{error}=await supabase.auth.signOut();
+      if(error)console.error('❌ Erro logout:',error);
+      else console.log('✅ Logout OK!');
+      return{error};
+    },
+    getUser:async()=>{
+      if(!supabase)return{data:{user:null}};
+      return await supabase.auth.getUser();
+    }
+  };
+
 
 
 
