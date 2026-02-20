@@ -1161,7 +1161,14 @@ const AuthWrapper = () => {
     return <App user={user} setUser={setUser} />;
   };
 
-const App = () => {
+const App = ({
+  const handleLogout = async () => {
+    console.log('👋 Fazendo logout...');
+    await sbAuth.signOut();
+    setUser(null);
+    console.log('✅ Logout OK!');
+  };
+   user, setUser }) => {
   const [user, setUser] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     
