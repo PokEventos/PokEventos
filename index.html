@@ -18,12 +18,6 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
-  <script>
-    const s = document.createElement('script');
-    s.type = 'module';
-    s.textContent = "import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))";
-    document.head.appendChild(s);
-  </script>
 </head>
 <body>
 <div id="root"></div>
@@ -31,36 +25,6 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
-  // === SUPABASE ===
-  const SUPA_URL = 'https://beqiihapbgtrrgvmgrpg.supabase.co';
-  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
-  let supabase = null;
-  
-  const initSupabase = () => {
-    if (window.supabaseCreateClient) {
-      supabase = window.supabaseCreateClient(SUPA_URL, SUPA_KEY);
-      console.log('✅ Supabase conectado');
-    } else {
-      setTimeout(initSupabase, 100);
-    }
-  };
-  
-  initSupabase();
-  window.addEventListener('supabase-ready', initSupabase);
-  
-  const sbDB = {
-    createLeilao: async (data) => {
-      if (!supabase) return { data: null, error: new Error('Supabase offline') };
-      return await supabase.from('leiloes').insert(data).select().single();
-    },
-    createCartas: async (cartas) => {
-      if (!supabase) return { error: new Error('Supabase offline') };
-      return await supabase.from('leilao_cartas').insert(cartas);
-    }
-  };
-  // === FIM SUPABASE ===
-
-
 
 const { useState, useMemo, useEffect, useCallback } = React;
 
@@ -1708,7 +1672,7 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-        const [step,         setStep]         = useState(1);
+    const [step,         setStep]         = useState(1);
     const [form,         setForm]         = useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
@@ -1788,7 +1752,7 @@ const App = () => {
       }, 800);
     };
 
-    const saveAuction = async () => {
+    const saveAuction = () => {
       const newAuction = {
         ...form, id:Date.now(), status:'published', createdAt:new Date(),
         title:form.name, time:form.time, organizer:'Dr. João Silva',
@@ -1808,7 +1772,6 @@ const App = () => {
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
-      if(supabase){try{console.log('💾 Salvando...');const{data:l,error:e1}=await sbDB.createLeilao({titulo:form.name,organizador:'Leiloeiro',data:form.date,horario:form.time,descricao:'Leilão '+form.name,tipo_leilao:form.auctionType||'free',whatsapp_link:form.whatsappLink||'#',ativo:true});if(e1)console.error('❌',e1);else if(l){console.log('✅ ID:',l.id);newAuction.id=l.id;if(auctionCards.length>0){const c=auctionCards.map((ac,i)=>({leilao_id:l.id,nome:ac.card.name,numero:ac.card.number||'',ordem:i}));const{error:e2}=await sbDB.createCartas(c);if(!e2)console.log('✅ Cartas OK');}}}catch(e){console.error('❌',e);}}
       setSavedAuctions(prev=>[...prev,newAuction]);
       EVENTS.push(newAuction);
       setShowSuccess(true);
@@ -2002,7 +1965,11 @@ const App = () => {
                         </div>
                       )}
                     </div>
-                    <input type="file" accept="image/*" className="hidden"));
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={e=>{
+                        const f = e.target.files?.[0]; if (!f) return;
+                        const url = URL.createObjectURL(f);
+                        setPhotoPreviewUrls(p=>({...p,announcement:url}));
                         setForm(p=>({...p,announcementPhoto:url}));
                         // Atualiza avatar no grupo salvo também
                         if (form.groupId) {
@@ -2010,7 +1977,7 @@ const App = () => {
                             g.id === form.groupId ? {...g, avatarUrl: url} : g
                           ));
                         }
-                      }}  onChange={handleImageUpload} />
+                      }} />
                   </label>
                 </div>
 
