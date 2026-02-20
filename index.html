@@ -1141,6 +1141,25 @@ const AuthWrapper = () => {
       checkUser();
     }, []);
     
+    // Listener para mudanças de autenticação
+    React.useEffect(() => {
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('🔔 Auth mudou:', event);
+        if (event === 'SIGNED_OUT') {
+          console.log('👋 Usuário saiu');
+          setUser(null);
+        } else if (event === 'SIGNED_IN') {
+          console.log('✅ Usuário entrou:', session?.user?.email);
+          setUser(session?.user || null);
+        }
+      });
+      
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
+    }, []);
+
+    
     if (loading) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
