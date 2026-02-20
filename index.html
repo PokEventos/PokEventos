@@ -1100,90 +1100,132 @@ const App = () => {
   };
 
 
-  const RegisterScreen = () => {
-    const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
-    const isAuc = accountType === 'auctioneer';
+  const RegisterScreen = ({ setUser }) => {
+    const [name, setName] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [confirmPassword, setConfirmPassword] = React.useState('');
+    const [error, setError] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
+    
+    const handleRegister = async (e) => {
+      e.preventDefault();
+      setError('');
+      
+      // Validações
+      if (password !== confirmPassword) {
+        setError('As senhas não coincidem');
+        return;
+      }
+      
+      if (password.length < 6) {
+        setError('A senha deve ter no mínimo 6 caracteres');
+        return;
+      }
+      
+      setLoading(true);
+      console.log('📝 Criando conta:', email);
+      
+      const { data, error: err } = await sbAuth.signUp(email, password, name);
+      
+      if (err) {
+        console.error('❌ Erro:', err.message);
+        setError(err.message);
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('✅ Conta criada!');
+        alert('✅ Conta criada! Verifique seu email para confirmar.');
+        setScreen('login');
+      }
+    };
+    
     return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* BANNER DE TESTE */}
-        <div className="fixed top-0 left-0 right-0 bg-yellow-400 text-black text-center py-1 text-xs font-bold z-50" style={{zIndex: 9999}}>
-          ⚠️ VERSÃO DE TESTE - test branch
-        </div>
-        
-      <img src={POKE.mewtwo}  className="absolute top-8 right-4 w-20 opacity-10 animate-bounce" style={{animationDuration:'3.5s'}} />
-      <img src={POKE.eevee}   className="absolute bottom-12 left-4 w-16 opacity-10 animate-bounce" style={{animationDuration:'4.5s'}} />
-      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative z-10 overflow-y-auto max-h-[96vh]">
-
-        {/* Header — Jolteon */}
-        <div className="text-center mb-5">
-          <button onClick={()=>setScreen('login')} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 text-lg">←</button>
-          <div className="relative inline-block mb-2">
-            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-70"></div>
-            <img src={POKE.jolteon} className="w-16 h-16 relative z-10 drop-shadow-lg" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">🎮</div>
+            <h1 className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Criar Conta</h1>
+            <p className="text-gray-500 text-sm mt-1">Junte-se aos leilões!</p>
           </div>
-          <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Criar Conta</h1>
-          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
-        </div>
-
-        {/* Tipo de conta — com estado */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <button onClick={()=>setAccountType('collector')}
-            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
-            <span className="text-2xl">👤</span>
-            <span>Colecionador</span>
-            <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
-          </button>
-          <button onClick={()=>setAccountType('auctioneer')}
-            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
-            <span className="text-2xl">🔨</span>
-            <span>Leiloeiro</span>
-            <span className={`text-[10px] font-normal ${accountType==='auctioneer'?'text-yellow-600':'text-gray-400'}`}>Organiza leilões</span>
-          </button>
-        </div>
-
-        <div className="space-y-2.5">
-          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-
-          {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
-          <div>
-            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
-              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
-            {!isAuc && (
-              <p className="text-[10px] text-gray-400 mt-1 ml-1">
-                ⚡ Necessário para participar de leilões
-              </p>
+          
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Nome</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Seu nome"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Mínimo 6 caracteres"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Confirmar Senha</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Digite a senha novamente"
+                required
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
+                {error}
+              </div>
             )}
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              {loading ? 'Criando conta...' : 'Criar Conta'}
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 text-sm">
+              Já tem conta?{' '}
+              <button onClick={() => setScreen('login')} className="text-purple-600 font-bold">
+                Fazer login
+              </button>
+            </p>
           </div>
-
-          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-
-          <div className="flex items-start gap-2 pt-1">
-            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
-            <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
-              Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
-            </label>
-          </div>
-
-          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
-            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
-            <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
-            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
-          </button>
-
-          <p className="text-center text-sm">
-            Já tem conta? <button onClick={()=>setScreen('login')} className="text-purple-600 hover:underline font-semibold">Entrar</button>
-          </p>
         </div>
       </div>
-    </div>
     );
   };
 
-  /* ════════════════════════════════════════
-     TELA HOME
-  ════════════════════════════════════════ */
+
   const HomeScreen = () => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
