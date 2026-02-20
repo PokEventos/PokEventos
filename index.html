@@ -905,6 +905,262 @@ const AUCTION_GROUPS = [
   { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
 ];
 
+const LoginScreen = ({ setUser }) => {
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [error, setError] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
+    
+    const handleLogin = async (e) => {
+      e.preventDefault();
+      setError('');
+      setLoading(true);
+      
+      console.log('🔑 Tentando login:', email);
+      
+      const { data, error: err } = await sbAuth.signIn(email, password);
+      
+      if (err) {
+        console.error('❌ Erro:', err.message);
+        setError(err.message);
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('✅ Login OK!');
+        setUser(data.user);
+      }
+    };
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">⚡</div>
+            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">PokéEventos</h1>
+            <p className="text-gray-500 text-sm mt-1">Faça login para continuar</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-red-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 text-sm">
+              Não tem conta?{' '}
+              <button onClick={() => setScreen('register')} className="text-blue-600 font-bold">
+                Criar conta
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+
+const RegisterScreen = ({ setUser }) => {
+    const [name, setName] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [confirmPassword, setConfirmPassword] = React.useState('');
+    const [error, setError] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
+    
+    const handleRegister = async (e) => {
+      e.preventDefault();
+      setError('');
+      
+      // Validações
+      if (password !== confirmPassword) {
+        setError('As senhas não coincidem');
+        return;
+      }
+      
+      if (password.length < 6) {
+        setError('A senha deve ter no mínimo 6 caracteres');
+        return;
+      }
+      
+      setLoading(true);
+      console.log('📝 Criando conta:', email);
+      
+      const { data, error: err } = await sbAuth.signUp(email, password, name);
+      
+      if (err) {
+        console.error('❌ Erro:', err.message);
+        setError(err.message);
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('✅ Conta criada!');
+        alert('✅ Conta criada! Verifique seu email para confirmar.');
+        setScreen('login');
+      }
+    };
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">🎮</div>
+            <h1 className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Criar Conta</h1>
+            <p className="text-gray-500 text-sm mt-1">Junte-se aos leilões!</p>
+          </div>
+          
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Nome</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Seu nome"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Mínimo 6 caracteres"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Confirmar Senha</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                placeholder="Digite a senha novamente"
+                required
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              {loading ? 'Criando conta...' : 'Criar Conta'}
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 text-sm">
+              Já tem conta?{' '}
+              <button onClick={() => setScreen('login')} className="text-purple-600 font-bold">
+                Fazer login
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+
+const AuthWrapper = () => {
+    const [user, setUser] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [screen, setScreen] = React.useState('login');
+    
+    React.useEffect(() => {
+      const checkUser = async () => {
+        console.log('🔍 Verificando sessão...');
+        const { data } = await sbAuth.getUser();
+        if (data?.user) {
+          console.log('✅ Usuário logado:', data.user.email);
+          setUser(data.user);
+        } else {
+          console.log('⚠️ Nenhum usuário logado');
+        }
+        setLoading(false);
+      };
+      checkUser();
+    }, []);
+    
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+          <div className="text-white text-center">
+            <div className="text-6xl mb-4">⚡</div>
+            <p className="text-xl font-bold">Carregando...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (!user) {
+      return screen === 'register' 
+        ? <RegisterScreen setUser={setUser} setScreen={setScreen} />
+        : <LoginScreen setUser={setUser} setScreen={setScreen} />;
+    }
+    
+    return <App user={user} setUser={setUser} />;
+  };
+
 const App = () => {
   const [user, setUser] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
@@ -925,21 +1181,21 @@ const App = () => {
       checkUser();
     }, []);
     
-    const [screen,      setScreen]      = useState('login');
-  const [checkins,    setCheckins]    = useState([]);
-  const [modalEvent,  setModalEvent]  = useState(null);
-  const [searchLog,   setSearchLog]   = useState([]);
-  const [wantedList,  setWantedList]  = useState([]);
-  const [alerts,      setAlerts]      = useState([]);
+    const [screen,      setScreen]      = React.useState('login');
+  const [checkins,    setCheckins]    = React.useState([]);
+  const [modalEvent,  setModalEvent]  = React.useState(null);
+  const [searchLog,   setSearchLog]   = React.useState([]);
+  const [wantedList,  setWantedList]  = React.useState([]);
+  const [alerts,      setAlerts]      = React.useState([]);
   // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
-  const [interests,   setInterests]   = useState({});
+  const [interests,   setInterests]   = React.useState({});
   const toggleInterest = (eventId, cardIdx) => {
     const key = eventId + '_' + cardIdx;
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
+  const [isAuctioneer,setIsAuctioneer]= React.useState(true);   // mock: true = conta leiloeiro
+  const [liveAuction, setLiveAuction] = React.useState(null);   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
   useEffect(() => {
@@ -1180,9 +1436,9 @@ const App = () => {
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
   const CalendarScreen = () => {
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [showDayModal, setShowDayModal] = useState(false);
+    const [currentMonth, setCurrentMonth] = React.useState(new Date());
+    const [selectedDate, setSelectedDate] = React.useState(null);
+    const [showDayModal, setShowDayModal] = React.useState(false);
     const getDays = (month) => {
       const first = new Date(month.getFullYear(), month.getMonth(), 1);
       const last  = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -1464,13 +1720,13 @@ const App = () => {
   };
 
   const SearchWantedScreen = () => {
-    const [query,       setQuery]      = useState('');
-    const [results,     setResults]    = useState([]);
-    const [loading,     setLoading]    = useState(false);
-    const [searched,    setSearched]   = useState('');
-    const [apiError,    setApiError]   = useState('');
-    const [modalCard,   setModalCard]  = useState(null);
-    const [excluirComuns, setExcluirComuns] = useState(false);
+    const [query,       setQuery]      = React.useState('');
+    const [results,     setResults]    = React.useState([]);
+    const [loading,     setLoading]    = React.useState(false);
+    const [searched,    setSearched]   = React.useState('');
+    const [apiError,    setApiError]   = React.useState('');
+    const [modalCard,   setModalCard]  = React.useState(null);
+    const [excluirComuns, setExcluirComuns] = React.useState(false);
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
@@ -1750,26 +2006,26 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    const [step,         setStep]         = useState(1);
-    const [form,         setForm]         = useState({
+    const [step,         setStep]         = React.useState(1);
+    const [form,         setForm]         = React.useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
       eventPhotos: [],
     });
-    const [cardQuery,       setCardQuery]      = useState('');
-    const [cardResults,     setCardResults]    = useState([]);
-    const [cardLoading,     setCardLoading]    = useState(false);
-    const [excluirComunsL,  setExcluirComunsL] = useState(false);
+    const [cardQuery,       setCardQuery]      = React.useState('');
+    const [cardResults,     setCardResults]    = React.useState([]);
+    const [cardLoading,     setCardLoading]    = React.useState(false);
+    const [excluirComunsL,  setExcluirComunsL] = React.useState(false);
     const cardDebounceRef = React.useRef(null);
-    const [groupSearch,  setGroupSearch]  = useState('');
-    const [savedGroups,  setSavedGroups]  = useState(
+    const [groupSearch,  setGroupSearch]  = React.useState('');
+    const [savedGroups,  setSavedGroups]  = React.useState(
       // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
       []
     );
-    const [auctionCards, setAuctionCards] = useState([]);
-    const [savedAuctions,setSavedAuctions]= useState([]);
-    const [showSuccess,  setShowSuccess]  = useState(false);
-    const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
+    const [auctionCards, setAuctionCards] = React.useState([]);
+    const [savedAuctions,setSavedAuctions]= React.useState([]);
+    const [showSuccess,  setShowSuccess]  = React.useState(false);
+    const [photoPreviewUrls, setPhotoPreviewUrls] = React.useState({ announcement: null, content: [] });
 
     const searchCards = (q) => {
       if (!q.trim()) { setCardResults([]); return; }
@@ -2469,37 +2725,37 @@ const App = () => {
       const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
-      const [cardIdx,    setCardIdx]    = useState(0);
-      const [phase,      setPhase]      = useState('waiting'); // waiting | bidding | sold | ended
-      const [timer,      setTimer]      = useState(0);
-      const [timerMax,   setTimerMax]   = useState(60);
-      const [timerInput, setTimerInput] = useState('60');
-      const [bids,       setBids]       = useState({});        // {cardIdx: [{user,value,ts}]}
+      const [cardIdx,    setCardIdx]    = React.useState(0);
+      const [phase,      setPhase]      = React.useState('waiting'); // waiting | bidding | sold | ended
+      const [timer,      setTimer]      = React.useState(0);
+      const [timerMax,   setTimerMax]   = React.useState(60);
+      const [timerInput, setTimerInput] = React.useState('60');
+      const [bids,       setBids]       = React.useState({});        // {cardIdx: [{user,value,ts}]}
   
       // ── POLL: estado por carta ────────────────────────────────────────
       // pollBids[cardIdx] = {optIdx: [{user,ts}]}   votos por opção
-      const [pollBids,   setPollBids]   = useState({});
+      const [pollBids,   setPollBids]   = React.useState({});
       // pollStatus[cardIdx] = 'open' | 'arremate_pending' | 'closed'
-      const [pollStatus, setPollStatus] = useState(() => {
+      const [pollStatus, setPollStatus] = React.useState(() => {
         const s = {};
         cards.forEach((_,i) => { s[i] = 'open'; });
         return s;
       });
       // pollArremate[cardIdx] = { optIdx, user, ts, countdown }
-      const [pollArremate, setPollArremate] = useState({});
+      const [pollArremate, setPollArremate] = React.useState({});
       // countdown de 3 min por carta em arremate_pending
-      const [arrCountdown, setArrCountdown] = useState({});  // {cardIdx: secondsLeft}
+      const [arrCountdown, setArrCountdown] = React.useState({});  // {cardIdx: secondsLeft}
   
       // ── Compartilhados ────────────────────────────────────────────────
-      const [chatMsgs,   setChatMsgs]   = useState([
+      const [chatMsgs,   setChatMsgs]   = React.useState([
         {user:'Sistema', msg:'Bem-vindo à sala! Aguardando o leiloeiro iniciar.', ts:new Date(), system:true},
       ]);
-      const [chatInput,  setChatInput]  = useState('');
-      const [showReport, setShowReport] = useState(false);
-      const [uploads,    setUploads]    = useState({});
-      const [inlineBid,  setInlineBid]  = useState({minBid:'', increment:'', pollOptions:['','','']});
-      const [showConfirm,setShowConfirm]= useState(false);
-      const [activePollCard, setActivePollCard] = useState(0); // carta visível no poll
+      const [chatInput,  setChatInput]  = React.useState('');
+      const [showReport, setShowReport] = React.useState(false);
+      const [uploads,    setUploads]    = React.useState({});
+      const [inlineBid,  setInlineBid]  = React.useState({minBid:'', increment:'', pollOptions:['','','']});
+      const [showConfirm,setShowConfirm]= React.useState(false);
+      const [activePollCard, setActivePollCard] = React.useState(0); // carta visível no poll
   
       const currentCard     = cards[cardIdx];
       const participants    = [{name:'Dr. João (leiloeiro)'}, {name:'Participante 1'}, {name:'Participante 2'}];
