@@ -906,7 +906,26 @@ const AUCTION_GROUPS = [
 ];
 
 const App = () => {
-  const [screen,      setScreen]      = useState('login');
+  const [user, setUser] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    
+    // Verificar se já está logado ao carregar
+    React.useEffect(() => {
+      const checkUser = async () => {
+        console.log('🔍 Verificando sessão...');
+        const { data } = await sbAuth.getUser();
+        if (data?.user) {
+          console.log('✅ Usuário logado:', data.user.email);
+          setUser(data.user);
+        } else {
+          console.log('⚠️ Nenhum usuário logado');
+        }
+        setLoading(false);
+      };
+      checkUser();
+    }, []);
+    
+    const [screen,      setScreen]      = useState('login');
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
   const [searchLog,   setSearchLog]   = useState([]);
