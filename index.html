@@ -913,7 +913,6 @@ const LoginScreen = ({ setUser }) => {
     
     const handleLogin = async (e) => {
       e.preventDefault();
-      console.log("🐛 DEBUG: handleLogin CHAMADO!");
       setError('');
       setLoading(true);
       
@@ -1162,14 +1161,7 @@ const AuthWrapper = () => {
     return <App user={user} setUser={setUser} />;
   };
 
-const App = ({
-  const handleLogout = async () => {
-    console.log('👋 Fazendo logout...');
-    await sbAuth.signOut();
-    setUser(null);
-    console.log('✅ Logout OK!');
-  };
-   user, setUser }) => {
+const App = () => {
   const [user, setUser] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     
