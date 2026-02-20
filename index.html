@@ -925,21 +925,21 @@ const App = () => {
       checkUser();
     }, []);
     
-    const [screen,      setScreen]      = React.useState('login');
-  const [checkins,    setCheckins]    = React.useState([]);
-  const [modalEvent,  setModalEvent]  = React.useState(null);
-  const [searchLog,   setSearchLog]   = React.useState([]);
-  const [wantedList,  setWantedList]  = React.useState([]);
-  const [alerts,      setAlerts]      = React.useState([]);
+    const [screen,      setScreen]      = useState('login');
+  const [checkins,    setCheckins]    = useState([]);
+  const [modalEvent,  setModalEvent]  = useState(null);
+  const [searchLog,   setSearchLog]   = useState([]);
+  const [wantedList,  setWantedList]  = useState([]);
+  const [alerts,      setAlerts]      = useState([]);
   // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
-  const [interests,   setInterests]   = React.useState({});
+  const [interests,   setInterests]   = useState({});
   const toggleInterest = (eventId, cardIdx) => {
     const key = eventId + '_' + cardIdx;
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= React.useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = React.useState(null);   // leilão ao vivo em andamento
+  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
+  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
   useEffect(() => {
@@ -1012,225 +1012,128 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = ({ setUser }) => {
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [error, setError] = React.useState('');
-    const [loading, setLoading] = React.useState(false);
-    
-    const handleLogin = async (e) => {
-      e.preventDefault();
-      setError('');
-      setLoading(true);
-      
-      console.log('🔑 Tentando login:', email);
-      
-      const { data, error: err } = await sbAuth.signIn(email, password);
-      
-      if (err) {
-        console.error('❌ Erro:', err.message);
-        setError(err.message);
-        setLoading(false);
-      } else if (data?.user) {
-        console.log('✅ Login OK!');
-        setUser(data.user);
-      }
-    };
-    
-
-  // Auth check
-  if (loading) return <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center"><div className="text-white text-6xl">⚡</div></div>;
-  if (!user) return screen === 'register' ? <RegisterScreen setUser={setUser} /> : <LoginScreen setUser={setUser} />;
-  
-      return (
-      <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-3">⚡</div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">PokéEventos</h1>
-            <p className="text-gray-500 text-sm mt-1">Faça login para continuar</p>
+  const LoginScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
+      <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
+      <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
+      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm relative z-10">
+        <div className="text-center mb-6">
+          <div className="relative inline-block mb-3">
+            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-60"></div>
+            <img src={POKE.pikachu} className="w-20 h-20 relative z-10" />
           </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            
-            {error && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
-                {error}
+          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>PokEventos</h1>
+          <p className="text-gray-500 text-sm mt-1 font-medium">Todos os leilões em um só lugar</p>
+          <div className="flex justify-center items-end gap-3 mt-5">
+            {[
+              { src:TCG.venusaur,      label:'Venusaur',   border:'border-green-400', size:'w-16', shift:'' },
+              { src:TCG.charizardBase, label:'Charizard',  border:'border-red-400',   size:'w-16', shift:'-translate-y-2' },
+              { src:TCG.blastoise,     label:'Blastoise',  border:'border-blue-400',  size:'w-16', shift:'' },
+            ].map((c,i)=>(
+              <div key={i} className="flex flex-col items-center gap-1">
+                <img src={c.src} alt={c.label} className={`${c.size} ${c.shift} rounded-lg shadow-xl border-2 ${c.border} card-img`} />
+                <span className="text-[9px] text-gray-500 font-semibold">{c.label}</span>
               </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-red-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              Não tem conta?{' '}
-              <button onClick={() => setScreen('register')} className="text-blue-600 font-bold">
-                Criar conta
-              </button>
-            </p>
+            ))}
           </div>
         </div>
+        <div className="space-y-3">
+          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
+          <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
 
-
-  const RegisterScreen = ({ setUser }) => {
-    const [name, setName] = React.useState('');
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [confirmPassword, setConfirmPassword] = React.useState('');
-    const [error, setError] = React.useState('');
-    const [loading, setLoading] = React.useState(false);
-    
-    const handleRegister = async (e) => {
-      e.preventDefault();
-      setError('');
-      
-      // Validações
-      if (password !== confirmPassword) {
-        setError('As senhas não coincidem');
-        return;
-      }
-      
-      if (password.length < 6) {
-        setError('A senha deve ter no mínimo 6 caracteres');
-        return;
-      }
-      
-      setLoading(true);
-      console.log('📝 Criando conta:', email);
-      
-      const { data, error: err } = await sbAuth.signUp(email, password, name);
-      
-      if (err) {
-        console.error('❌ Erro:', err.message);
-        setError(err.message);
-        setLoading(false);
-      } else if (data?.user) {
-        console.log('✅ Conta criada!');
-        alert('✅ Conta criada! Verifique seu email para confirmar.');
-        setScreen('login');
-      }
-    };
-    
+  /* ════════════════════════════════════════
+     TELA CADASTRO
+  ════════════════════════════════════════ */
+  const RegisterScreen = () => {
+    const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
+    const isAuc = accountType === 'auctioneer';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-3">🎮</div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Criar Conta</h1>
-            <p className="text-gray-500 text-sm mt-1">Junte-se aos leilões!</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* BANNER DE TESTE */}
+        <div className="fixed top-0 left-0 right-0 bg-yellow-400 text-black text-center py-1 text-xs font-bold z-50" style={{zIndex: 9999}}>
+          ⚠️ VERSÃO DE TESTE - test branch
+        </div>
+        
+      <img src={POKE.mewtwo}  className="absolute top-8 right-4 w-20 opacity-10 animate-bounce" style={{animationDuration:'3.5s'}} />
+      <img src={POKE.eevee}   className="absolute bottom-12 left-4 w-16 opacity-10 animate-bounce" style={{animationDuration:'4.5s'}} />
+      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative z-10 overflow-y-auto max-h-[96vh]">
+
+        {/* Header — Jolteon */}
+        <div className="text-center mb-5">
+          <button onClick={()=>setScreen('login')} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 text-lg">←</button>
+          <div className="relative inline-block mb-2">
+            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-70"></div>
+            <img src={POKE.jolteon} className="w-16 h-16 relative z-10 drop-shadow-lg" />
           </div>
-          
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Nome</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Seu nome"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Mínimo 6 caracteres"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Confirmar Senha</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Digite a senha novamente"
-                required
-              />
-            </div>
-            
-            {error && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
-                {error}
-              </div>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Criar Conta</h1>
+          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
+        </div>
+
+        {/* Tipo de conta — com estado */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button onClick={()=>setAccountType('collector')}
+            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+            <span className="text-2xl">👤</span>
+            <span>Colecionador</span>
+            <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
+          </button>
+          <button onClick={()=>setAccountType('auctioneer')}
+            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+            <span className="text-2xl">🔨</span>
+            <span>Leiloeiro</span>
+            <span className={`text-[10px] font-normal ${accountType==='auctioneer'?'text-yellow-600':'text-gray-400'}`}>Organiza leilões</span>
+          </button>
+        </div>
+
+        <div className="space-y-2.5">
+          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+
+          {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
+          <div>
+            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
+              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
+            {!isAuc && (
+              <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                ⚡ Necessário para participar de leilões
+              </p>
             )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-            >
-              {loading ? 'Criando conta...' : 'Criar Conta'}
-            </button>
-          </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              Já tem conta?{' '}
-              <button onClick={() => setScreen('login')} className="text-purple-600 font-bold">
-                Fazer login
-              </button>
-            </p>
           </div>
+
+          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+
+          <div className="flex items-start gap-2 pt-1">
+            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
+            <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
+              Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
+            </label>
+          </div>
+
+          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
+            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
+            <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
+            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
+          </button>
+
+          <p className="text-center text-sm">
+            Já tem conta? <button onClick={()=>setScreen('login')} className="text-purple-600 hover:underline font-semibold">Entrar</button>
+          </p>
         </div>
       </div>
+    </div>
     );
   };
 
-
+  /* ════════════════════════════════════════
+     TELA HOME
+  ════════════════════════════════════════ */
   const HomeScreen = () => {
     const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
     return (
@@ -1277,9 +1180,9 @@ const App = () => {
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
   const CalendarScreen = () => {
-    const [currentMonth, setCurrentMonth] = React.useState(new Date());
-    const [selectedDate, setSelectedDate] = React.useState(null);
-    const [showDayModal, setShowDayModal] = React.useState(false);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [showDayModal, setShowDayModal] = useState(false);
     const getDays = (month) => {
       const first = new Date(month.getFullYear(), month.getMonth(), 1);
       const last  = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -1561,13 +1464,13 @@ const App = () => {
   };
 
   const SearchWantedScreen = () => {
-    const [query,       setQuery]      = React.useState('');
-    const [results,     setResults]    = React.useState([]);
-    const [loading,     setLoading]    = React.useState(false);
-    const [searched,    setSearched]   = React.useState('');
-    const [apiError,    setApiError]   = React.useState('');
-    const [modalCard,   setModalCard]  = React.useState(null);
-    const [excluirComuns, setExcluirComuns] = React.useState(false);
+    const [query,       setQuery]      = useState('');
+    const [results,     setResults]    = useState([]);
+    const [loading,     setLoading]    = useState(false);
+    const [searched,    setSearched]   = useState('');
+    const [apiError,    setApiError]   = useState('');
+    const [modalCard,   setModalCard]  = useState(null);
+    const [excluirComuns, setExcluirComuns] = useState(false);
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
@@ -1847,26 +1750,26 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    const [step,         setStep]         = React.useState(1);
-    const [form,         setForm]         = React.useState({
+    const [step,         setStep]         = useState(1);
+    const [form,         setForm]         = useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
       eventPhotos: [],
     });
-    const [cardQuery,       setCardQuery]      = React.useState('');
-    const [cardResults,     setCardResults]    = React.useState([]);
-    const [cardLoading,     setCardLoading]    = React.useState(false);
-    const [excluirComunsL,  setExcluirComunsL] = React.useState(false);
+    const [cardQuery,       setCardQuery]      = useState('');
+    const [cardResults,     setCardResults]    = useState([]);
+    const [cardLoading,     setCardLoading]    = useState(false);
+    const [excluirComunsL,  setExcluirComunsL] = useState(false);
     const cardDebounceRef = React.useRef(null);
-    const [groupSearch,  setGroupSearch]  = React.useState('');
-    const [savedGroups,  setSavedGroups]  = React.useState(
+    const [groupSearch,  setGroupSearch]  = useState('');
+    const [savedGroups,  setSavedGroups]  = useState(
       // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
       []
     );
-    const [auctionCards, setAuctionCards] = React.useState([]);
-    const [savedAuctions,setSavedAuctions]= React.useState([]);
-    const [showSuccess,  setShowSuccess]  = React.useState(false);
-    const [photoPreviewUrls, setPhotoPreviewUrls] = React.useState({ announcement: null, content: [] });
+    const [auctionCards, setAuctionCards] = useState([]);
+    const [savedAuctions,setSavedAuctions]= useState([]);
+    const [showSuccess,  setShowSuccess]  = useState(false);
+    const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
 
     const searchCards = (q) => {
       if (!q.trim()) { setCardResults([]); return; }
@@ -2566,37 +2469,37 @@ const App = () => {
       const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
-      const [cardIdx,    setCardIdx]    = React.useState(0);
-      const [phase,      setPhase]      = React.useState('waiting'); // waiting | bidding | sold | ended
-      const [timer,      setTimer]      = React.useState(0);
-      const [timerMax,   setTimerMax]   = React.useState(60);
-      const [timerInput, setTimerInput] = React.useState('60');
-      const [bids,       setBids]       = React.useState({});        // {cardIdx: [{user,value,ts}]}
+      const [cardIdx,    setCardIdx]    = useState(0);
+      const [phase,      setPhase]      = useState('waiting'); // waiting | bidding | sold | ended
+      const [timer,      setTimer]      = useState(0);
+      const [timerMax,   setTimerMax]   = useState(60);
+      const [timerInput, setTimerInput] = useState('60');
+      const [bids,       setBids]       = useState({});        // {cardIdx: [{user,value,ts}]}
   
       // ── POLL: estado por carta ────────────────────────────────────────
       // pollBids[cardIdx] = {optIdx: [{user,ts}]}   votos por opção
-      const [pollBids,   setPollBids]   = React.useState({});
+      const [pollBids,   setPollBids]   = useState({});
       // pollStatus[cardIdx] = 'open' | 'arremate_pending' | 'closed'
-      const [pollStatus, setPollStatus] = React.useState(() => {
+      const [pollStatus, setPollStatus] = useState(() => {
         const s = {};
         cards.forEach((_,i) => { s[i] = 'open'; });
         return s;
       });
       // pollArremate[cardIdx] = { optIdx, user, ts, countdown }
-      const [pollArremate, setPollArremate] = React.useState({});
+      const [pollArremate, setPollArremate] = useState({});
       // countdown de 3 min por carta em arremate_pending
-      const [arrCountdown, setArrCountdown] = React.useState({});  // {cardIdx: secondsLeft}
+      const [arrCountdown, setArrCountdown] = useState({});  // {cardIdx: secondsLeft}
   
       // ── Compartilhados ────────────────────────────────────────────────
-      const [chatMsgs,   setChatMsgs]   = React.useState([
+      const [chatMsgs,   setChatMsgs]   = useState([
         {user:'Sistema', msg:'Bem-vindo à sala! Aguardando o leiloeiro iniciar.', ts:new Date(), system:true},
       ]);
-      const [chatInput,  setChatInput]  = React.useState('');
-      const [showReport, setShowReport] = React.useState(false);
-      const [uploads,    setUploads]    = React.useState({});
-      const [inlineBid,  setInlineBid]  = React.useState({minBid:'', increment:'', pollOptions:['','','']});
-      const [showConfirm,setShowConfirm]= React.useState(false);
-      const [activePollCard, setActivePollCard] = React.useState(0); // carta visível no poll
+      const [chatInput,  setChatInput]  = useState('');
+      const [showReport, setShowReport] = useState(false);
+      const [uploads,    setUploads]    = useState({});
+      const [inlineBid,  setInlineBid]  = useState({minBid:'', increment:'', pollOptions:['','','']});
+      const [showConfirm,setShowConfirm]= useState(false);
+      const [activePollCard, setActivePollCard] = useState(0); // carta visível no poll
   
       const currentCard     = cards[cardIdx];
       const participants    = [{name:'Dr. João (leiloeiro)'}, {name:'Participante 1'}, {name:'Participante 2'}];
