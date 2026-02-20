@@ -18,6 +18,12 @@
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   </style>
+  <script>
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.textContent = "import{createClient}from'https://esm.sh/@supabase/supabase-js@2';window.supabaseCreateClient=createClient;window.dispatchEvent(new Event('supabase-ready'))";
+    document.head.appendChild(s);
+  </script>
 </head>
 <body>
 <div id="root"></div>
