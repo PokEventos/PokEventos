@@ -1138,30 +1138,6 @@ const App = () => {
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
   const CalendarScreen = () => {
-    const [curr, setCurr] = React.useState(new Date());
-    const year = curr.getFullYear();
-    const month = curr.getMonth();
-    const monthName = curr.toLocaleDateString('pt-BR', {month:'long'}).toUpperCase();
-    
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 bg-white shadow-md z-20 p-4">
-          <h1 className="text-3xl font-black text-center text-gray-800">{monthName} {year}</h1>
-          <p className="text-center text-sm text-gray-600 mt-2">✨ Calendário v3 ATIVO</p>
-        </div>
-        <div className="p-4 text-center">
-          <div className="bg-blue-100 rounded-xl p-6">
-            <p className="text-xl font-bold">🎉 Funcionou!</p>
-            <p className="mt-2">Se você está vendo isso, a estratégia funcionou!</p>
-            <button onClick={() => window.location.reload()} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded">Recarregar</button>
-          </div>
-        </div>
-        <BottomNav current="calendar" />
-      </div>
-    );
-  };
-
-  const CalendarScreenOld = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [showDayModal, setShowDayModal] = useState(false);
