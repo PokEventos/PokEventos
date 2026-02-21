@@ -41,6 +41,41 @@
     createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
     createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')}
   };
+  const sbAuth={
+    signUp:async(email,password,displayName)=>{
+      if(!supabase)return{data:null,error:new Error('Supabase offline')};
+      console.log('📝 Criando usuário...');
+      const{data,error}=await supabase.auth.signUp({
+        email:email,
+        password:password,
+        options:{data:{display_name:displayName}}
+      });
+      if(error)console.error('❌ Erro signup:',error);
+      else console.log('✅ Usuário criado!',data);
+      return{data,error};
+    },
+    signIn:async(email,password)=>{
+      if(!supabase)return{data:null,error:new Error('Supabase offline')};
+      console.log('🔑 Fazendo login...');
+      const{data,error}=await supabase.auth.signInWithPassword({email,password});
+      if(error)console.error('❌ Erro login:',error);
+      else console.log('✅ Login OK!',data);
+      return{data,error};
+    },
+    signOut:async()=>{
+      if(!supabase)return{error:new Error('Supabase offline')};
+      console.log('👋 Saindo...');
+      const{error}=await supabase.auth.signOut();
+      if(error)console.error('❌ Erro logout:',error);
+      else console.log('✅ Logout OK!');
+      return{error};
+    },
+    getUser:async()=>{
+      if(!supabase)return{data:{user:null}};
+      return await supabase.auth.getUser();
+    }
+  };
+
 
 
 
@@ -870,137 +905,81 @@ const AUCTION_GROUPS = [
   { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
 ];
 
-const App = () => {
-  const [screen,      setScreen]      = useState('login');
-  const [checkins,    setCheckins]    = useState([]);
-  const [modalEvent,  setModalEvent]  = useState(null);
-  const [searchLog,   setSearchLog]   = useState([]);
-  const [wantedList,  setWantedList]  = useState([]);
-  const [alerts,      setAlerts]      = useState([]);
-  // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
-  const [interests,   setInterests]   = useState({});
-  const toggleInterest = (eventId, cardIdx) => {
-    const key = eventId + '_' + cardIdx;
-    setInterests(prev => ({ ...prev, [key]: !prev[key] }));
+const LoginScreen = ({ setUser, setScreen }) => {
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [error, setError] = React.useState('');
+    
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      console.log('🔑 TENTANDO LOGIN COM:', email, password);
+      setError('');
+      
+      const { data, error: err } = await sbAuth.signIn(email, password);
+      
+      console.log('📊 Resultado:', { data, error: err });
+      
+      if (err) {
+        console.error('❌ ERRO:', err.message);
+        setError(err.message);
+      } else if (data?.user) {
+        console.log('✅ LOGIN OK! User:', data.user.email);
+        setUser(data.user);
+      }
+    };
+    
+    return React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-red-500 to-blue-500 flex items-center justify-center p-4' },
+      React.createElement('div', { className: 'bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm' },
+        React.createElement('h1', { className: 'text-3xl font-black text-center mb-6' }, 'PokéEventos'),
+        React.createElement('form', { onSubmit: handleSubmit },
+          React.createElement('div', { className: 'mb-4' },
+            React.createElement('label', { className: 'block mb-2 font-bold' }, 'Email'),
+            React.createElement('input', {
+              type: 'email',
+              value: email,
+              onChange: (e) => setEmail(e.target.value),
+              className: 'w-full px-4 py-2 border rounded',
+              required: true
+            })
+          ),
+          React.createElement('div', { className: 'mb-4' },
+            React.createElement('label', { className: 'block mb-2 font-bold' }, 'Senha'),
+            React.createElement('input', {
+              type: 'password',
+              value: password,
+              onChange: (e) => setPassword(e.target.value),
+              className: 'w-full px-4 py-2 border rounded',
+              required: true
+            })
+          ),
+          error && React.createElement('div', { className: 'mb-4 p-3 bg-red-100 text-red-700 rounded' }, error),
+          React.createElement('button', {
+            type: 'submit',
+            className: 'w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700'
+          }, 'Entrar'),
+          React.createElement('div', { className: 'mt-4 text-center' },
+            React.createElement('button', {
+              type: 'button',
+              onClick: () => setScreen('register'),
+              className: 'text-blue-600 font-bold'
+            }, 'Criar conta')
+          )
+        )
+      )
+    );
   };
-  const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
-
-  /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
-  useEffect(() => {
-    const newAlerts = [];
-    wantedList.forEach(wc => {
-      EVENTS.forEach(ev => {
-        ev.cards.forEach(ec => {
-          if (matchWanted(wc, ec)) {
-            const key = `${wc.id}-${ev.id}`;
-            const already = alerts.find(a => a.key === key);
-            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img, eventTitle:ev.title, eventId:ev.id, eventDate:ev.date, eventTime:ev.time, seen:false });
-          }
-        });
-      });
-    });
-    if (newAlerts.length) setAlerts(prev => [...prev, ...newAlerts]);
-  }, [wantedList]);
-
-  const unseenAlerts = alerts.filter(a => !a.seen).length;
-  const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
-  const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
-  const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
-  const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
-  const logSearch = query => {
-    if (!query.trim()) return;
-    setSearchLog(prev => {
-      const existing = prev.find(x=>x.query.toLowerCase()===query.toLowerCase());
-      const updated  = existing
-        ? prev.map(x=>x.query.toLowerCase()===query.toLowerCase()?{...x,count:x.count+1,last:new Date()}:x)
-        : [...prev,{query:query.trim(),count:1,last:new Date()}];
-      const sorted = [...updated].sort((a,b)=>b.count-a.count);
-      console.group('%c📊 PokEventos — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
-      console.table(sorted.map((s,i)=>({'#':i+1,'Carta':s.query,'Buscas':s.count,'Última':new Date(s.last).toLocaleString('pt-BR')})));
-      console.groupEnd();
-      return updated;
-    });
-  };
-
-  /* ─── MODAL DETALHES ─── */
-  /* ════════════════════════════════════════
-     MODAL CARTA — popup ao clicar em resultado
-  ════════════════════════════════════════ */
 
 
-  const BottomNav = ({ current }) => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-yellow-400 px-2 py-3 shadow-2xl z-40">
-      <div className="flex justify-around items-center">
-        {[
-          { id:'home',     icon:'🎴', label:'Leilões'    },
-          { id:'calendar', icon:'📅', label:'Calendário'  },
-          { id:'search',   icon:'🔍', label:'Buscar'      },
-          { id:'profile',  icon:'👤', label:'Perfil'      },
-        ].map(tab=>(
-          <button key={tab.id} onClick={()=>setScreen(tab.id)}
-            className={`flex flex-col items-center gap-0.5 relative ${current===tab.id?'text-red-600':'text-gray-400'}`}>
-            <span className="text-2xl">{tab.icon}</span>
-            <span className="text-[10px] font-semibold">{tab.label}</span>
-            {tab.id==='wanted' && unseenAlerts>0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white pulse-dot">{unseenAlerts}</span>
-            )}
-            {tab.id==='home' && checkins.length>0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white">{checkins.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  /* ════════════════════════════════════════
-     TELA LOGIN
-  ════════════════════════════════════════ */
-  const LoginScreen = () => (
-    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
-      <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
-      <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm relative z-10">
-        <div className="text-center mb-6">
-          <div className="relative inline-block mb-3">
-            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-60"></div>
-            <img src={POKE.pikachu} className="w-20 h-20 relative z-10" />
-          </div>
-          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>PokEventos</h1>
-          <p className="text-gray-500 text-sm mt-1 font-medium">Todos os leilões em um só lugar</p>
-          <div className="flex justify-center items-end gap-3 mt-5">
-            {[
-              { src:TCG.venusaur,      label:'Venusaur',   border:'border-green-400', size:'w-16', shift:'' },
-              { src:TCG.charizardBase, label:'Charizard',  border:'border-red-400',   size:'w-16', shift:'-translate-y-2' },
-              { src:TCG.blastoise,     label:'Blastoise',  border:'border-blue-400',  size:'w-16', shift:'' },
-            ].map((c,i)=>(
-              <div key={i} className="flex flex-col items-center gap-1">
-                <img src={c.src} alt={c.label} className={`${c.size} ${c.shift} rounded-lg shadow-xl border-2 ${c.border} card-img`} />
-                <span className="text-[9px] text-gray-500 font-semibold">{c.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
-          <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
-        </div>
-      </div>
-    </div>
-  );
-
-  /* ════════════════════════════════════════
-     TELA CADASTRO
-  ════════════════════════════════════════ */
   const RegisterScreen = () => {
     const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
     const isAuc = accountType === 'auctioneer';
     return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* BANNER DE TESTE */}
+        <div className="fixed top-0 left-0 right-0 bg-yellow-400 text-black text-center py-1 text-xs font-bold z-50" style={{zIndex: 9999}}>
+          ⚠️ VERSÃO DE TESTE - test branch
+        </div>
+        
       <img src={POKE.mewtwo}  className="absolute top-8 right-4 w-20 opacity-10 animate-bounce" style={{animationDuration:'3.5s'}} />
       <img src={POKE.eevee}   className="absolute bottom-12 left-4 w-16 opacity-10 animate-bounce" style={{animationDuration:'4.5s'}} />
       <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative z-10 overflow-y-auto max-h-[96vh]">
@@ -1121,19 +1100,9 @@ const App = () => {
      TELA CALENDÁRIO
   ════════════════════════════════════════ */
   const CalendarScreen = () => {
-    const upcomingEvents = React.useMemo(() => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const sevenDays = new Date(today);
-      sevenDays.setDate(today.getDate() + 7);
-      return EVENTS.filter(ev => {
-        const evDate = new Date(ev.date);
-        return evDate >= today && evDate <= sevenDays;
-      }).sort((a, b) => new Date(a.date) - new Date(b.date));
-    }, []);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [showDayModal, setShowDayModal] = useState(false);
+    const [currentMonth, setCurrentMonth] = React.useState(new Date());
+    const [selectedDate, setSelectedDate] = React.useState(null);
+    const [showDayModal, setShowDayModal] = React.useState(false);
     const getDays = (month) => {
       const first = new Date(month.getFullYear(), month.getMonth(), 1);
       const last  = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -1171,7 +1140,7 @@ const App = () => {
           <p className="text-gray-400 text-xs mt-0.5">Clique no dia ou no leilão para ver detalhes</p>
         </div>
 
-        <div className="px-3 -mt-3 space-y-4 pb-4">
+        <div className="px-3 mt-6 space-y-4 pb-4">
 
           {/* ── Lista de leilões do mês ── */}
           <div>
@@ -1214,24 +1183,6 @@ const App = () => {
                       )}
 
                       <div className="p-4">
-        {upcomingEvents.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-black text-gray-800 mb-3">📅 Próximos Leilões</h2>
-            <div className="space-y-3">
-              {upcomingEvents.map(ev => (
-                <div key={ev.id} className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl p-4 shadow-lg flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl">👤</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-bold text-lg truncate">{ev.title}</div>
-                    <div className="text-white/90 text-sm">{ev.organizer || 'Leiloeiro'}</div>
-                    <div className="text-white/80 text-sm">{new Date(ev.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})} às {ev.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
                         {/* Avatar + identidade do leiloeiro */}
                         <div className="flex items-center gap-3 mb-3">
                           {/* Avatar grande */}
@@ -1328,7 +1279,7 @@ const App = () => {
             </div>
             <div className="grid grid-cols-7 gap-0.5 mb-1">
               {['D','S','T','Q','Q','S','S'].map((d,i) =>
-                <div key={i} className="text-center text-sm font-bold text-gray-700 py-2">{d}</div>
+                <div key={i} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>
               )}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -1347,7 +1298,7 @@ const App = () => {
                         hasWanted      ? 'bg-yellow-100 border-2 border-yellow-400 text-gray-800' :
                         hasEv          ? 'bg-yellow-50 border-2 border-yellow-300 text-gray-800 hover:bg-yellow-100' :
                         'text-gray-400 hover:bg-gray-100'}`}>
-                    <span className="text-4xl font-black opacity-30 leading-none">{date.getDate()}</span>
+                    <span className="text-base font-black opacity-30 leading-none">{date.getDate()}</span>
                     {hasEv && (
                       <div className="flex gap-0.5 mt-0.5">
                         {dayEv.slice(0,3).map((_,i) =>
@@ -1433,13 +1384,13 @@ const App = () => {
   };
 
   const SearchWantedScreen = () => {
-    const [query,       setQuery]      = useState('');
-    const [results,     setResults]    = useState([]);
-    const [loading,     setLoading]    = useState(false);
-    const [searched,    setSearched]   = useState('');
-    const [apiError,    setApiError]   = useState('');
-    const [modalCard,   setModalCard]  = useState(null);
-    const [excluirComuns, setExcluirComuns] = useState(false);
+    const [query,       setQuery]      = React.useState('');
+    const [results,     setResults]    = React.useState([]);
+    const [loading,     setLoading]    = React.useState(false);
+    const [searched,    setSearched]   = React.useState('');
+    const [apiError,    setApiError]   = React.useState('');
+    const [modalCard,   setModalCard]  = React.useState(null);
+    const [excluirComuns, setExcluirComuns] = React.useState(false);
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
@@ -1719,26 +1670,26 @@ const App = () => {
 
     /* ── Motor de detecção removido — fotos são adicionadas como galeria do evento ── */
 
-    const [step,         setStep]         = useState(1);
-    const [form,         setForm]         = useState({
+    const [step,         setStep]         = React.useState(1);
+    const [form,         setForm]         = React.useState({
       name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
       eventPhotos: [],
     });
-    const [cardQuery,       setCardQuery]      = useState('');
-    const [cardResults,     setCardResults]    = useState([]);
-    const [cardLoading,     setCardLoading]    = useState(false);
-    const [excluirComunsL,  setExcluirComunsL] = useState(false);
+    const [cardQuery,       setCardQuery]      = React.useState('');
+    const [cardResults,     setCardResults]    = React.useState([]);
+    const [cardLoading,     setCardLoading]    = React.useState(false);
+    const [excluirComunsL,  setExcluirComunsL] = React.useState(false);
     const cardDebounceRef = React.useRef(null);
-    const [groupSearch,  setGroupSearch]  = useState('');
-    const [savedGroups,  setSavedGroups]  = useState(
+    const [groupSearch,  setGroupSearch]  = React.useState('');
+    const [savedGroups,  setSavedGroups]  = React.useState(
       // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
       []
     );
-    const [auctionCards, setAuctionCards] = useState([]);
-    const [savedAuctions,setSavedAuctions]= useState([]);
-    const [showSuccess,  setShowSuccess]  = useState(false);
-    const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
+    const [auctionCards, setAuctionCards] = React.useState([]);
+    const [savedAuctions,setSavedAuctions]= React.useState([]);
+    const [showSuccess,  setShowSuccess]  = React.useState(false);
+    const [photoPreviewUrls, setPhotoPreviewUrls] = React.useState({ announcement: null, content: [] });
 
     const searchCards = (q) => {
       if (!q.trim()) { setCardResults([]); return; }
@@ -2438,37 +2389,37 @@ const App = () => {
       const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
-      const [cardIdx,    setCardIdx]    = useState(0);
-      const [phase,      setPhase]      = useState('waiting'); // waiting | bidding | sold | ended
-      const [timer,      setTimer]      = useState(0);
-      const [timerMax,   setTimerMax]   = useState(60);
-      const [timerInput, setTimerInput] = useState('60');
-      const [bids,       setBids]       = useState({});        // {cardIdx: [{user,value,ts}]}
+      const [cardIdx,    setCardIdx]    = React.useState(0);
+      const [phase,      setPhase]      = React.useState('waiting'); // waiting | bidding | sold | ended
+      const [timer,      setTimer]      = React.useState(0);
+      const [timerMax,   setTimerMax]   = React.useState(60);
+      const [timerInput, setTimerInput] = React.useState('60');
+      const [bids,       setBids]       = React.useState({});        // {cardIdx: [{user,value,ts}]}
   
       // ── POLL: estado por carta ────────────────────────────────────────
       // pollBids[cardIdx] = {optIdx: [{user,ts}]}   votos por opção
-      const [pollBids,   setPollBids]   = useState({});
+      const [pollBids,   setPollBids]   = React.useState({});
       // pollStatus[cardIdx] = 'open' | 'arremate_pending' | 'closed'
-      const [pollStatus, setPollStatus] = useState(() => {
+      const [pollStatus, setPollStatus] = React.useState(() => {
         const s = {};
         cards.forEach((_,i) => { s[i] = 'open'; });
         return s;
       });
       // pollArremate[cardIdx] = { optIdx, user, ts, countdown }
-      const [pollArremate, setPollArremate] = useState({});
+      const [pollArremate, setPollArremate] = React.useState({});
       // countdown de 3 min por carta em arremate_pending
-      const [arrCountdown, setArrCountdown] = useState({});  // {cardIdx: secondsLeft}
+      const [arrCountdown, setArrCountdown] = React.useState({});  // {cardIdx: secondsLeft}
   
       // ── Compartilhados ────────────────────────────────────────────────
-      const [chatMsgs,   setChatMsgs]   = useState([
+      const [chatMsgs,   setChatMsgs]   = React.useState([
         {user:'Sistema', msg:'Bem-vindo à sala! Aguardando o leiloeiro iniciar.', ts:new Date(), system:true},
       ]);
-      const [chatInput,  setChatInput]  = useState('');
-      const [showReport, setShowReport] = useState(false);
-      const [uploads,    setUploads]    = useState({});
-      const [inlineBid,  setInlineBid]  = useState({minBid:'', increment:'', pollOptions:['','','']});
-      const [showConfirm,setShowConfirm]= useState(false);
-      const [activePollCard, setActivePollCard] = useState(0); // carta visível no poll
+      const [chatInput,  setChatInput]  = React.useState('');
+      const [showReport, setShowReport] = React.useState(false);
+      const [uploads,    setUploads]    = React.useState({});
+      const [inlineBid,  setInlineBid]  = React.useState({minBid:'', increment:'', pollOptions:['','','']});
+      const [showConfirm,setShowConfirm]= React.useState(false);
+      const [activePollCard, setActivePollCard] = React.useState(0); // carta visível no poll
   
       const currentCard     = cards[cardIdx];
       const participants    = [{name:'Dr. João (leiloeiro)'}, {name:'Participante 1'}, {name:'Participante 2'}];
