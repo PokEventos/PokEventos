@@ -905,426 +905,73 @@ const AUCTION_GROUPS = [
   { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
 ];
 
-const LoginScreen = ({ setUser }) => {
+const LoginScreen = ({ setUser, setScreen }) => {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [error, setError] = React.useState('');
-    const [loading, setLoading] = React.useState(false);
     
-    const handleLogin = async (e) => {
+    const handleSubmit = async (e) => {
+      console.log('🎯 EVENTO DISPARADO! e=', e);
       e.preventDefault();
+      console.log('🔑 TENTANDO LOGIN COM:', email, password);
       setError('');
-      setLoading(true);
-      
-      console.log('🔑 Tentando login:', email);
       
       const { data, error: err } = await sbAuth.signIn(email, password);
       
+      console.log('📊 Resultado:', { data, error: err });
+      
       if (err) {
-        console.error('❌ Erro:', err.message);
+        console.error('❌ ERRO:', err.message);
         setError(err.message);
-        setLoading(false);
       } else if (data?.user) {
-        console.log('✅ Login OK!');
+        console.log('✅ LOGIN OK! User:', data.user.email);
         setUser(data.user);
       }
     };
     
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-3">⚡</div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">PokéEventos</h1>
-            <p className="text-gray-500 text-sm mt-1">Faça login para continuar</p>
-          </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            
-            {error && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-red-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              Não tem conta?{' '}
-              <button onClick={() => setScreen('register')} className="text-blue-600 font-bold">
-                Criar conta
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
+    return React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-red-500 to-blue-500 flex items-center justify-center p-4' },
+      React.createElement('div', { className: 'bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm' },
+        React.createElement('h1', { className: 'text-3xl font-black text-center mb-6' }, 'PokéEventos'),
+        React.createElement('form', { onSubmit: handleSubmit },
+          React.createElement('div', { className: 'mb-4' },
+            React.createElement('label', { className: 'block mb-2 font-bold' }, 'Email'),
+            React.createElement('input', {
+              type: 'email',
+              value: email,
+              onChange: (e) => setEmail(e.target.value),
+              className: 'w-full px-4 py-2 border rounded',
+              required: true
+            })
+          ),
+          React.createElement('div', { className: 'mb-4' },
+            React.createElement('label', { className: 'block mb-2 font-bold' }, 'Senha'),
+            React.createElement('input', {
+              type: 'password',
+              value: password,
+              onChange: (e) => setPassword(e.target.value),
+              className: 'w-full px-4 py-2 border rounded',
+              required: true
+            })
+          ),
+          error && React.createElement('div', { className: 'mb-4 p-3 bg-red-100 text-red-700 rounded' }, error),
+          React.createElement('button', {
+            type: 'submit',
+            onClick: () => console.log('🖱️ BOTÃO CLICADO!'),
+            className: 'w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700'
+          }, 'Entrar'),
+          React.createElement('div', { className: 'mt-4 text-center' },
+            React.createElement('button', {
+              type: 'button',
+              onClick: () => setScreen('register'),
+              className: 'text-blue-600 font-bold'
+            }, 'Criar conta')
+          )
+        )
+      )
     );
   };
 
 
-
-const RegisterScreen = ({ setUser }) => {
-    const [name, setName] = React.useState('');
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [confirmPassword, setConfirmPassword] = React.useState('');
-    const [error, setError] = React.useState('');
-    const [loading, setLoading] = React.useState(false);
-    
-    const handleRegister = async (e) => {
-      e.preventDefault();
-      setError('');
-      
-      // Validações
-      if (password !== confirmPassword) {
-        setError('As senhas não coincidem');
-        return;
-      }
-      
-      if (password.length < 6) {
-        setError('A senha deve ter no mínimo 6 caracteres');
-        return;
-      }
-      
-      setLoading(true);
-      console.log('📝 Criando conta:', email);
-      
-      const { data, error: err } = await sbAuth.signUp(email, password, name);
-      
-      if (err) {
-        console.error('❌ Erro:', err.message);
-        setError(err.message);
-        setLoading(false);
-      } else if (data?.user) {
-        console.log('✅ Conta criada!');
-        alert('✅ Conta criada! Verifique seu email para confirmar.');
-        setScreen('login');
-      }
-    };
-    
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-3">🎮</div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Criar Conta</h1>
-            <p className="text-gray-500 text-sm mt-1">Junte-se aos leilões!</p>
-          </div>
-          
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Nome</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Seu nome"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Mínimo 6 caracteres"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Confirmar Senha</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                placeholder="Digite a senha novamente"
-                required
-              />
-            </div>
-            
-            {error && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-            >
-              {loading ? 'Criando conta...' : 'Criar Conta'}
-            </button>
-          </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              Já tem conta?{' '}
-              <button onClick={() => setScreen('login')} className="text-purple-600 font-bold">
-                Fazer login
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-
-
-const AuthWrapper = () => {
-    const [user, setUser] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
-    const [screen, setScreen] = React.useState('login');
-    
-    React.useEffect(() => {
-      const checkUser = async () => {
-        console.log('🔍 Verificando sessão...');
-        const { data } = await sbAuth.getUser();
-        if (data?.user) {
-          console.log('✅ Usuário logado:', data.user.email);
-          setUser(data.user);
-        } else {
-          console.log('⚠️ Nenhum usuário logado');
-        }
-        setLoading(false);
-      };
-      checkUser();
-    }, []);
-    
-    // Listener para mudanças de autenticação
-    React.useEffect(() => {
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔔 Auth mudou:', event);
-        if (event === 'SIGNED_OUT') {
-          console.log('👋 Usuário saiu');
-          setUser(null);
-        } else if (event === 'SIGNED_IN') {
-          console.log('✅ Usuário entrou:', session?.user?.email);
-          setUser(session?.user || null);
-        }
-      });
-      
-      return () => {
-        authListener?.subscription?.unsubscribe();
-      };
-    }, []);
-
-    
-    if (loading) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-          <div className="text-white text-center">
-            <div className="text-6xl mb-4">⚡</div>
-            <p className="text-xl font-bold">Carregando...</p>
-          </div>
-        </div>
-      );
-    }
-    
-    if (!user) {
-      return screen === 'register' 
-        ? <RegisterScreen setUser={setUser} setScreen={setScreen} />
-        : <LoginScreen setUser={setUser} setScreen={setScreen} />;
-    }
-    
-    return <App user={user} setUser={setUser} />;
-  };
-
-const App = () => {
-  const [user, setUser] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
-    
-    // Verificar se já está logado ao carregar
-    React.useEffect(() => {
-      const checkUser = async () => {
-        console.log('🔍 Verificando sessão...');
-        const { data } = await sbAuth.getUser();
-        if (data?.user) {
-          console.log('✅ Usuário logado:', data.user.email);
-          setUser(data.user);
-        } else {
-          console.log('⚠️ Nenhum usuário logado');
-        }
-        setLoading(false);
-      };
-      checkUser();
-    }, []);
-    
-    const [screen,      setScreen]      = React.useState('login');
-  const [checkins,    setCheckins]    = React.useState([]);
-  const [modalEvent,  setModalEvent]  = React.useState(null);
-  const [searchLog,   setSearchLog]   = React.useState([]);
-  const [wantedList,  setWantedList]  = React.useState([]);
-  const [alerts,      setAlerts]      = React.useState([]);
-  // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
-  const [interests,   setInterests]   = React.useState({});
-  const toggleInterest = (eventId, cardIdx) => {
-    const key = eventId + '_' + cardIdx;
-    setInterests(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-  const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= React.useState(true);   // mock: true = conta leiloeiro
-  const [liveAuction, setLiveAuction] = React.useState(null);   // leilão ao vivo em andamento
-
-  /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
-  useEffect(() => {
-    const newAlerts = [];
-    wantedList.forEach(wc => {
-      EVENTS.forEach(ev => {
-        ev.cards.forEach(ec => {
-          if (matchWanted(wc, ec)) {
-            const key = `${wc.id}-${ev.id}`;
-            const already = alerts.find(a => a.key === key);
-            if (!already) newAlerts.push({ key, cardName:wc.name, cardImg:wc.img, eventTitle:ev.title, eventId:ev.id, eventDate:ev.date, eventTime:ev.time, seen:false });
-          }
-        });
-      });
-    });
-    if (newAlerts.length) setAlerts(prev => [...prev, ...newAlerts]);
-  }, [wantedList]);
-
-  const unseenAlerts = alerts.filter(a => !a.seen).length;
-  const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
-  const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
-  const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
-  const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
-  const logSearch = query => {
-    if (!query.trim()) return;
-    setSearchLog(prev => {
-      const existing = prev.find(x=>x.query.toLowerCase()===query.toLowerCase());
-      const updated  = existing
-        ? prev.map(x=>x.query.toLowerCase()===query.toLowerCase()?{...x,count:x.count+1,last:new Date()}:x)
-        : [...prev,{query:query.trim(),count:1,last:new Date()}];
-      const sorted = [...updated].sort((a,b)=>b.count-a.count);
-      console.group('%c📊 PokEventos — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
-      console.table(sorted.map((s,i)=>({'#':i+1,'Carta':s.query,'Buscas':s.count,'Última':new Date(s.last).toLocaleString('pt-BR')})));
-      console.groupEnd();
-      return updated;
-    });
-  };
-
-  /* ─── MODAL DETALHES ─── */
-  /* ════════════════════════════════════════
-     MODAL CARTA — popup ao clicar em resultado
-  ════════════════════════════════════════ */
-
-
-  const BottomNav = ({ current }) => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-yellow-400 px-2 py-3 shadow-2xl z-40">
-      <div className="flex justify-around items-center">
-        {[
-          { id:'home',     icon:'🎴', label:'Leilões'    },
-          { id:'calendar', icon:'📅', label:'Calendário'  },
-          { id:'search',   icon:'🔍', label:'Buscar'      },
-          { id:'profile',  icon:'👤', label:'Perfil'      },
-        ].map(tab=>(
-          <button key={tab.id} onClick={()=>setScreen(tab.id)}
-            className={`flex flex-col items-center gap-0.5 relative ${current===tab.id?'text-red-600':'text-gray-400'}`}>
-            <span className="text-2xl">{tab.icon}</span>
-            <span className="text-[10px] font-semibold">{tab.label}</span>
-            {tab.id==='wanted' && unseenAlerts>0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white pulse-dot">{unseenAlerts}</span>
-            )}
-            {tab.id==='home' && checkins.length>0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white">{checkins.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  /* ════════════════════════════════════════
-     TELA LOGIN
-  ════════════════════════════════════════ */
-  const LoginScreen = () => (
-    <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
-      <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
-      <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm relative z-10">
-        <div className="text-center mb-6">
-          <div className="relative inline-block mb-3">
-            <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-60"></div>
-            <img src={POKE.pikachu} className="w-20 h-20 relative z-10" />
-          </div>
-          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>PokEventos</h1>
-          <p className="text-gray-500 text-sm mt-1 font-medium">Todos os leilões em um só lugar</p>
-          <div className="flex justify-center items-end gap-3 mt-5">
-            {[
-              { src:TCG.venusaur,      label:'Venusaur',   border:'border-green-400', size:'w-16', shift:'' },
-              { src:TCG.charizardBase, label:'Charizard',  border:'border-red-400',   size:'w-16', shift:'-translate-y-2' },
-              { src:TCG.blastoise,     label:'Blastoise',  border:'border-blue-400',  size:'w-16', shift:'' },
-            ].map((c,i)=>(
-              <div key={i} className="flex flex-col items-center gap-1">
-                <img src={c.src} alt={c.label} className={`${c.size} ${c.shift} rounded-lg shadow-xl border-2 ${c.border} card-img`} />
-                <span className="text-[9px] text-gray-500 font-semibold">{c.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
-          <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
-        </div>
-      </div>
-    </div>
-  );
-
-  /* ════════════════════════════════════════
-     TELA CADASTRO
-  ════════════════════════════════════════ */
   const RegisterScreen = () => {
     const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
     const isAuc = accountType === 'auctioneer';
