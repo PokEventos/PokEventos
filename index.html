@@ -106,124 +106,7 @@ const POKE = {
 };
 
 /* ─── LEILÕES MOCKADOS ─── */
-const EVENTS = [
-  {
-    id:1, title:'Leilão Cartas Raras — Colecionador Premium',
-    date:'2026-02-15', time:'20:00', organizer:'Cards Premium Brasil',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-17',
-    whatsappLink:'https://chat.whatsapp.com/exemplo1',
-    description:'Leilão especial com cartas raras em excelente estado!', featured:false,
-    cards:[
-      { name:'Charizard VMAX',   number:'020/189', set:'Darkness Ablaze', rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Pikachu VMAX',     number:'044/185', set:'Vivid Voltage',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Mewtwo V',         number:'030/192', set:'Rebel Clash',     rarity:'rare',       img:TCG.mewtwov       },
-    ],
-  },
-  {
-    id:2, title:'Mega Leilão Japonês — Edições Limitadas',
-    date:'2026-02-15', time:'21:30', organizer:'Japan Cards BR',
-    paymentMethods:['PIX'], paymentDeadline:'2026-02-16',
-    whatsappLink:'https://chat.whatsapp.com/exemplo2',
-    description:'Cartas japonesas raríssimas importadas direto do Japão!', featured:false,
-    cards:[
-      { name:'Latias & Latios GX', number:'170/236', set:'Unified Minds',  rarity:'ultra-rare', img:TCG.lovebirds    },
-      { name:'Rayquaza VMAX',      number:'111/203', set:'Evolving Skies', rarity:'ultra-rare', img:TCG.rayquazaVmax },
-    ],
-  },
-  {
-    id:3, title:'Leilão Vintage — Base Set & Clássicos',
-    date:'2026-02-16', time:'19:00', organizer:'Vintage Pokemon Cards',
-    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-18',
-    whatsappLink:'https://chat.whatsapp.com/exemplo3',
-    description:'Nostalgia pura! Base Set e coleções clássicas dos anos 90.', featured:false,
-    cards:[
-      { name:'Blastoise', number:'002/102', set:'Base Set', rarity:'holo', img:TCG.blastoise },
-      { name:'Venusaur',  number:'015/102', set:'Base Set', rarity:'holo', img:TCG.venusaur  },
-    ],
-  },
-  {
-    id:5, title:'🔥 Escarlate & Violeta — Ultra Rares & IRs',
-    date:'2026-02-18', time:'20:00', organizer:'Raridades TCG', groupId:'raridades',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-20',
-    whatsappLink:'https://chat.whatsapp.com/leilao-sv',
-    description:'As melhores cartas da era Escarlate e Violeta! SIRs, IRs e Ultra Rares.', featured:false,
-    cards:[
-      { name:'Charizard ex SIR',    number:'234/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Iono SIR',            number:'237/193', set:'Paldea Evolved',   rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Gardevoir ex SIR',    number:'245/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.rayquazaVmax  },
-      { name:'Miraidon ex',         number:'081/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.lovebirds     },
-      { name:'Koraidon ex',         number:'120/198', set:'Scarlet & Violet', rarity:'ultra-rare', img:TCG.charizardBase },
-      { name:'Roaring Moon ex IR',  number:'228/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Iron Valiant ex SIR', number:'232/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.rayquazaVmax  },
-      { name:'Pidgeot ex IR',       number:'166/167', set:'Obsidian Flames',  rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Tyranitar ex SIR',    number:'182/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.mewtwov       },
-      { name:'Mew ex SIR',          number:'205/165', set:'Pokemon 151',      rarity:'ultra-rare', img:TCG.pikachuVmax   },
-      { name:'Armarouge ex IR',     number:'222/182', set:'Paradox Rift',     rarity:'ultra-rare', img:TCG.lovebirds     },
-    ],
-  },
-  {
-    id:6, title:'🇯🇵 Vintage Japonês — Base Set & Neo Series',
-    date:'2026-02-19', time:'20:30', organizer:'Japan Cards BR', groupId:'japanesetcg',
-    paymentMethods:['PIX'], paymentDeadline:'2026-02-21',
-    whatsappLink:'https://chat.whatsapp.com/leilao-jp',
-    description:'Cartas japonesas vintage! Base Set JP, Neo Genesis e edições limitadas.', featured:false,
-    cards:[
-      { name:'Charizard JP Base Set',    number:'006/102', set:'Base Set JP',       rarity:'holo', img:TCG.charizardBase },
-      { name:'Lugia Neo Genesis JP',     number:'009/111', set:'Neo Genesis JP',    rarity:'holo', img:TCG.rayquazaVmax  },
-      { name:'Ho-Oh Neo Revelation JP',  number:'010/066', set:'Neo Revelation JP', rarity:'holo', img:TCG.charizardVmax },
-      { name:'Mewtwo JP Base Set',       number:'012/102', set:'Base Set JP',       rarity:'holo', img:TCG.mewtwov       },
-      { name:'Gengar JP Fossil',         number:'005/062', set:'Fossil JP',         rarity:'holo', img:TCG.lovebirds     },
-      { name:'Gyarados JP Base Set',     number:'006/102', set:'Base Set JP',       rarity:'holo', img:TCG.blastoise     },
-      { name:'Espeon Neo Discovery JP',  number:'001/075', set:'Neo Discovery JP',  rarity:'holo', img:TCG.pikachuVmax   },
-      { name:'Umbreon Neo Discovery JP', number:'013/075', set:'Neo Discovery JP',  rarity:'holo', img:TCG.lovebirds     },
-      { name:'Blastoise JP Base Set',    number:'002/102', set:'Base Set JP',       rarity:'holo', img:TCG.blastoise     },
-      { name:'Venusaur JP Base Set',     number:'015/102', set:'Base Set JP',       rarity:'holo', img:TCG.venusaur      },
-      { name:'Raichu JP Base Set',       number:'014/102', set:'Base Set JP',       rarity:'holo', img:TCG.pikachuVmax   },
-    ],
-  },
-  {
-    id:7, title:'🐉 Especial Charizard — Todas as Eras',
-    date:'2026-02-20', time:'19:00', organizer:'KARMA TCG', groupId:'karmaytcg',
-    paymentMethods:['PIX','Boleto','Transferência'], paymentDeadline:'2026-02-22',
-    whatsappLink:'https://chat.whatsapp.com/leilao-charizard',
-    description:'Leilão temático! Todas as versões do Charizard, do Base Set até Paldea.', featured:false,
-    cards:[
-      { name:'Charizard Base Set Holo', number:'004/102', set:'Base Set',            rarity:'holo',       img:TCG.charizardBase },
-      { name:'Charizard VMAX',          number:'020/189', set:'Darkness Ablaze',     rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Charizard VMAX Rainbow',  number:'074/073', set:"Champion's Path",     rarity:'rainbow',    img:TCG.charizardVmax },
-      { name:'Charizard VSTAR',         number:'018/196', set:'Lost Origin',         rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Charizard ex SIR',        number:'234/193', set:'Paldea Evolved',      rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Charizard ex Obsidian',   number:'125/197', set:'Obsidian Flames',     rarity:'ultra-rare', img:TCG.charizardVmax },
-      { name:'Charizard AR 151',        number:'006/165', set:'Pokemon 151',         rarity:'art-rare',   img:TCG.charizardBase },
-      { name:'Charizard GX Rainbow',    number:'150/147', set:'Burning Shadows',     rarity:'rainbow',    img:TCG.charizardBase },
-      { name:'Charizard V Alt Art',     number:'154/172', set:'Brilliant Stars',     rarity:'alt-art',    img:TCG.charizardVmax },
-      { name:'Charizard ex FireRed',    number:'105/112', set:'FireRed & LeafGreen', rarity:'ultra-rare', img:TCG.charizardBase },
-      { name:'Charizard & Braixen GX',  number:'222/236', set:'Cosmic Eclipse',      rarity:'rainbow',    img:TCG.lovebirds     },
-      { name:'Charizard Neo Destiny',   number:'016/105', set:'Neo Destiny',         rarity:'holo',       img:TCG.charizardBase },
-    ],
-  },
-  {
-    id:8, title:'⚡ Pikachu Collection + Slabs PSA & BGS',
-    date:'2026-02-21', time:'21:00', organizer:'Slabs Premium BR', groupId:'slabsbr',
-    paymentMethods:['PIX','Transferência'], paymentDeadline:'2026-02-23',
-    whatsappLink:'https://chat.whatsapp.com/leilao-pikachu',
-    description:'Coleção de Pikachus raros e slabs graduados PSA/BGS para colecionadores exigentes!', featured:false,
-    cards:[
-      { name:'Pikachu Illustrator (rep)', number:'PROMO',   set:'Promo JP 1998',   rarity:'trophy',     img:TCG.pikachuVmax  },
-      { name:'Pikachu VMAX Rainbow',      number:'188/185', set:'Vivid Voltage',   rarity:'rainbow',    img:TCG.pikachuVmax  },
-      { name:'Pikachu V Full Art',        number:'170/185', set:'Vivid Voltage',   rarity:'full-art',   img:TCG.pikachuVmax  },
-      { name:'Flying Pikachu V',          number:'006/025', set:'Celebrations',    rarity:'ultra-rare', img:TCG.pikachuVmax  },
-      { name:'Surfing Pikachu VMAX',      number:'009/025', set:'Celebrations',    rarity:'ultra-rare', img:TCG.pikachuVmax  },
-      { name:'Pikachu Yellow Base Set',   number:'058/102', set:'Base Set',        rarity:'common',     img:TCG.pikachuVmax  },
-      { name:'Charizard ex BGS 9.5',      number:'006/193', set:'Paldea Evolved',  rarity:'ultra-rare', img:TCG.charizardVmax},
-      { name:'Umbreon VMAX Alt BGS 9',    number:'215/203', set:'Evolving Skies',  rarity:'alt-art',    img:TCG.lovebirds    },
-      { name:'Rayquaza VMAX BGS 9',       number:'111/203', set:'Evolving Skies',  rarity:'alt-art',    img:TCG.rayquazaVmax },
-      { name:'Lugia V Alt Art PSA 10',    number:'186/195', set:'Silver Tempest',  rarity:'alt-art',    img:TCG.rayquazaVmax },
-      { name:'Arceus VSTAR PSA 10',       number:'123/172', set:'Brilliant Stars', rarity:'ultra-rare', img:TCG.pikachuVmax  },
-      { name:'Mew ex SIR PSA 10',         number:'205/165', set:'Pokemon 151',     rarity:'ultra-rare', img:TCG.pikachuVmax  },
-    ],
-  },
-];
+const EVENTS = [];
 
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
@@ -2160,6 +2043,49 @@ const App = () => {
                       onClick={() => setExcluirComunsL(v => !v)}
                       className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
                         excluirComunsL
+                    {/* Botão Importar JSON */}
+                    <label className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer hover:from-purple-700 hover:to-pink-700 active:scale-95 transition-all flex-shrink-0 ml-auto">
+                      📥 JSON
+                      <input type="file" accept=".json" className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            try {
+                              const cartas = JSON.parse(evt.target.result);
+                              if (!Array.isArray(cartas)) {
+                                alert('❌ JSON inválido! Deve ser um array de cartas.');
+                                return;
+                              }
+                              let adicionadas = 0;
+                              cartas.forEach(carta => {
+                                if (auctionCards.find(c => c.card.id === carta.id)) return;
+                                adicionadas++;
+                              });
+                              setAuctionCards(prev => [
+                                ...prev,
+                                ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({
+                                  card: carta,
+                                  quality: 'NM',
+                                  startValue: '',
+                                  comment: '',
+                                  ligaPrice: null,
+                                  ligaLoading: false,
+                                  pollOptions: ['', '', ''],
+                                  minBid: '',
+                                  increment: ''
+                                }))
+                              ]);
+                              alert(`✅ ${adicionadas} cartas importadas!`);
+                            } catch (error) {
+                              alert(`❌ Erro: ${error.message}`);
+                            }
+                          };
+                          reader.readAsText(file);
+                          e.target.value = '';
+                        }} />
+                    </label>
                           ? 'bg-yellow-400 text-gray-900 border-yellow-400'
                           : 'bg-gray-100 text-gray-500 border-gray-300 hover:border-gray-500'
                       }`}>
