@@ -2043,8 +2043,13 @@ const App = () => {
                       onClick={() => setExcluirComunsL(v => !v)}
                       className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
                         excluirComunsL
+                          ? 'bg-yellow-400 text-gray-900 border-yellow-400'
+                          : 'bg-gray-100 text-gray-500 border-gray-300 hover:border-gray-500'
+                      }`}>
+                      {excluirComunsL ? '✦ Só raras' : '◇ Só raras'}
+                    </button>
                     {/* Botão Importar JSON */}
-                    <label className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer hover:from-purple-700 hover:to-pink-700 active:scale-95 transition-all flex-shrink-0 ml-auto">
+                    <label className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer hover:from-purple-700 hover:to-pink-700 active:scale-95 transition-all">
                       📥 JSON
                       <input type="file" accept=".json" className="hidden"
                         onChange={e => {
@@ -2054,43 +2059,17 @@ const App = () => {
                           reader.onload = (evt) => {
                             try {
                               const cartas = JSON.parse(evt.target.result);
-                              if (!Array.isArray(cartas)) {
-                                alert('❌ JSON inválido! Deve ser um array de cartas.');
-                                return;
-                              }
+                              if (!Array.isArray(cartas)) { alert('❌ JSON inválido!'); return; }
                               let adicionadas = 0;
-                              cartas.forEach(carta => {
-                                if (auctionCards.find(c => c.card.id === carta.id)) return;
-                                adicionadas++;
-                              });
-                              setAuctionCards(prev => [
-                                ...prev,
-                                ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({
-                                  card: carta,
-                                  quality: 'NM',
-                                  startValue: '',
-                                  comment: '',
-                                  ligaPrice: null,
-                                  ligaLoading: false,
-                                  pollOptions: ['', '', ''],
-                                  minBid: '',
-                                  increment: ''
-                                }))
-                              ]);
+                              cartas.forEach(carta => { if (auctionCards.find(c => c.card.id === carta.id)) return; adicionadas++; });
+                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
                               alert(`✅ ${adicionadas} cartas importadas!`);
-                            } catch (error) {
-                              alert(`❌ Erro: ${error.message}`);
-                            }
+                            } catch (error) { alert(`❌ Erro: ${error.message}`); }
                           };
                           reader.readAsText(file);
                           e.target.value = '';
                         }} />
                     </label>
-                          ? 'bg-yellow-400 text-gray-900 border-yellow-400'
-                          : 'bg-gray-100 text-gray-500 border-gray-300 hover:border-gray-500'
-                      }`}>
-                      {excluirComunsL ? '✦ Só raras' : '◇ Só raras'}
-                    </button>
                   </div>
                   <div className="flex gap-2">
                     <input value={cardQuery} onChange={e=>{setCardQuery(e.target.value);searchCards(e.target.value);}}
