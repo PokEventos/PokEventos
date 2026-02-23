@@ -39,7 +39,10 @@
   window.addEventListener('supabase-ready',initSupa);
   const sbDB={
     createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
-    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')}
+    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')},
+    createProfile:async(profile)=>supabase?await supabase.from('profiles').insert(profile).select().single():{data:null,error:new Error('offline')},
+    getProfile:async(userId)=>supabase?await supabase.from('profiles').select('*').eq('id',userId).single():{data:null,error:new Error('offline')},
+    updateProfile:async(userId,updates)=>supabase?await supabase.from('profiles').update(updates).eq('id',userId):{error:new Error('offline')}
   };
   const sbAuth={
     signUp:async(email,password,displayName)=>{
@@ -790,6 +793,7 @@ const AUCTION_GROUPS = [
 
 const App = () => {
   const [user, setUser] = React.useState(null);
+  const [userProfile, setUserProfile] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     
     // Verificar se já está logado ao carregar
@@ -800,6 +804,13 @@ const App = () => {
         if (data?.user) {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
+          
+          // Carregar perfil do banco
+          const { data: profile, error } = await sbDB.getProfile(data.user.id);
+          if (!error && profile) {
+            console.log('✅ Perfil carregado:', profile);
+            setUserProfile(profile);
+          }
         } else {
           console.log('⚠️ Nenhum usuário logado');
         }
@@ -821,7 +832,11 @@ const App = () => {
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
+  
+  // Determinar se é leiloeiro baseado no perfil real
+  const isAuctioneer = userProfile?.tipo === 'leiloeiro';
+  const isApproved = userProfile?.approved !== false; // true ou null = aprovado
+  
   const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
@@ -1036,6 +1051,7 @@ const App = () => {
       
       setLoading(true);
       
+      // 1. Criar usuário no Supabase Auth
       const { data, error: signUpError } = await sbAuth.signUp(
         formData.email, 
         formData.password, 
@@ -1045,10 +1061,40 @@ const App = () => {
       if (signUpError) {
         setError(signUpError.message || 'Erro ao criar conta');
         setLoading(false);
-      } else if (data?.user) {
-        console.log('✅ Conta criada!', data.user);
+        return;
+      }
+      
+      if (data?.user) {
+        console.log('✅ Usuário criado no Auth!', data.user);
+        
+        // 2. Criar perfil na tabela profiles
+        const profileData = {
+          id: data.user.id,
+          email: formData.email,
+          nome: formData.displayName,
+          tipo: isAuc ? 'leiloeiro' : 'participante',
+          whatsapp: formData.whatsapp || null,
+          approved: isAuc ? false : true // Leiloeiros precisam aprovação
+        };
+        
+        const { data: profile, error: profileError } = await sbDB.createProfile(profileData);
+        
+        if (profileError) {
+          console.error('❌ Erro ao criar perfil:', profileError);
+          setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ Perfil criado!', profile);
+        
+        if (isAuc) {
+          setError('');
+          alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe PokéEventos.');
+        }
+        
         setUser(data.user);
-        setScreen(isAuc ? 'auctioneer' : 'home');
+        setScreen(isAuc ? 'home' : 'home'); // Mesmo leiloeiros vão pro app, mas com restrições
       }
     };
 
@@ -3140,13 +3186,17 @@ const App = () => {
       const { error } = await sbAuth.signOut();
       if (!error) {
         setUser(null);
+        setUserProfile(null);
         setScreen('login');
       }
     };
 
-    const userEmail = user?.email || 'joao@email.com';
-    const userName = user?.user_metadata?.display_name || 'Dr. João Silva';
+    const userEmail = user?.email || userProfile?.email || 'email@example.com';
+    const userName = userProfile?.nome || user?.user_metadata?.display_name || 'Usuário';
     const userInitial = userName.charAt(0).toUpperCase();
+    const userWhatsapp = userProfile?.whatsapp;
+    const userType = userProfile?.tipo;
+    const needsApproval = userType === 'leiloeiro' && userProfile?.approved === false;
 
     return (
     <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
@@ -3161,12 +3211,23 @@ const App = () => {
             <div>
               <p className="text-xl font-black text-gray-800">{userName}</p>
               <p className="text-gray-500 text-sm">{userEmail}</p>
+              {userWhatsapp && (
+                <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
+              )}
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
-                {isAuctioneer && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
+                {isAuctioneer && !needsApproval && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
+                {needsApproval && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">⏳ Aguardando Aprovação</span>}
               </div>
             </div>
           </div>
+
+          {needsApproval && (
+            <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl">
+              <p className="text-sm text-orange-800 font-bold mb-1">🔨 Conta de Leiloeiro em Análise</p>
+              <p className="text-xs text-orange-600">Sua conta está sendo analisada pela equipe PokéEventos. Você será notificado quando for aprovada!</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-100"><p className="text-2xl font-black text-blue-600">{checkins.length}</p><p className="text-xs text-gray-500 font-semibold">Check-ins</p></div>
@@ -3203,8 +3264,8 @@ const App = () => {
             <button onClick={()=>setScreen('calendar')} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">📅 Calendário</button>
             <button onClick={()=>setScreen('wanted')}   className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl font-semibold border border-yellow-200 text-sm hover:bg-yellow-100">⭐ Wanted List {wantedList.length>0&&`(${wantedList.length})`}</button>
 
-            {/* Área exclusiva leiloeiro */}
-            {isAuctioneer && (
+            {/* Área exclusiva leiloeiro APROVADO */}
+            {isAuctioneer && isApproved && (
               <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Área do Leiloeiro</p>
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
