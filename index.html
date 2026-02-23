@@ -17,6 +17,8 @@
     .wanted-glow { box-shadow:0 0 0 3px rgba(251,191,36,.6), 0 4px 20px rgba(0,0,0,.15); }
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes fade-in { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+    .animate-fade-in { animation:fade-in 0.3s ease-out; }
   </style>
   <script>
     const s = document.createElement('script');
@@ -847,6 +849,28 @@ const App = () => {
   const [searchLog,   setSearchLog]   = useState([]);
   const [wantedList,  setWantedList]  = useState([]);
   const [alerts,      setAlerts]      = useState([]);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  
+  // Verificar se deve mostrar tutorial (primeira vez)
+  React.useEffect(() => {
+    if (user && !loading) {
+      const hasSeenTutorial = localStorage.getItem(`tutorial_seen_${user.id}`);
+      if (!hasSeenTutorial) {
+        // Esperar 1 segundo para o usuário se acostumar com a tela
+        setTimeout(() => setShowTutorial(true), 1000);
+      }
+    }
+  }, [user, loading]);
+  
+  const closeTutorial = (dontShowAgain) => {
+    if (dontShowAgain && user) {
+      localStorage.setItem(`tutorial_seen_${user.id}`, 'true');
+    }
+    setShowTutorial(false);
+    setTutorialStep(0);
+  };
+  
   // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
   const [interests,   setInterests]   = useState({});
   const toggleInterest = (eventId, cardIdx) => {
@@ -928,6 +952,128 @@ const App = () => {
       </div>
     </div>
   );
+
+  /* ════════════════════════════════════════
+     TUTORIAL MODAL - Primeira vez
+  ════════════════════════════════════════ */
+  const TutorialModal = () => {
+    const [dontShowAgain, setDontShowAgain] = React.useState(false);
+    
+    const slides = [
+      {
+        emoji: '🎴',
+        title: 'Bem-vindo ao PokéEventos!',
+        description: 'Seu app para acompanhar todos os leilões de Pokémon TCG em um só lugar!',
+        color: 'from-red-500 to-yellow-400'
+      },
+      {
+        emoji: '📅',
+        title: 'Calendário de Leilões',
+        description: 'Veja todos os leilões organizados por data. Clique em qualquer evento para ver as cartas, fazer check-in e acessar o link do WhatsApp!',
+        color: 'from-blue-500 to-purple-500'
+      },
+      {
+        emoji: '⭐',
+        title: 'Wanted List',
+        description: 'Adicione suas cartas desejadas na Wanted List e receba alertas automáticos quando elas aparecerem em leilões!',
+        color: 'from-yellow-400 to-orange-500'
+      },
+      {
+        emoji: '🔍',
+        title: 'Busca Inteligente',
+        description: 'Busque cartas por nome, número ou edição. Encontrou em um leilão? Check-in! Não encontrou? Adicione à Wanted List!',
+        color: 'from-green-500 to-teal-500'
+      },
+      {
+        emoji: '🚀',
+        title: 'Pronto para começar!',
+        description: 'Explore o calendário, monte sua Wanted List e nunca mais perca um leilão!',
+        color: 'from-pink-500 to-red-500'
+      }
+    ];
+
+    const currentSlide = slides[tutorialStep];
+    const isLastSlide = tutorialStep === slides.length - 1;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+          {/* Header com gradiente */}
+          <div className={`bg-gradient-to-r ${currentSlide.color} p-8 text-center relative`}>
+            <div className="text-7xl mb-4 animate-bounce">{currentSlide.emoji}</div>
+            <h2 className="text-2xl font-black text-white mb-2" style={{fontFamily:'Arial Black,sans-serif'}}>
+              {currentSlide.title}
+            </h2>
+            <p className="text-white/90 text-sm leading-relaxed">
+              {currentSlide.description}
+            </p>
+          </div>
+
+          {/* Indicadores de slides */}
+          <div className="flex justify-center gap-2 py-4 bg-gray-50">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setTutorialStep(idx)}
+                className={`h-2 rounded-full transition-all ${
+                  idx === tutorialStep 
+                    ? 'w-8 bg-blue-500' 
+                    : 'w-2 bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Checkbox "Não mostrar novamente" */}
+          <div className="px-6 py-3 bg-gray-50 border-t">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dontShowAgain}
+                onChange={(e) => setDontShowAgain(e.target.checked)}
+                className="w-4 h-4 accent-blue-500"
+              />
+              <span className="text-sm text-gray-600">Não mostrar novamente</span>
+            </label>
+          </div>
+
+          {/* Botões de navegação */}
+          <div className="p-6 pt-3 flex gap-3">
+            {tutorialStep > 0 && (
+              <button
+                onClick={() => setTutorialStep(tutorialStep - 1)}
+                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all"
+              >
+                ← Voltar
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (isLastSlide) {
+                  closeTutorial(dontShowAgain);
+                } else {
+                  setTutorialStep(tutorialStep + 1);
+                }
+              }}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r ${currentSlide.color} hover:opacity-90`}
+            >
+              {isLastSlide ? '🎉 Começar!' : 'Próximo →'}
+            </button>
+          </div>
+
+          {/* Botão pular */}
+          {!isLastSlide && (
+            <button
+              onClick={() => closeTutorial(dontShowAgain)}
+              className="w-full py-3 text-sm text-gray-500 hover:text-gray-700 font-semibold"
+            >
+              Pular tutorial
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   /* ════════════════════════════════════════
      TELA LOGIN
@@ -3473,6 +3619,7 @@ const App = () => {
 
   return (
     <div className="w-full min-h-screen">
+      {showTutorial && <TutorialModal />}
       {screen==='login'      && <LoginScreen />}
       {screen==='register'   && <RegisterScreen />}
       {screen==='home'       && <HomeScreen />}
