@@ -1067,6 +1067,9 @@ const App = () => {
       if (data?.user) {
         console.log('✅ Usuário criado no Auth!', data.user);
         
+        // Aguardar um momento para garantir que auth.users foi populado
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // 2. Criar perfil usando função SQL (SECURITY DEFINER)
         try {
           const { data: result, error: rpcError } = await supabase.rpc('create_user_profile', {
