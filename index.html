@@ -1067,34 +1067,36 @@ const App = () => {
       if (data?.user) {
         console.log('✅ Usuário criado no Auth!', data.user);
         
-        // 2. Criar perfil na tabela profiles
-        const profileData = {
-          id: data.user.id,
-          email: formData.email,
-          nome: formData.displayName,
-          tipo: isAuc ? 'leiloeiro' : 'participante',
-          whatsapp: formData.whatsapp || null,
-          approved: isAuc ? false : true // Leiloeiros precisam aprovação
-        };
-        
-        const { data: profile, error: profileError } = await sbDB.createProfile(profileData);
-        
-        if (profileError) {
-          console.error('❌ Erro ao criar perfil:', profileError);
-          setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
+        // 2. Criar perfil usando função SQL (SECURITY DEFINER)
+        try {
+          const { data: result, error: rpcError } = await supabase.rpc('create_user_profile', {
+            user_id: data.user.id,
+            user_email: formData.email,
+            user_name: formData.displayName,
+            user_tipo: isAuc ? 'leiloeiro' : 'participante',
+            user_whatsapp: formData.whatsapp || null
+          });
+          
+          if (rpcError) {
+            console.error('❌ Erro ao criar perfil:', rpcError);
+            setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
+            setLoading(false);
+            return;
+          }
+          
+          console.log('✅ Perfil criado!', result);
+          
+          if (isAuc) {
+            alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe PokéEventos.');
+          }
+          
+          setUser(data.user);
+          setScreen('home');
+        } catch (err) {
+          console.error('❌ Exception ao criar perfil:', err);
+          setError('Erro inesperado ao criar perfil. Tente novamente.');
           setLoading(false);
-          return;
         }
-        
-        console.log('✅ Perfil criado!', profile);
-        
-        if (isAuc) {
-          setError('');
-          alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe PokéEventos.');
-        }
-        
-        setUser(data.user);
-        setScreen(isAuc ? 'home' : 'home'); // Mesmo leiloeiros vão pro app, mas com restrições
       }
     };
 
