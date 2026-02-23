@@ -805,11 +805,17 @@ const App = () => {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
           
-          // Carregar perfil do banco
-          const { data: profile, error } = await sbDB.getProfile(data.user.id);
-          if (!error && profile) {
-            console.log('✅ Perfil carregado:', profile);
-            setUserProfile(profile);
+          // Carregar perfil usando RPC (contorna erro 406)
+          try {
+            const { data: profileJson, error } = await supabase.rpc('get_my_profile');
+            if (!error && profileJson) {
+              console.log('✅ Perfil carregado via RPC:', profileJson);
+              setUserProfile(profileJson);
+            } else {
+              console.error('❌ Erro ao carregar perfil:', error);
+            }
+          } catch (err) {
+            console.error('❌ Exception ao carregar perfil:', err);
           }
         } else {
           console.log('⚠️ Nenhum usuário logado');
@@ -934,11 +940,15 @@ const App = () => {
         console.log('✅ Login bem-sucedido!', data.user);
         setUser(data.user);
         
-        // Carregar perfil do usuário
-        const { data: profile } = await sbDB.getProfile(data.user.id);
-        if (profile) {
-          console.log('✅ Perfil carregado:', profile);
-          setUserProfile(profile);
+        // Carregar perfil via RPC
+        try {
+          const { data: profileJson, error: rpcError } = await supabase.rpc('get_my_profile');
+          if (!rpcError && profileJson) {
+            console.log('✅ Perfil carregado via RPC:', profileJson);
+            setUserProfile(profileJson);
+          }
+        } catch (err) {
+          console.error('❌ Erro ao carregar perfil:', err);
         }
         
         setScreen('home');
