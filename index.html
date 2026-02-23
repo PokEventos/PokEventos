@@ -807,12 +807,28 @@ const App = () => {
           
           // Carregar perfil usando RPC (contorna erro 406)
           try {
+            console.log('📡 Chamando get_my_profile...');
             const { data: profileJson, error } = await supabase.rpc('get_my_profile');
-            if (!error && profileJson) {
+            console.log('📡 RPC retornou:', { data: profileJson, error });
+            
+            if (error) {
+              console.error('❌ Erro RPC:', error);
+            } else if (profileJson) {
               console.log('✅ Perfil carregado via RPC:', profileJson);
               setUserProfile(profileJson);
             } else {
-              console.error('❌ Erro ao carregar perfil:', error);
+              console.warn('⚠️ RPC retornou null - tentando SELECT direto...');
+              // Fallback: tentar SELECT direto
+              const { data: profile2 } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single();
+              
+              console.log('Fallback profile:', profile2);
+              if (profile2) {
+                setUserProfile(profile2);
+              }
             }
           } catch (err) {
             console.error('❌ Exception ao carregar perfil:', err);
