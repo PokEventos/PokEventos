@@ -895,7 +895,34 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => (
+  const LoginScreen = () => {
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState('');
+
+    const handleLogin = async () => {
+      if (!email || !password) {
+        setError('Preencha email e senha');
+        return;
+      }
+      
+      setLoading(true);
+      setError('');
+      
+      const { data, error: loginError } = await sbAuth.signIn(email, password);
+      
+      if (loginError) {
+        setError(loginError.message || 'Erro ao fazer login');
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('✅ Login bem-sucedido!', data.user);
+        setUser(data.user);
+        setScreen('home');
+      }
+    };
+
+    return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -920,22 +947,111 @@ const App = () => {
             ))}
           </div>
         </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            ⚠️ {error}
+          </div>
+        )}
+        
         <div className="space-y-3">
-          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
-          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
+          <input 
+            type="email" 
+            placeholder="E-mail" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} 
+            disabled={loading}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm disabled:bg-gray-50" 
+          />
+          <input 
+            type="password" 
+            placeholder="Senha" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} 
+            autoComplete="current-password" 
+            disabled={loading}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm disabled:bg-gray-50" 
+          />
+          <button 
+            onClick={handleLogin} 
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? '⏳ Entrando...' : '⚡ Entrar'}
+          </button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   /* ════════════════════════════════════════
      TELA CADASTRO
   ════════════════════════════════════════ */
   const RegisterScreen = () => {
-    const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
+    const [accountType, setAccountType] = React.useState('collector');
+    const [formData, setFormData] = React.useState({
+      displayName: '',
+      email: '',
+      whatsapp: '',
+      password: '',
+      confirmPassword: ''
+    });
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState('');
+    const [termsAccepted, setTermsAccepted] = React.useState(false);
+    
     const isAuc = accountType === 'auctioneer';
+
+    const handleRegister = async () => {
+      setError('');
+      
+      // Validações
+      if (!formData.displayName || !formData.email || !formData.password) {
+        setError('Preencha todos os campos obrigatórios');
+        return;
+      }
+      
+      if (isAuc && !formData.whatsapp) {
+        setError('WhatsApp é obrigatório para leiloeiros');
+        return;
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        setError('As senhas não coincidem');
+        return;
+      }
+      
+      if (formData.password.length < 6) {
+        setError('A senha deve ter pelo menos 6 caracteres');
+        return;
+      }
+      
+      if (!termsAccepted) {
+        setError('Aceite os termos para continuar');
+        return;
+      }
+      
+      setLoading(true);
+      
+      const { data, error: signUpError } = await sbAuth.signUp(
+        formData.email, 
+        formData.password, 
+        formData.displayName
+      );
+      
+      if (signUpError) {
+        setError(signUpError.message || 'Erro ao criar conta');
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('✅ Conta criada!', data.user);
+        setUser(data.user);
+        setScreen(isAuc ? 'auctioneer' : 'home');
+      }
+    };
+
     return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
         {/* BANNER DE TESTE */}
@@ -958,15 +1074,21 @@ const App = () => {
           <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            ⚠️ {error}
+          </div>
+        )}
+
         {/* Tipo de conta — com estado */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <button onClick={()=>setAccountType('collector')}
+          <button onClick={()=>setAccountType('collector')} disabled={loading}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
             <span className="text-2xl">👤</span>
             <span>Colecionador</span>
             <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
           </button>
-          <button onClick={()=>setAccountType('auctioneer')}
+          <button onClick={()=>setAccountType('auctioneer')} disabled={loading}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
             <span className="text-2xl">🔨</span>
             <span>Leiloeiro</span>
@@ -975,13 +1097,33 @@ const App = () => {
         </div>
 
         <div className="space-y-2.5">
-          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input 
+            type="text" 
+            placeholder="Nome completo *" 
+            value={formData.displayName}
+            onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+            disabled={loading}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
+          />
+          <input 
+            type="email" 
+            placeholder="E-mail *" 
+            value={formData.email}
+            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            disabled={loading}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
+          />
 
           {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
           <div>
-            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
-              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
+            <input 
+              type="tel" 
+              placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
+              value={formData.whatsapp}
+              onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
+              disabled={loading}
+              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm disabled:bg-gray-50 ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} 
+            />
             {!isAuc && (
               <p className="text-[10px] text-gray-400 mt-1 ml-1">
                 ⚡ Necessário para participar de leilões
@@ -989,20 +1131,44 @@ const App = () => {
             )}
           </div>
 
-          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
-          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input 
+            type="password" 
+            placeholder="Senha *" 
+            value={formData.password}
+            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            autoComplete="new-password" 
+            disabled={loading}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
+          />
+          <input 
+            type="password" 
+            placeholder="Confirmar senha *" 
+            value={formData.confirmPassword}
+            onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+            disabled={loading}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
+          />
 
           <div className="flex items-start gap-2 pt-1">
-            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
+            <input 
+              type="checkbox" 
+              id="terms2" 
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              disabled={loading}
+              className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" 
+            />
             <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
               Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
             </label>
           </div>
 
-          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
-            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
+          <button 
+            onClick={handleRegister}
+            disabled={loading}
+            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 disabled:opacity-50 disabled:cursor-not-allowed ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
             <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
-            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
+            {loading ? '⏳ Criando conta...' : (isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta')}
           </button>
 
           <p className="text-center text-sm">
@@ -2969,7 +3135,20 @@ const App = () => {
       );
     };
   
-  const ProfileScreen = () => (
+  const ProfileScreen = () => {
+    const handleLogout = async () => {
+      const { error } = await sbAuth.signOut();
+      if (!error) {
+        setUser(null);
+        setScreen('login');
+      }
+    };
+
+    const userEmail = user?.email || 'joao@email.com';
+    const userName = user?.user_metadata?.display_name || 'Dr. João Silva';
+    const userInitial = userName.charAt(0).toUpperCase();
+
+    return (
     <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
       <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
         <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
@@ -2978,10 +3157,10 @@ const App = () => {
       <div className="px-4 -mt-10 space-y-4">
         <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">D</div>
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
             <div>
-              <p className="text-xl font-black text-gray-800">Dr. João Silva</p>
-              <p className="text-gray-500 text-sm">joao@email.com</p>
+              <p className="text-xl font-black text-gray-800">{userName}</p>
+              <p className="text-gray-500 text-sm">{userEmail}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
                 {isAuctioneer && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
@@ -3034,15 +3213,32 @@ const App = () => {
               </div>
             )}
 
-            <button onClick={()=>setScreen('login')} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
+            <button onClick={handleLogout} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
           </div>
         </div>
       </div>
       <BottomNav current="profile" />
     </div>
-  );
+    );
+  };
 
   /* ─── ROTEAMENTO ─── */
+  if (loading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500">
+        <div className="text-center">
+          <img src={POKE.pikachu} className="w-24 h-24 mx-auto mb-4 animate-bounce" />
+          <p className="text-white text-xl font-black">Carregando PokéEventos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não está logado, mostrar apenas login/register
+  if (!user && screen !== 'register') {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="w-full min-h-screen">
       {screen==='login'      && <LoginScreen />}
