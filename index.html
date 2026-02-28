@@ -424,6 +424,88 @@ const tcgdexBuscar = async (q) => {
   return cartasEn.map(c => normalizeTcgdex(c, mapaId2pt[c.id] || null));
 };
 
+/* ─── buscarCartaIdioma — Busca inteligente para import Excel ─────────────── */
+const buscarCartaIdioma = async (numero, nome, idioma = 'EN', setIdOverride = '') => {
+  const JP_ONLY = idioma === 'JP';
+  const baseUrl = JP_ONLY ? 'https://api.tcgdex.net/v2/ja/cards' : TCGDEX_API;
+  
+  // Normalizar número
+  let searchNum = String(numero).trim().toUpperCase();
+  
+  // Detectar tipo de carta
+  const isPromo = /^[A-Z]+-?\d+$/.test(searchNum); // SVP-001, XY84
+  const isSubset = /^[A-Z]{2}\d+\/[A-Z]{2}\d+$/.test(searchNum); // TG30/TG30
+  const isNormal = /^\d+\/\d+$/.test(searchNum); // 006/165
+  
+  let searchId = null;
+  
+  if (setIdOverride) {
+    // Se tem Set definido, usar ele
+    const num = searchNum.replace(/[^0-9]/g, '');
+    searchId = `${setIdOverride}-${num}`;
+  } else if (isPromo) {
+    // Promos: SVP-001 → svp-001 (lowercase)
+    searchId = searchNum.toLowerCase().replace('-', '-');
+    // Exceção: XY promos precisam de "xyp-" prefix
+    if (/^XY\d+$/.test(searchNum)) {
+      searchId = `xyp-${searchNum.toLowerCase()}`;
+    }
+  } else if (isSubset) {
+    // Subsets: TG30/TG30 → buscar pelo total
+    const match = searchNum.match(/^([A-Z]{2})(\d+)\/[A-Z]{2}(\d+)$/);
+    if (match) {
+      const prefix = match[1].toLowerCase();
+      const num = parseInt(match[2], 10);
+      const total = parseInt(match[3], 10);
+      
+      try {
+        const res = await fetch(`${baseUrl}?localId=${num}`);
+        if (res.ok) {
+          const cards = await res.json();
+          const found = cards.find(c => 
+            c.set?.cardCount?.official === total &&
+            c.localId?.toLowerCase() === searchNum.toLowerCase()
+          );
+          if (found) return found;
+        }
+      } catch (e) {}
+    }
+  } else if (isNormal) {
+    // Normal: 006/165 → buscar pelo total
+    const [num, total] = searchNum.split('/').map(n => parseInt(n, 10));
+    
+    try {
+      const res = await fetch(`${baseUrl}?localId=${num}`);
+      if (res.ok) {
+        const cards = await res.json();
+        const found = cards.find(c => c.set?.cardCount?.official === total);
+        if (found) return found;
+      }
+    } catch (e) {}
+  }
+  
+  // Se não achou, tentar buscar por ID direto
+  if (searchId) {
+    try {
+      const res = await fetch(`${baseUrl}/${searchId}`);
+      if (res.ok) return await res.json();
+    } catch (e) {}
+  }
+  
+  // Fallback: buscar por nome
+  if (nome) {
+    try {
+      const res = await fetch(`${baseUrl}?name=${encodeURIComponent(nome)}`);
+      if (res.ok) {
+        const cards = await res.json();
+        return cards[0];
+      }
+    } catch (e) {}
+  }
+  
+  return null;
+};
+
 /* ─── BlocoCarrossel — componente reutilizável para fotos dos blocos ─── */
 const BlocoCarrossel = ({ fotos, dark = true }) => {
   const [ativo, setAtivo] = React.useState(0);
@@ -863,6 +945,41 @@ const App = () => {
     }
   }, [user, loading]);
   
+  // Carregar Wanted List do Supabase quando o usuário logar
+  React.useEffect(() => {
+    if (user && userProfile) {
+      loadWantedListFromDB();
+    }
+  }, [user, userProfile]);
+  
+  const loadWantedListFromDB = async () => {
+    try {
+      console.log('🔄 Carregando Wanted List do Supabase...');
+      const { data, error } = await supabase
+        .from('user_wanted_cards')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (error) {
+        console.error('❌ Erro ao carregar wanted list:', error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const cards = data.map(row => ({
+          ...row.card_data,
+          addedAt: new Date(row.created_at)
+        }));
+        setWantedList(cards);
+        console.log(`✅ ${cards.length} cartas carregadas da Wanted List`);
+      } else {
+        console.log('ℹ️ Nenhuma carta na Wanted List');
+      }
+    } catch (err) {
+      console.error('❌ Erro ao carregar wanted list:', err);
+    }
+  };
+  
   const closeTutorial = (dontShowAgain) => {
     if (dontShowAgain && user) {
       localStorage.setItem(`tutorial_seen_${user.id}`, 'true');
@@ -904,9 +1021,64 @@ const App = () => {
 
   const unseenAlerts = alerts.filter(a => !a.seen).length;
   const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
-  const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
-  const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
-  const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
+  
+  const addToWanted = async (card) => {
+    if (wantedList.find(w => w.id === card.id)) return;
+    
+    // Adicionar localmente primeiro
+    const newCard = { ...card, addedAt: new Date() };
+    setWantedList(p => [...p, newCard]);
+    
+    // Salvar no Supabase se o usuário estiver logado
+    if (user) {
+      try {
+        console.log(`💾 Salvando ${card.name} na Wanted List...`);
+        const { error } = await supabase
+          .from('user_wanted_cards')
+          .insert({
+            user_id: user.id,
+            card_id: card.id,
+            card_name: card.name,
+            card_data: card
+          });
+        
+        if (error) {
+          console.error('❌ Erro ao salvar carta na wanted list:', error);
+        } else {
+          console.log(`✅ ${card.name} salvo no Supabase`);
+        }
+      } catch (err) {
+        console.error('❌ Erro ao salvar no Supabase:', err);
+      }
+    }
+  };
+  
+  const removeWanted = async (id) => {
+    // Remover localmente primeiro
+    setWantedList(p => p.filter(w => w.id !== id));
+    
+    // Remover do Supabase se o usuário estiver logado
+    if (user) {
+      try {
+        console.log(`🗑️ Removendo carta da Wanted List...`);
+        const { error } = await supabase
+          .from('user_wanted_cards')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('card_id', id);
+        
+        if (error) {
+          console.error('❌ Erro ao remover carta da wanted list:', error);
+        } else {
+          console.log('✅ Carta removida do Supabase');
+        }
+      } catch (err) {
+        console.error('❌ Erro ao remover do Supabase:', err);
+      }
+    }
+  };
+  
+  const markAlertSeen = key => setAlerts(p => p.map(a => a.key === key ? { ...a, seen: true } : a));
   const logSearch = query => {
     if (!query.trim()) return;
     setSearchLog(prev => {
@@ -1799,7 +1971,91 @@ const App = () => {
           <img src={POKE.umbreon} className="absolute -right-4 -bottom-2 w-36 opacity-10" />
           <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-1">PokEventos</p>
           <h1 className="text-2xl font-black mb-0.5" style={{fontFamily:'Arial Black,sans-serif'}}>Buscar Carta</h1>
-          <p className="text-gray-400 text-xs mb-4">Nome · número (215/203) · só número (215) · ID (swsh7-215)</p>
+          <p className="text-gray-400 text-xs mb-2">Nome · número (215/203) · só número (215) · ID (swsh7-215)</p>
+
+          {/* Botão Importar Excel */}
+          <div className="mb-3">
+            <label className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-xl font-bold cursor-pointer hover:from-green-600 hover:to-emerald-700 active:scale-95 transition-all shadow-lg">
+              📊 Importar Cartas do Excel
+              <input 
+                type="file" 
+                accept=".xlsx,.xls" 
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  // Importar biblioteca XLSX
+                  if (!window.XLSX) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js';
+                    document.head.appendChild(script);
+                    await new Promise(resolve => script.onload = resolve);
+                  }
+                  
+                  const reader = new FileReader();
+                  reader.onload = async (evt) => {
+                    try {
+                      const data = new Uint8Array(evt.target.result);
+                      const workbook = XLSX.read(data, { type: 'array' });
+                      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                      
+                      // Pular header (primeira linha)
+                      const cartas = rows.slice(1).filter(row => row[0]); // Filtrar linhas vazias
+                      
+                      let processadas = 0;
+                      let erros = 0;
+                      
+                      alert(`📊 Processando ${cartas.length} cartas...`);
+                      
+                      for (const row of cartas) {
+                        const numero = String(row[0] || '').trim();
+                        const nome = String(row[1] || '').trim();
+                        const idioma = String(row[2] || 'EN').trim().toUpperCase();
+                        const setId = String(row[3] || '').trim();
+                        
+                        if (!numero && !nome) continue;
+                        
+                        try {
+                          // Buscar carta
+                          const carta = await buscarCartaIdioma(numero, nome, idioma, setId);
+                          
+                          if (carta && !addedCards.find(c => c.id === carta.id)) {
+                            const newCard = {
+                              ...carta,
+                              quality: 'NM',
+                              startValue: '',
+                              comment: '',
+                              ligaPrice: null,
+                              ligaLoading: false,
+                              pollOptions: ['', '', ''],
+                              minBid: '',
+                              increment: ''
+                            };
+                            setAddedCards(prev => [newCard, ...prev]);
+                            processadas++;
+                          }
+                        } catch (err) {
+                          console.error(`Erro ao processar ${numero} ${nome}:`, err);
+                          erros++;
+                        }
+                        
+                        // Delay para não sobrecarregar API
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                      }
+                      
+                      alert(`✅ Import concluído!\n${processadas} cartas adicionadas\n${erros} erros`);
+                    } catch (error) {
+                      alert(`❌ Erro ao processar Excel: ${error.message}`);
+                    }
+                  };
+                  reader.readAsArrayBuffer(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
 
           <div className="flex gap-2">
             <input
