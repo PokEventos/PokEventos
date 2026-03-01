@@ -767,7 +767,9 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
 
       <div className="p-4 space-y-4">
 
-        <BlocoCarrossel fotos={event.eventPhotos} dark={true} />
+        {event.eventPhotos && event.eventPhotos.length > 0 && (
+          <BlocoCarrossel fotos={event.eventPhotos} dark={true} />
+        )}
 
         {/* ── Data/hora + descrição ── */}
         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-3">
@@ -818,11 +820,19 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
         </div>
 
         {/* ── Pagamento ── */}
-        <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-3">
-          <p className="font-bold text-gray-700 mb-2 text-sm">💳 Pagamento</p>
-          <div className="flex flex-wrap gap-2 mb-2">{event.paymentMethods.map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}</div>
-          <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
-        </div>
+        {(event.paymentMethods || event.paymentDeadline) && (
+          <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-3">
+            <p className="font-bold text-gray-700 mb-2 text-sm">💳 Pagamento</p>
+            {event.paymentMethods && event.paymentMethods.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {event.paymentMethods.map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}
+              </div>
+            )}
+            {event.paymentDeadline && (
+              <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
+            )}
+          </div>
+        )}
 
         {/* ── Ações ── */}
         <div className="space-y-2 pb-2">
@@ -830,10 +840,12 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
-          <a href={event.whatsappLink} target="_blank" rel="noopener noreferrer"
-            className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
-            📲 Ir para o WhatsApp do Grupo
-          </a>
+          {event.whatsappLink && (
+            <a href={event.whatsappLink} target="_blank" rel="noopener noreferrer"
+              className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
+              📲 Ir para o WhatsApp do Grupo
+            </a>
+          )}
         </div>
       </div>
     </div>
