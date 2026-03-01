@@ -998,6 +998,11 @@ const App = () => {
   
   // Carregar leilões do Supabase
   const loadAuctionsFromDB = async () => {
+    if (!supabase) {
+      console.warn('⚠️ Supabase ainda não inicializado, aguardando...');
+      return;
+    }
+    
     try {
       console.log('🔄 Carregando leilões do Supabase...');
       const { data, error } = await supabase
@@ -1023,6 +1028,10 @@ const App = () => {
   
   // Carregar check-ins do Supabase
   const loadCheckinsFromDB = async () => {
+    if (!supabase || !user) {
+      console.warn('⚠️ Supabase ou usuário não disponível');
+      return;
+    }
     try {
       console.log('🔄 Carregando check-ins do Supabase...');
       const { data, error } = await supabase
@@ -1066,10 +1075,24 @@ const App = () => {
   
   // Carregar leilões do Supabase (público - todos veem)
   React.useEffect(() => {
-    loadAuctionsFromDB();
+    // Aguardar Supabase estar pronto
+    const tryLoadAuctions = () => {
+      if (supabase) {
+        loadAuctionsFromDB();
+      } else {
+        console.log('⏳ Aguardando Supabase inicializar...');
+        setTimeout(tryLoadAuctions, 200);
+      }
+    };
+    tryLoadAuctions();
   }, []);
   
   const loadWantedListFromDB = async () => {
+    if (!supabase || !user) {
+      console.warn('⚠️ Supabase ou usuário não disponível');
+      return;
+    }
+    
     try {
       console.log('🔄 Carregando Wanted List do Supabase...');
       const { data, error } = await supabase
