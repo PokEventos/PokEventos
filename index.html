@@ -3891,4 +3891,12 @@ const App = () => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/tcgdex-cache-sw.js')
+      .then(() => console.log('✅ TCGDex Cache ativo!'));
+  });
+}
+</script>
 </body>
