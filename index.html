@@ -719,12 +719,11 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
 };
 
 
-const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted }) => {
-  const [verCartas, setVerCartas] = React.useState(false);
-  
+const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted, verCartas, setVerCartas }) => {
   // Debug: Ver se componente está sendo remontado
   React.useEffect(() => {
-    console.log('🔄 EventModal montado/atualizado');
+    console.log('🔄 EventModal montado - ID:', event.id, '- verCartas:', verCartas);
+    return () => console.log('💀 EventModal desmontado - ID:', event.id);
   }, []);
   
   // Grupo vinculado ao evento (se existir)
@@ -852,16 +851,16 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
         </div>
 
         {/* ── Pagamento ── */}
-        {(event.paymentMethods || event.paymentDeadline) && (
+        {((event.payment_methods || event.paymentMethods) || (event.payment_deadline || event.paymentDeadline)) && (
           <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-3">
             <p className="font-bold text-gray-700 mb-2 text-sm">💳 Pagamento</p>
-            {event.paymentMethods && event.paymentMethods.length > 0 && (
+            {(event.payment_methods || event.paymentMethods) && (event.payment_methods || event.paymentMethods).length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
-                {event.paymentMethods.map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}
+                {(event.payment_methods || event.paymentMethods).map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}
               </div>
             )}
-            {event.paymentDeadline && (
-              <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
+            {(event.payment_deadline || event.paymentDeadline) && (
+              <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.payment_deadline || event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
             )}
           </div>
         )}
@@ -872,8 +871,8 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
-          {event.whatsappLink && (
-            <a href={event.whatsappLink} target="_blank" rel="noopener noreferrer"
+          {(event.whatsapp_link || event.whatsappLink) && (
+            <a href={event.whatsapp_link || event.whatsappLink} target="_blank" rel="noopener noreferrer"
               className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
               📲 Ir para o WhatsApp do Grupo
             </a>
@@ -997,6 +996,7 @@ const App = () => {
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
+  const [modalEventShowCards, setModalEventShowCards] = useState(false);
   const [searchLog,   setSearchLog]   = useState([]);
   const [wantedList,  setWantedList]  = useState([]);
   const [alerts,      setAlerts]      = useState([]);
@@ -1828,7 +1828,7 @@ const App = () => {
             </div>
           ))}
         </div>
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="home" />
       </div>
     );
@@ -2115,7 +2115,7 @@ const App = () => {
           </div>
         )}
 
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
       <BottomNav current="calendar" />
       </div>
     );
@@ -2472,7 +2472,7 @@ const App = () => {
 
         </div>
 
-        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
+        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
