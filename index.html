@@ -791,15 +791,19 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             <div className="mt-3">
               <div className="grid grid-cols-2 gap-2">
                 {cards.map((card, i) => {
-                  const isWanted = wantedList.find(w => matchWanted(w, card));
+                  // Garantir ID único consistente
+                  const cardId = card.id || `${card.name}-${card.set || 'unknown'}-${card.number || card.localId || 'no-num'}`.replace(/\s+/g, '-').toLowerCase();
+                  const isWanted = wantedList.find(w => w.id === cardId || (card.id && w.id === card.id));
+                  
                   return (
                     <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-200'} relative`}>
                       {/* Botão Wanted - CLICÁVEL */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           if (isWanted) {
-                            removeWanted(card.id);
+                            removeWanted(cardId);
                           } else {
                             addToWanted(card);
                           }
@@ -1206,11 +1210,24 @@ const App = () => {
   };
   
   const addToWanted = async (card) => {
-    if (wantedList.find(w => w.id === card.id)) return;
+    // Garantir que a carta tem um ID único
+    const cardId = card.id || `${card.name}-${card.set || 'unknown'}-${card.number || card.localId || 'no-num'}`.replace(/\s+/g, '-').toLowerCase();
+    
+    // Verificar se já existe (usando o ID gerado ou original)
+    if (wantedList.find(w => w.id === cardId || (w.id && w.id === card.id))) {
+      console.log(`⚠️ ${card.name} já está na Wanted List`);
+      return;
+    }
+    
+    // Criar objeto completo da carta com ID garantido
+    const cardWithId = {
+      ...card,
+      id: cardId,
+      addedAt: new Date()
+    };
     
     // Adicionar localmente primeiro
-    const newCard = { ...card, addedAt: new Date() };
-    setWantedList(p => [...p, newCard]);
+    setWantedList(p => [...p, cardWithId]);
     
     // Salvar no Supabase se o usuário estiver logado
     if (user) {
@@ -1220,9 +1237,9 @@ const App = () => {
           .from('user_wanted_cards')
           .insert({
             user_id: user.id,
-            card_id: card.id,
+            card_id: cardId,
             card_name: card.name,
-            card_data: card
+            card_data: cardWithId
           });
         
         if (error) {
@@ -2585,7 +2602,12 @@ const App = () => {
               host: form.host || userProfile?.nome || 'Leiloeiro',
               group_name: form.auctionGroup,
               cards: newAuction.cards,
-              is_live: false
+              is_live: false,
+              whatsapp_link: form.whatsappLink || null,
+              payment_methods: newAuction.paymentMethods || [],
+              payment_deadline: newAuction.paymentDeadline || null,
+              announcement_photo: form.announcementPhoto || null,
+              event_photos: form.eventPhotos || []
             })
             .select()
             .single();
