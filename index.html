@@ -40,7 +40,7 @@
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
   const sbDB={
-    createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
+    createLeilao:async(d)=>supabase?await supabase.from('auctions').insert(d).select().single():{data:null,error:new Error('offline')},
     createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')},
     createProfile:async(profile)=>supabase?await supabase.from('profiles').insert(profile).select().single():{data:null,error:new Error('offline')},
     getProfile:async(userId)=>supabase?await supabase.from('profiles').select('*').eq('id',userId).single():{data:null,error:new Error('offline')},
@@ -630,7 +630,13 @@ const getSetName = (setId, fallback) => SET_NAMES[setId] || fallback || setId;
 
 const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModalEvent, addToWanted, removeWanted }) => {
   const { card, setName, imgSrc, rarity, auctions, rarityColor } = data;
-  const inWanted = wantedList.find(w => w.id === card.id);
+  
+  // Gerar cardId da mesma forma que addToWanted faz
+  const cardId = card.id || `${card.name}-${setName || 'unknown'}-${card.number || card.localId || 'no-num'}`.replace(/\s+/g, '-').toLowerCase();
+  
+  // Verificar se está na wanted list usando o ID gerado
+  const inWanted = wantedList.find(w => w.id === cardId || (card.id && w.id === card.id));
+  
   // Monta URL high/low a partir da base sem extensão, com fallback para small
   const baseUrl  = card.images ? card.images.small.replace('/low.png', '') : '';
   const largeSrc = baseUrl ? baseUrl + '/high.png' : imgSrc;
@@ -702,9 +708,15 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
           <button
             onClick={() => {
               if (inWanted) {
-                removeWanted(card.id);
+                removeWanted(cardId);
               } else {
-                addToWanted({ id:card.id, name:card.name, number:card.number, set:setName, img:largeSrc });
+                addToWanted({ 
+                  id: cardId,
+                  name: card.name, 
+                  number: card.number, 
+                  set: setName, 
+                  img: largeSrc 
+                });
               }
               onClose();
             }}
@@ -827,6 +839,21 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                       {isWanted && (
                         <div className="bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">
                           ⭐ Na sua Wanted List
+                        </div>
+                      )}
+                      
+                      {/* Badge Condição */}
+                      {card.quality && (
+                        <div className={`absolute top-2 left-2 z-10 px-2 py-1 rounded-md text-[10px] font-black shadow-md ${
+                          card.quality === 'M' ? 'bg-emerald-500 text-white' :
+                          card.quality === 'NM' ? 'bg-blue-500 text-white' :
+                          card.quality === 'LP' ? 'bg-yellow-500 text-gray-900' :
+                          card.quality === 'MP' ? 'bg-orange-500 text-white' :
+                          card.quality === 'HP' ? 'bg-red-500 text-white' :
+                          card.quality === 'DMG' ? 'bg-gray-700 text-white' :
+                          'bg-gray-400 text-white'
+                        }`}>
+                          {card.quality}
                         </div>
                       )}
                       
@@ -1015,6 +1042,8 @@ const App = () => {
     
     try {
       console.log('🔄 Carregando leilões do Supabase...');
+      console.log('📡 Fazendo query na tabela auctions...');
+      
       const { data, error } = await supabase
         .from('auctions')
         .select('*')
@@ -1022,17 +1051,27 @@ const App = () => {
       
       if (error) {
         console.error('❌ Erro ao carregar leilões:', error);
+        console.error('❌ Código do erro:', error.code);
+        console.error('❌ Mensagem:', error.message);
+        console.error('❌ Detalhes:', error.details);
         return;
       }
       
+      console.log('📦 Query executada com sucesso!');
+      console.log('📊 Dados recebidos:', data);
+      console.log('📈 Quantidade:', data ? data.length : 0);
+      
       if (data && data.length > 0) {
         setEvents(data);
-        console.log(`✅ ${data.length} leilões carregados`);
+        console.log(`✅ ${data.length} leilões carregados e aplicados ao estado`);
+        console.log('📋 IDs dos leilões:', data.map(a => a.id));
       } else {
-        console.log('ℹ️ Nenhum leilão encontrado');
+        console.log('ℹ️ Nenhum leilão encontrado no banco de dados');
+        setEvents([]); // Garantir que está vazio
       }
     } catch (err) {
-      console.error('❌ Erro ao carregar leilões:', err);
+      console.error('❌ Exception ao carregar leilões:', err);
+      console.error('❌ Stack:', err.stack);
     }
   };
   
@@ -2638,6 +2677,26 @@ const App = () => {
       if (user) {
         try {
           console.log('💾 Salvando leilão no Supabase...');
+          console.log('📊 Dados do leilão:', {
+            title: form.name,
+            date: form.date,
+            time: form.time,
+            cards_count: newAuction.cards.length,
+            user_id: user.id
+          });
+          
+          console.log('💾 Salvando leilão no Supabase (tabela: auctions)...');
+          console.log('📋 Dados a serem salvos:', {
+            created_by: user.id,
+            title: form.name,
+            date: form.date,
+            time: form.time,
+            location: form.location || '',
+            host: form.host || userProfile?.nome || 'Leiloeiro',
+            group_name: form.auctionGroup,
+            cards_count: newAuction.cards.length
+          });
+          
           const { data: savedAuction, error } = await supabase
             .from('auctions')
             .insert({
@@ -2661,17 +2720,28 @@ const App = () => {
           
           if (error) {
             console.error('❌ Erro ao salvar leilão:', error);
-            alert('⚠️ Erro ao salvar leilão no banco de dados');
+            console.error('❌ Detalhes do erro:', JSON.stringify(error));
+            alert('⚠️ Erro ao salvar leilão no banco de dados: ' + error.message);
           } else if (savedAuction) {
             console.log('✅ Leilão salvo! ID:', savedAuction.id);
+            console.log('✅ Dados salvos:', savedAuction);
             newAuction.id = savedAuction.id;
             
             // Adicionar à lista local
-            setEvents(prev => [...prev, savedAuction]);
+            setEvents(prev => {
+              console.log('📝 Adicionando leilão à lista local. Total antes:', prev.length);
+              const updated = [...prev, savedAuction];
+              console.log('📝 Total depois:', updated.length);
+              return updated;
+            });
           }
         } catch (err) {
           console.error('❌ Exception ao salvar leilão:', err);
+          console.error('❌ Stack:', err.stack);
+          alert('⚠️ Erro inesperado ao salvar: ' + err.message);
         }
+      } else {
+        console.warn('⚠️ Usuário não logado - leilão não será salvo no Supabase!');
       }
       
       setSavedAuctions(prev=>[...prev,newAuction]);
