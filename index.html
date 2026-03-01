@@ -1459,8 +1459,23 @@ const App = () => {
   const LoginScreen = () => {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
+    const [rememberMe, setRememberMe] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
+
+    // Carregar credenciais salvas ao montar
+    React.useEffect(() => {
+      const savedEmail = localStorage.getItem('pokeventos_email');
+      const savedPassword = localStorage.getItem('pokeventos_password');
+      const savedRemember = localStorage.getItem('pokeventos_remember') === 'true';
+      
+      if (savedRemember && savedEmail && savedPassword) {
+        setEmail(savedEmail);
+        setPassword(savedPassword);
+        setRememberMe(true);
+        console.log('🔐 Credenciais carregadas do localStorage');
+      }
+    }, []);
 
     const handleLogin = async () => {
       if (!email || !password) {
@@ -1478,6 +1493,20 @@ const App = () => {
         setLoading(false);
       } else if (data?.user) {
         console.log('✅ Login bem-sucedido!', data.user);
+        
+        // Salvar ou limpar credenciais baseado em rememberMe
+        if (rememberMe) {
+          localStorage.setItem('pokeventos_email', email);
+          localStorage.setItem('pokeventos_password', password);
+          localStorage.setItem('pokeventos_remember', 'true');
+          console.log('💾 Credenciais salvas no localStorage');
+        } else {
+          localStorage.removeItem('pokeventos_email');
+          localStorage.removeItem('pokeventos_password');
+          localStorage.removeItem('pokeventos_remember');
+          console.log('🗑️ Credenciais removidas do localStorage');
+        }
+        
         setUser(data.user);
         
         // Carregar perfil via RPC
@@ -1547,6 +1576,18 @@ const App = () => {
             disabled={loading}
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm disabled:bg-gray-50" 
           />
+          
+          {/* Remember Me */}
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+            />
+            <span>Lembrar-me neste dispositivo</span>
+          </label>
+          
           <button 
             onClick={handleLogin} 
             disabled={loading}
