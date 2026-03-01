@@ -721,6 +721,12 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
 
 const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted }) => {
   const [verCartas, setVerCartas] = React.useState(false);
+  
+  // Debug: Ver se componente está sendo remontado
+  React.useEffect(() => {
+    console.log('🔄 EventModal montado/atualizado');
+  }, []);
+  
   // Grupo vinculado ao evento (se existir)
   const grupo = AUCTION_GROUPS.find(g => g.id === event.groupId);
   
@@ -1822,7 +1828,7 @@ const App = () => {
             </div>
           ))}
         </div>
-        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="home" />
       </div>
     );
@@ -2109,7 +2115,7 @@ const App = () => {
           </div>
         )}
 
-        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
       <BottomNav current="calendar" />
       </div>
     );
@@ -2466,7 +2472,7 @@ const App = () => {
 
         </div>
 
-        {modalEvent ? <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
+        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
