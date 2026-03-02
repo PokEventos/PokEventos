@@ -2576,7 +2576,7 @@ const App = () => {
             short:        g.nome_curto || g.nome || '',
             emoji:        g.emoji || '🎴',
             color:        g.cor_gradiente || 'from-gray-600 to-gray-800',
-            whatsappLink: g.link_wahtsapp || null,
+            whatsappLink: g.link_whatsapp || null,
             avatarUrl:    null,
             dbId:         g.id,
           }));
@@ -2599,7 +2599,7 @@ const App = () => {
               nome_curto:     g.short || g.name,
               emoji:          g.emoji || '🎴',
               cor_gradiente:  g.color || 'from-gray-600 to-gray-800',
-              link_wahtsapp:  g.whatsappLink || null,
+              link_whatsapp:  g.whatsappLink || null,
               ativo:          true,
             })
             .select()
