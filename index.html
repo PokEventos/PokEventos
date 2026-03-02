@@ -2952,38 +2952,6 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* ── Fotos dos Blocos ── */}
-                <div>
-                  <label className="text-xs font-bold text-gray-600 block mb-1">📦 Fotos dos Blocos do Leilão</label>
-                  <p className="text-[10px] text-gray-400 mb-2">Cada foto vira um bloco numerado no evento</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {photoPreviewUrls.content.map((url, i) => (
-                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border-2 border-yellow-300 bg-gray-100">
-                        <img src={url} alt={`Bloco ${i+1}`} className="w-full h-full object-cover" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-bold text-center py-0.5">
-                          Bloco {i+1}
-                        </div>
-                        <button
-                          onClick={()=>{
-                            setPhotoPreviewUrls(p=>({...p,content:p.content.filter((_,j)=>j!==i)}));
-                            setForm(p=>({...p,eventPhotos:p.eventPhotos.filter((_,j)=>j!==i)}));
-                          }}
-                          className="absolute top-1 right-1 bg-black/60 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center">✕</button>
-                      </div>
-                    ))}
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-yellow-400 bg-gray-50 flex flex-col items-center justify-center cursor-pointer transition-all">
-                      <span className="text-2xl text-gray-400">+</span>
-                      <span className="text-[10px] text-gray-400 mt-1">Bloco {photoPreviewUrls.content.length + 1}</span>
-                      <input type="file" accept="image/*" multiple className="hidden"
-                        onChange={e=>{
-                          const files = Array.from(e.target.files||[]);
-                          const urls  = files.map(f=>URL.createObjectURL(f));
-                          setPhotoPreviewUrls(p=>({...p,content:[...p.content,...urls]}));
-                          setForm(p=>({...p,eventPhotos:[...p.eventPhotos,...urls]}));
-                        }} />
-                    </label>
-                  </div>
-                </div>
 
                 <button onClick={()=>setStep(2)} disabled={!form.date||!form.time||(!form.groupId&&!form.name)}
                   className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold disabled:opacity-40 hover:bg-gray-900 transition-all">
@@ -2996,9 +2964,6 @@ const App = () => {
             {/* ══ STEP 2: CARTAS ══ */}
             {step===2 && (
               <div className="p-4 space-y-4">
-
-                {/* ── Fotos dos blocos — referência visual para adicionar cartas ── */}
-                <BlocoCarrossel fotos={photoPreviewUrls.content} dark={true} />
 
                 {/* Busca de cartas */}
                 <div>
