@@ -2569,7 +2569,7 @@ const App = () => {
       if (auctionCards.find(c=>c.card.id===card.id)) return;
       // ↓ unshift: nova carta vai pro TOPO
       setAuctionCards(prev => [
-        { card, quality:'NM', language:'PT', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
+        { card, quality:'NM', language:'BR', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
           pollOptions:['','',''], minBid:'', increment:'' },
         ...prev
       ]);
@@ -2625,7 +2625,7 @@ const App = () => {
           name:ac.card.name, number:ac.card.number,
           set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality, language:ac.language||'PT',
+          comment:ac.comment, quality:ac.quality, language:ac.language||'BR',
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
@@ -3028,7 +3028,7 @@ const App = () => {
                               if (!Array.isArray(cartas)) { alert('❌ JSON inválido!'); return; }
                               let adicionadas = 0;
                               cartas.forEach(carta => { if (auctionCards.find(c => c.card.id === carta.id)) return; adicionadas++; });
-                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', language: 'PT', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
+                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', language: 'BR', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
                               alert(`✅ ${adicionadas} cartas importadas!`);
                             } catch (error) { alert(`❌ Erro: ${error.message}`); }
                           };
@@ -3145,7 +3145,7 @@ const App = () => {
                           <div>
                             <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
                             <div className="flex gap-1.5">
-                              {[{code:'PT',flag:'🇧🇷',bg:'bg-green-500'},{code:'EN',flag:'🇺🇸',bg:'bg-blue-500'},{code:'JP',flag:'🇯🇵',bg:'bg-red-500'}].map(({code,flag,bg})=>(
+                              {[{code:'BR',flag:'🇧🇷',bg:'bg-green-500'},{code:'EN',flag:'🇺🇸',bg:'bg-blue-500'},{code:'JP',flag:'🇯🇵',bg:'bg-red-500'}].map(({code,flag,bg})=>(
                                 <button key={code} onClick={()=>updateCard(card.id,'language',code)}
                                   className={`px-3 py-1.5 rounded-lg text-base border-2 transition-all ${language===code?`${bg} border-transparent scale-110 shadow-md`:'bg-white border-gray-200 hover:border-gray-400 opacity-50'}`}>
                                   {flag}
