@@ -1019,9 +1019,20 @@ const App = () => {
       console.log('📈 Quantidade:', data ? data.length : 0);
       
       if (data && data.length > 0) {
-        setEvents(data);
-        console.log(`✅ ${data.length} leilões carregados e aplicados ao estado`);
-        console.log('📋 IDs dos leilões:', data.map(a => a.id));
+        // Normalizar snake_case → camelCase para compatibilidade com o frontend
+        const normalized = data.map(a => ({
+          ...a,
+          announcementPhoto: a.announcementPhoto || a.announcement_photo || null,
+          eventPhotos:       a.eventPhotos       || a.event_photos       || [],
+          whatsappLink:      a.whatsappLink      || a.whatsapp_link      || null,
+          paymentMethods:    a.paymentMethods    || a.payment_methods    || [],
+          paymentDeadline:   a.paymentDeadline   || a.payment_deadline   || null,
+          organizer:         a.organizer         || a.host               || 'Leiloeiro',
+          title:             a.title             || a.name               || '',
+        }));
+        setEvents(normalized);
+        console.log(`✅ ${normalized.length} leilões carregados e aplicados ao estado`);
+        console.log('📋 IDs dos leilões:', normalized.map(a => a.id));
       } else {
         console.log('ℹ️ Nenhum leilão encontrado no banco de dados');
         setEvents([]); // Garantir que está vazio
@@ -2612,7 +2623,7 @@ const App = () => {
     const saveAuction = async () => {
       const newAuction = {
         ...form, id:Date.now(), status:'published', createdAt:new Date(),
-        title:form.name, time:form.time, organizer:'Dr. João Silva',
+        title:form.name, time:form.time, organizer:userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro',
         description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
         featured:false,
         whatsappLink: form.whatsappLink || '#',
@@ -2662,7 +2673,7 @@ const App = () => {
               date: form.date,
               time: form.time,
               location: form.location || '',
-              host: form.host || userProfile?.nome || 'Leiloeiro',
+              host: userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro',
               group_name: form.auctionGroup,
               cards: newAuction.cards,
               is_live: false,
@@ -2684,10 +2695,19 @@ const App = () => {
             console.log('✅ Dados salvos:', savedAuction);
             newAuction.id = savedAuction.id;
             
-            // Adicionar à lista local
+            // Adicionar à lista local (normalizado)
+            const normalizedSaved = {
+              ...savedAuction,
+              announcementPhoto: savedAuction.announcementPhoto || savedAuction.announcement_photo || null,
+              eventPhotos:       savedAuction.eventPhotos       || savedAuction.event_photos       || [],
+              whatsappLink:      savedAuction.whatsappLink      || savedAuction.whatsapp_link      || null,
+              paymentMethods:    savedAuction.paymentMethods    || savedAuction.payment_methods    || [],
+              paymentDeadline:   savedAuction.paymentDeadline   || savedAuction.payment_deadline   || null,
+              organizer:         savedAuction.organizer         || savedAuction.host               || 'Leiloeiro',
+            };
             setEvents(prev => {
               console.log('📝 Adicionando leilão à lista local. Total antes:', prev.length);
-              const updated = [...prev, savedAuction];
+              const updated = [...prev, normalizedSaved];
               console.log('📝 Total depois:', updated.length);
               return updated;
             });
