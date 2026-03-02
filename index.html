@@ -917,7 +917,57 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
 /* ════════════════════════════════════════
    GRUPOS DE LEILÃO — cadastro dos grupos do WhatsApp
 ════════════════════════════════════════ */
-const AUCTION_GROUPS = [];
+const AUCTION_GROUPS = [
+  { id:'karmaytcg',      name:'KARMA TCG - ÉPICO DNS ÉPIC...', short:'KARMA TCG',         emoji:'⚡', color:'from-yellow-500 to-orange-500',  members:null },
+  { id:'armarstcg',      name:'ARMARSTCG ● Leilões Notic...', short:'ARMARSTCG',           emoji:'🏆', color:'from-red-500 to-pink-500',        members:null },
+  { id:'aliadotcg',      name:'ALIADO TCG - Leilões, Rifas...', short:'ALIADO TCG',        emoji:'🃏', color:'from-blue-500 to-cyan-500',       members:null },
+  { id:'pimtcg',         name:'PIM - Compra Venda Leilão', short:'PIM TCG',                emoji:'🎴', color:'from-green-500 to-teal-500',      members:null },
+  { id:'meaplafenby',    name:'MEAPLA EMBY',              short:'MEAPLA EMBY',              emoji:'🌟', color:'from-purple-500 to-indigo-500',   members:null },
+  { id:'limacardvenda',  name:'LIMA CARDS & VENDA LG...',  short:'LIMA CARDS',              emoji:'🐉', color:'from-red-600 to-red-800',         members:null },
+  { id:'dreamfieldtcg',  name:'DreamField TCG Leilões, Ve...', short:'DreamField TCG',     emoji:'✨', color:'from-sky-400 to-blue-600',        members:null },
+  { id:'dominatcg',      name:'Dominators & grupo E...',   short:'Dominators TCG',          emoji:'👑', color:'from-yellow-600 to-amber-700',    members:null },
+  { id:'dmgtcg',         name:'DMG TCG',                   short:'DMG TCG',                 emoji:'💎', color:'from-cyan-500 to-blue-700',       members:null },
+  { id:'buenohowtcg',    name:'Bueno HowTCG 🎴 A grupo E...', short:'Bueno HowTCG',        emoji:'🎯', color:'from-orange-400 to-red-500',      members:null },
+  { id:'ghostudios',     name:'GhostStudios Card game...',  short:'GhostStudios',            emoji:'👻', color:'from-gray-600 to-gray-900',       members:null },
+  { id:'espertogudalupe',name:'Esperto de Gudar Fouks Jr...', short:'Esperto de Gudar',    emoji:'🦊', color:'from-orange-500 to-yellow-600',   members:null },
+  { id:'pokemonpikachu', name:'Pokemon Pikachu',            short:'Pokémon Pikachu',         emoji:'⚡', color:'from-yellow-400 to-yellow-600',   members:null },
+  { id:'estandoon',      name:'ESTAMOS ON 🎴🎴🎴',         short:'ESTAMOS ON',              emoji:'🔥', color:'from-red-500 to-orange-600',      members:null },
+  { id:'tcgpokeshield',  name:'TCG PokéShield',             short:'TCG PokéShield',          emoji:'🛡️', color:'from-blue-600 to-indigo-800',    members:null },
+  { id:'boogcardshop',   name:'BOOGCARDSHOP 🎴',           short:'BOOGCARDSHOP',            emoji:'🎪', color:'from-pink-500 to-purple-600',     members:null },
+  { id:'armandotcg2',    name:'ArmandoTCG 2',              short:'ArmandoTCG 2',            emoji:'⚔️', color:'from-gray-700 to-gray-900',      members:null },
+  { id:'descontocardgame',name:'Desconto Card game',        short:'Desconto Card Game',      emoji:'💰', color:'from-green-600 to-emerald-700',   members:null },
+  { id:'slarrpokfire',   name:'SLAR FOR POKEFIR AUC...',   short:'SLAR POKFIRE',            emoji:'🌋', color:'from-red-700 to-orange-800',      members:null },
+  { id:'jjamestcg',      name:'# James TCG 🎴',            short:'James TCG',               emoji:'🎭', color:'from-indigo-500 to-purple-700',   members:null },
+  { id:'moretcg',        name:'moretCG 🎴🎴🎴🎴🎴 15%...',  short:'moretCG',                emoji:'💫', color:'from-teal-500 to-cyan-600',       members:null },
+  { id:'hpretcg',        name:'+HPRE - GRUPO OFICIAL...',  short:'+HPRE TCG',               emoji:'🏅', color:'from-gold-400 to-yellow-600',     members:null },
+  { id:'freeletchtcg',   name:'FreeletchTCG 🎴🎴...',      short:'FreeletchTCG',            emoji:'🦅', color:'from-blue-800 to-indigo-900',     members:null },
+  { id:'collectlubishop',name:'COLLECTLUBI SHOP PSA...',   short:'COLLECTLUBI SHOP',        emoji:'🏪', color:'from-emerald-500 to-green-700',   members:null },
+  { id:'ritafire',       name:'RITA DE CHARIZARD DE ELKO', short:'RITA DE CHARIZARD',       emoji:'🔥', color:'from-red-600 to-orange-700',      members:null },
+  { id:'mkabpremium',    name:'M KAB PREMIUM CHAN...',     short:'M KAB PREMIUM',           emoji:'💎', color:'from-purple-600 to-indigo-800',   members:null },
+  { id:'ymgtcg',         name:'YMG TCG 🎴',               short:'YMG TCG',                  emoji:'🌊', color:'from-blue-400 to-teal-600',       members:null },
+  { id:'meoxboxpremium', name:'MEO XBOX PREMIUM CHAN...',  short:'MEO XBOX PREMIUM',        emoji:'🎮', color:'from-green-700 to-emerald-900',   members:null },
+  { id:'meadowtcg',      name:'Meadow TCG',                short:'Meadow TCG',               emoji:'🌿', color:'from-green-500 to-lime-600',      members:null },
+  { id:'silvertcg',      name:'Silver TCG 🎴',             short:'Silver TCG',               emoji:'🥈', color:'from-gray-400 to-slate-600',      members:null },
+  { id:'tabernamento',   name:'TABERNA NERD - TIN...',     short:'TABERNA NERD',            emoji:'🍺', color:'from-amber-600 to-yellow-800',    members:null },
+  { id:'leilaorecovery', name:'LEILÃO RECOVERY 💎 100...',  short:'LEILÃO RECOVERY',        emoji:'💎', color:'from-cyan-600 to-blue-800',       members:null },
+  { id:'leilaomineral',  name:'LEILÃO DE MINERAL (PORTU...', short:'LEILÃO MINERAL',        emoji:'💎', color:'from-purple-700 to-indigo-900',   members:null },
+  { id:'collectfosso',   name:'COLLECTIVOS (PORTUGA...)',   short:'COLLECTIVOS PT',          emoji:'🇵🇹', color:'from-green-600 to-red-600',      members:null },
+  { id:'communiquedesc', name:'COMMUNIQUE - DESCONT...',   short:'COMMUNIQUE',              emoji:'📢', color:'from-blue-500 to-sky-600',        members:null },
+  { id:'yttstore',       name:'YTT STORE TCG 🎴',          short:'YTT STORE',               emoji:'🏬', color:'from-violet-500 to-purple-700',   members:null },
+  { id:'maranatcg',      name:'MaranaTCG TCG',             short:'MaranaTCG',               emoji:'✝️', color:'from-blue-700 to-indigo-900',    members:null },
+  { id:'andreatcgplus',  name:'Andreatcg+ Representante...', short:'Andreatcg+',             emoji:'👩‍💼', color:'from-pink-500 to-rose-600',   members:null },
+  { id:'reidobrasil',    name:'REI DO BRASIL PROMO...',    short:'REI DO BRASIL',           emoji:'👑', color:'from-yellow-500 to-green-600',    members:null },
+  { id:'yyt111store',    name:'YYT 111 STORE TCG 🎴',      short:'YYT 111 STORE',           emoji:'💯', color:'from-orange-500 to-red-600',      members:null },
+  { id:'pokemonoferta',  name:'POKEMON OFERTAS SHOPE...',  short:'POKEMON OFERTAS',         emoji:'🛍️', color:'from-yellow-400 to-orange-500',  members:null },
+  { id:'francisotcg',    name:'Franciscon Pokemon',        short:'Franciscon',               emoji:'🎲', color:'from-teal-400 to-cyan-600',       members:null },
+  { id:'youngtcg',       name:'YOUNG TCG 🎴🎴',            short:'YOUNG TCG',               emoji:'🌱', color:'from-lime-500 to-green-600',      members:null },
+  { id:'leilaonerd',     name:'LEILÃO NO BREAK (TURMA...', short:'LEILÃO NO BREAK',         emoji:'⚡', color:'from-yellow-600 to-orange-700',   members:null },
+  { id:'leilaobrasil',   name:'LEILÃO EM BREAK (TURMA...', short:'LEILÃO EM BREAK',         emoji:'🎪', color:'from-purple-500 to-pink-600',     members:null },
+  { id:'zapzaptcg',      name:'ZapZapCards',               short:'ZapZap Cards',             emoji:'⚡', color:'from-yellow-400 to-amber-500',    members:null },
+  { id:'plantasatopiche', name:'Plantas atopiche OE',      short:'Plantas atopiche',         emoji:'🌺', color:'from-green-400 to-emerald-600',   members:null },
+  { id:'maranatcg2',     name:'MaranaTCG TCG Cópia',       short:'MaranaTCG 2',              emoji:'✝️', color:'from-indigo-700 to-blue-900',    members:null },
+  { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
+];
 
 const App = () => {
   const [user, setUser] = React.useState(null);
@@ -2562,7 +2612,7 @@ const App = () => {
       if (auctionCards.find(c=>c.card.id===card.id)) return;
       // ↓ unshift: nova carta vai pro TOPO
       setAuctionCards(prev => [
-        { card, quality:'NM', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
+        { card, quality:'NM', language:'PT', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
           pollOptions:['','',''], minBid:'', increment:'' },
         ...prev
       ]);
@@ -2618,7 +2668,7 @@ const App = () => {
           name:ac.card.name, number:ac.card.number,
           set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
+          comment:ac.comment, quality:ac.quality, language:ac.language||'PT',
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
@@ -3021,7 +3071,7 @@ const App = () => {
                               if (!Array.isArray(cartas)) { alert('❌ JSON inválido!'); return; }
                               let adicionadas = 0;
                               cartas.forEach(carta => { if (auctionCards.find(c => c.card.id === carta.id)) return; adicionadas++; });
-                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
+                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', language: 'PT', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
                               alert(`✅ ${adicionadas} cartas importadas!`);
                             } catch (error) { alert(`❌ Erro: ${error.message}`); }
                           };
@@ -3091,7 +3141,7 @@ const App = () => {
                       {auctionCards.length} carta(s)
                       <span className="text-[10px] text-gray-400 font-normal">— última adicionada aparece primeiro</span>
                     </p>
-                    {auctionCards.map(({card,quality,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
+                    {auctionCards.map(({card,quality,language,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
                       <div key={card.id} className={`bg-white border-2 rounded-xl overflow-hidden shadow-sm ${i===0?'border-yellow-400 ring-2 ring-yellow-200':'border-gray-200'}`}>
 
                         {/* Badge "mais recente" */}
@@ -3132,6 +3182,19 @@ const App = () => {
                               ))}
                             </div>
                             <p className="text-[9px] text-gray-400 mt-1">{QUALITY_DESC[quality]}</p>
+                          </div>
+
+                          {/* Idioma */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
+                            <div className="flex gap-1.5">
+                              {[{code:'PT',label:'🇧🇷 PT',bg:'bg-green-500'},{code:'EN',label:'🇺🇸 EN',bg:'bg-blue-500'},{code:'JP',label:'🇯🇵 JP',bg:'bg-red-500'}].map(({code,label,bg})=>(
+                                <button key={code} onClick={()=>updateCard(card.id,'language',code)}
+                                  className={`px-4 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${language===code?`${bg} text-white border-transparent`:'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Valores — POLL */}
