@@ -3270,7 +3270,7 @@ const App = () => {
 
                 <div className="space-y-2">
                   <p className="font-bold text-sm text-gray-700">Cartas do leilão:</p>
-                  {auctionCards.map(({card,quality,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
+                  {auctionCards.map(({card,quality,language,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
                     <div key={i} className="flex items-start gap-3 bg-white rounded-xl p-3 border border-gray-200">
                       <img src={card.images?.small} alt={card.name} className="h-12 w-auto object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />
                       <div className="flex-1 min-w-0">
@@ -3285,7 +3285,10 @@ const App = () => {
                         {ligaPrice && <p className="text-[10px] text-green-600">Liga: R$ {ligaPrice.toLocaleString('pt-BR')}</p>}
                         {comment && <p className="text-[10px] text-gray-400 italic mt-0.5 truncate">💬 {comment}</p>}
                       </div>
-                      <span className={`text-xs font-black text-white px-2 py-1 rounded-lg flex-shrink-0 ${QUALITY_COLOR[quality]}`}>{quality}</span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className={`text-xs font-black text-white px-2 py-1 rounded-lg ${QUALITY_COLOR[quality]}`}>{quality}</span>
+                        {language && <span className="text-base leading-none">{language==='PT'?'🇧🇷':language==='EN'?'🇺🇸':language==='JP'?'🇯🇵':'🌐'}</span>}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3770,9 +3773,12 @@ const App = () => {
                     alt={currentCard.card?.name}
                     className="h-32 w-auto object-contain rounded-xl shadow-2xl border-2 border-gray-600"
                     onError={e=>e.target.style.display='none'} />
-                  <span className={`absolute -top-1 -right-1 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]||'bg-gray-400'}`}>
-                    {currentCard.quality}
-                  </span>
+                  <div className="absolute -top-1 -right-1 flex items-center gap-0.5">
+                    <span className={`text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]||'bg-gray-400'}`}>
+                      {currentCard.quality}
+                    </span>
+                    {currentCard.language && <span className="text-sm leading-none drop-shadow">{currentCard.language==='PT'?'🇧🇷':currentCard.language==='EN'?'🇺🇸':currentCard.language==='JP'?'🇯🇵':'🌐'}</span>}
+                  </div>
                 </div>
                 <div className="flex-1 text-white min-w-0">
                   <p className="font-black text-base leading-tight">{currentCard.card?.name}</p>
