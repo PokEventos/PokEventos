@@ -2567,14 +2567,13 @@ const App = () => {
         const { data, error } = await supabase
           .from('grupos')
           .select('*')
-          .eq('ativo', true)
           .order('created_at', { ascending: false });
         if (error) { console.error('Erro ao carregar grupos:', error); return; }
         if (data && data.length > 0) {
           const normalized = data.map(g => ({
             id:           g.id,
-            name:         g.Nome || g.nome || '',
-            short:        g.nome_curto || g.Nome || g.nome || '',
+            name:         g.nome || '',
+            short:        g.nome_curto || g.nome || '',
             emoji:        g.emoji || '🎴',
             color:        g.cor_gradiente || 'from-gray-600 to-gray-800',
             whatsappLink: g.link_wahtsapp || null,
@@ -2596,7 +2595,7 @@ const App = () => {
           const { data, error } = await supabase
             .from('grupos')
             .insert({
-              Nome:           g.name,
+              nome:           g.name,
               nome_curto:     g.short || g.name,
               emoji:          g.emoji || '🎴',
               cor_gradiente:  g.color || 'from-gray-600 to-gray-800',
