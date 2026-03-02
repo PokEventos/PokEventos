@@ -2552,11 +2552,76 @@ const App = () => {
     const [excluirComunsL,  setExcluirComunsL] = useState(false);
     const cardDebounceRef = React.useRef(null);
     const [groupSearch,  setGroupSearch]  = useState('');
-    const [savedGroups,  setSavedGroups]  = useState(
-      // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
-      []
-    );
+    const [savedGroups,  setSavedGroups]  = useState([]);
     const [auctionCards, setAuctionCards] = useState([]);
+
+    // Carregar grupos do Supabase ao montar
+    React.useEffect(() => {
+      if (user) loadGroups();
+    }, [user]);
+
+    // Carregar grupos da tabela grupos
+    const loadGroups = async () => {
+      if (!supabase || !user) return;
+      try {
+        const { data, error } = await supabase
+          .from('grupos')
+          .select('*')
+          .eq('ativo', true)
+          .order('created_at', { ascending: false });
+        if (error) { console.error('Erro ao carregar grupos:', error); return; }
+        if (data && data.length > 0) {
+          const normalized = data.map(g => ({
+            id:           g.id,
+            name:         g.Nome || g.nome || '',
+            short:        g.nome_curto || g.Nome || g.nome || '',
+            emoji:        g.emoji || '🎴',
+            color:        g.cor_gradiente || 'from-gray-600 to-gray-800',
+            whatsappLink: g.link_wahtsapp || null,
+            avatarUrl:    null,
+            dbId:         g.id,
+          }));
+          setSavedGroups(normalized);
+          console.log(`✅ ${normalized.length} grupos carregados`);
+        }
+      } catch(e) { console.error('Erro ao carregar grupos:', e); }
+    };
+
+    // Salvar novo grupo na tabela grupos
+    const persistGroups = async (groups) => {
+      if (!supabase || !user) return;
+      const novos = groups.filter(g => !g.dbId);
+      for (const g of novos) {
+        try {
+          const { data, error } = await supabase
+            .from('grupos')
+            .insert({
+              Nome:           g.name,
+              nome_curto:     g.short || g.name,
+              emoji:          g.emoji || '🎴',
+              cor_gradiente:  g.color || 'from-gray-600 to-gray-800',
+              link_wahtsapp:  g.whatsappLink || null,
+              ativo:          true,
+            })
+            .select()
+            .single();
+          if (!error && data) {
+            setSavedGroups(prev => prev.map(sg =>
+              sg.id === g.id ? { ...sg, dbId: data.id, id: data.id } : sg
+            ));
+            console.log(`✅ Grupo "${g.name}" salvo no Supabase`);
+          } else {
+            console.error('Erro ao salvar grupo:', error);
+          }
+        } catch(e) { console.error('Erro ao salvar grupo:', e); }
+      }
+    };
+
+    // Atualizar avatar de um grupo (apenas local, tabela não tem coluna de avatar)
+    const updateGroupAvatar = async (groupId, avatarUrl) => {
+      // Tabela grupos não possui coluna de avatar — mantém só no estado local
+      console.log('Avatar atualizado localmente para grupo', groupId);
+    };
     const [savedAuctions,setSavedAuctions]= useState([]);
     const [showSuccess,  setShowSuccess]  = useState(false);
     const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
@@ -2846,7 +2911,9 @@ const App = () => {
                                 setGroupSearch('');
                                 // Salva grupo para uso futuro se ainda não estiver salvo
                                 if (!savedGroups.find(s => s.id === g.id)) {
-                                  setSavedGroups(prev => [g, ...prev]);
+                                  const updated = [g, ...savedGroups.filter(s => s.id !== g.id)];
+                                setSavedGroups(updated);
+                                persistGroups(updated);
                                 }
                               }}
                               className="w-full flex items-center gap-3 p-2.5 hover:bg-yellow-50 border-b last:border-0 text-left transition-all">
@@ -2869,7 +2936,9 @@ const App = () => {
                                   emoji: '🎴', color: 'from-gray-600 to-gray-800',
                                   avatarUrl: null,
                                 };
-                                setSavedGroups(prev => [newGroup, ...prev]);
+                                const updatedGroups = [newGroup, ...savedGroups];
+                                setSavedGroups(updatedGroups);
+                                persistGroups(updatedGroups);
                                 setForm(p => ({...p, groupId: newGroup.id, name: groupSearch}));
                                 setGroupSearch('');
                               }}
@@ -2921,9 +2990,11 @@ const App = () => {
                         setForm(p=>({...p,announcementPhoto:url}));
                         // Atualiza avatar no grupo salvo também
                         if (form.groupId) {
-                          setSavedGroups(prev => prev.map(g =>
+                          const updatedWithAvatar = savedGroups.map(g =>
                             g.id === form.groupId ? {...g, avatarUrl: url} : g
-                          ));
+                          );
+                          setSavedGroups(updatedWithAvatar);
+                          updateGroupAvatar(form.groupId, url);
                         }
                       }} />
                   </label>
