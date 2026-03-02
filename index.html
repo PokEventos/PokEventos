@@ -17,8 +17,6 @@
     .wanted-glow { box-shadow:0 0 0 3px rgba(251,191,36,.6), 0 4px 20px rgba(0,0,0,.15); }
     .pulse-dot { animation:pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-    @keyframes fade-in { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
-    .animate-fade-in { animation:fade-in 0.3s ease-out; }
   </style>
   <script>
     const s = document.createElement('script');
@@ -40,11 +38,8 @@
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
   const sbDB={
-    createLeilao:async(d)=>supabase?await supabase.from('auctions').insert(d).select().single():{data:null,error:new Error('offline')},
-    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')},
-    createProfile:async(profile)=>supabase?await supabase.from('profiles').insert(profile).select().single():{data:null,error:new Error('offline')},
-    getProfile:async(userId)=>supabase?await supabase.from('profiles').select('*').eq('id',userId).single():{data:null,error:new Error('offline')},
-    updateProfile:async(userId,updates)=>supabase?await supabase.from('profiles').update(updates).eq('id',userId):{error:new Error('offline')}
+    createLeilao:async(d)=>supabase?await supabase.from('leiloes').insert(d).select().single():{data:null,error:new Error('offline')},
+    createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')}
   };
   const sbAuth={
     signUp:async(email,password,displayName)=>{
@@ -116,38 +111,17 @@ const EVENTS = [];
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
-  const wName = wantedCard.name.toLowerCase().trim();
-  const wNum  = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
-  const wId   = (wantedCard.id || '').toLowerCase().trim();
-  
-  const eName = eventCard.name.toLowerCase().trim();
-  const eNum  = (eventCard.number || eventCard.localId || '').toLowerCase().trim();
-  const eId   = (eventCard.id || '').toLowerCase().trim();
-  
-  // MATCH PERFEITO: ID exato (mais confiável)
-  if (wId && eId && wId === eId) {
-    return true;
-  }
-  
-  // MATCH FORTE: Nome E Número (evita falsos positivos)
-  if (wName && wNum && eNum) {
-    const nomeMatch = eName.includes(wName) || wName.includes(eName);
-    const numeroMatch = eNum === wNum;
-    
-    if (nomeMatch && numeroMatch) {
-      return true;
-    }
-  }
-  
-  // MATCH MÉDIO: Apenas número (se for específico o suficiente)
-  // Exemplo: "006/165" é específico, "25" não é
-  if (wNum && eNum && wNum === eNum) {
-    // Só aceita se o número tem "/" (formato completo)
-    if (wNum.includes('/') || wNum.length > 3) {
-      return true;
-    }
-  }
-  
+  const wName = wantedCard.name.toLowerCase();
+  const wNum  = (wantedCard.number || '').toLowerCase();
+  const wSet  = (wantedCard.set   || '').toLowerCase();
+  const eName = eventCard.name.toLowerCase();
+  const eNum  = (eventCard.number || '').toLowerCase();
+  const eSet  = typeof eventCard.set === 'string'
+    ? eventCard.set.toLowerCase()
+    : (eventCard.set?.name || '').toLowerCase();
+  if (wNum && eNum === wNum) return true;
+  if (wName && eName.includes(wName)) return true;
+  if (wSet && eSet.includes(wSet)) return true;
   return false;
 };
 
@@ -445,88 +419,6 @@ const tcgdexBuscar = async (q) => {
   return cartasEn.map(c => normalizeTcgdex(c, mapaId2pt[c.id] || null));
 };
 
-/* ─── buscarCartaIdioma — Busca inteligente para import Excel ─────────────── */
-const buscarCartaIdioma = async (numero, nome, idioma = 'EN', setIdOverride = '') => {
-  const JP_ONLY = idioma === 'JP';
-  const baseUrl = JP_ONLY ? 'https://api.tcgdex.net/v2/ja/cards' : TCGDEX_API;
-  
-  // Normalizar número
-  let searchNum = String(numero).trim().toUpperCase();
-  
-  // Detectar tipo de carta
-  const isPromo = /^[A-Z]+-?\d+$/.test(searchNum); // SVP-001, XY84
-  const isSubset = /^[A-Z]{2}\d+\/[A-Z]{2}\d+$/.test(searchNum); // TG30/TG30
-  const isNormal = /^\d+\/\d+$/.test(searchNum); // 006/165
-  
-  let searchId = null;
-  
-  if (setIdOverride) {
-    // Se tem Set definido, usar ele
-    const num = searchNum.replace(/[^0-9]/g, '');
-    searchId = `${setIdOverride}-${num}`;
-  } else if (isPromo) {
-    // Promos: SVP-001 → svp-001 (lowercase)
-    searchId = searchNum.toLowerCase().replace('-', '-');
-    // Exceção: XY promos precisam de "xyp-" prefix
-    if (/^XY\d+$/.test(searchNum)) {
-      searchId = `xyp-${searchNum.toLowerCase()}`;
-    }
-  } else if (isSubset) {
-    // Subsets: TG30/TG30 → buscar pelo total
-    const match = searchNum.match(/^([A-Z]{2})(\d+)\/[A-Z]{2}(\d+)$/);
-    if (match) {
-      const prefix = match[1].toLowerCase();
-      const num = parseInt(match[2], 10);
-      const total = parseInt(match[3], 10);
-      
-      try {
-        const res = await fetch(`${baseUrl}?localId=${num}`);
-        if (res.ok) {
-          const cards = await res.json();
-          const found = cards.find(c => 
-            c.set?.cardCount?.official === total &&
-            c.localId?.toLowerCase() === searchNum.toLowerCase()
-          );
-          if (found) return found;
-        }
-      } catch (e) {}
-    }
-  } else if (isNormal) {
-    // Normal: 006/165 → buscar pelo total
-    const [num, total] = searchNum.split('/').map(n => parseInt(n, 10));
-    
-    try {
-      const res = await fetch(`${baseUrl}?localId=${num}`);
-      if (res.ok) {
-        const cards = await res.json();
-        const found = cards.find(c => c.set?.cardCount?.official === total);
-        if (found) return found;
-      }
-    } catch (e) {}
-  }
-  
-  // Se não achou, tentar buscar por ID direto
-  if (searchId) {
-    try {
-      const res = await fetch(`${baseUrl}/${searchId}`);
-      if (res.ok) return await res.json();
-    } catch (e) {}
-  }
-  
-  // Fallback: buscar por nome
-  if (nome) {
-    try {
-      const res = await fetch(`${baseUrl}?name=${encodeURIComponent(nome)}`);
-      if (res.ok) {
-        const cards = await res.json();
-        return cards[0];
-      }
-    } catch (e) {}
-  }
-  
-  return null;
-};
-
 /* ─── BlocoCarrossel — componente reutilizável para fotos dos blocos ─── */
 const BlocoCarrossel = ({ fotos, dark = true }) => {
   const [ativo, setAtivo] = React.useState(0);
@@ -719,18 +611,10 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
 };
 
 
-const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted, verCartas, setVerCartas }) => {
-  // Debug: Ver se componente está sendo remontado
-  React.useEffect(() => {
-    console.log('🔄 EventModal montado - ID:', event.id, '- verCartas:', verCartas);
-    return () => console.log('💀 EventModal desmontado - ID:', event.id);
-  }, []);
-  
+const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin }) => {
+  const [verCartas, setVerCartas] = React.useState(false);
   // Grupo vinculado ao evento (se existir)
   const grupo = AUCTION_GROUPS.find(g => g.id === event.groupId);
-  
-  // PROTEÇÃO: Garantir que cards existe e é um array
-  const cards = Array.isArray(event.cards) ? event.cards : [];
 
   return (
   <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-end md:items-center justify-center"
@@ -772,9 +656,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
 
       <div className="p-4 space-y-4">
 
-        {event.eventPhotos && event.eventPhotos.length > 0 && (
-          <BlocoCarrossel fotos={event.eventPhotos} dark={true} />
-        )}
+        <BlocoCarrossel fotos={event.eventPhotos} dark={true} />
 
         {/* ── Data/hora + descrição ── */}
         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-3">
@@ -788,55 +670,42 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
         <div>
           <button onClick={e=>{e.stopPropagation();setVerCartas(!verCartas);}}
             className={`w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${verCartas?'bg-gray-800 text-white border-gray-800':'bg-white text-gray-800 border-gray-300 hover:border-gray-500'}`}>
-            🎴 {verCartas ? 'Ocultar cartas' : `Ver todas as cartas (${cards.length})`}
+            🎴 {verCartas ? 'Ocultar cartas' : `Ver todas as cartas (${event.cards.length})`}
             <span className="text-lg">{verCartas?'▲':'▼'}</span>
           </button>
 
-          {verCartas && cards.length > 0 && (
+          {verCartas && (
             <div className="mt-3">
               <div className="grid grid-cols-2 gap-2">
-                {cards.map((card, i) => {
-                  // Garantir ID único consistente
-                  const cardId = card.id || `${card.name}-${card.set || 'unknown'}-${card.number || card.localId || 'no-num'}`.replace(/\s+/g, '-').toLowerCase();
-                  const isWanted = wantedList.find(w => w.id === cardId || (card.id && w.id === card.id));
-                  
+                {event.cards.map((card, i) => {
+                  const isWanted = wantedList.find(w => matchWanted(w, card));
                   return (
-                    <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-200'} relative`}>
-                      {/* Botão Wanted - CLICÁVEL */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          if (isWanted) {
-                            removeWanted(cardId);
-                          } else {
-                            addToWanted(card);
-                          }
-                        }}
-                        className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-md transition-all active:scale-90 ${
-                          isWanted 
-                            ? 'bg-yellow-400 text-gray-900 hover:bg-yellow-500' 
-                            : 'bg-white/90 text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'
-                        }`}
-                        title={isWanted ? 'Remover da Wanted List' : 'Adicionar à Wanted List'}
-                      >
-                        {isWanted ? '⭐' : '☆'}
-                      </button>
-                      
+                    <div key={i} className={`rounded-xl overflow-hidden border-2 ${isWanted ? 'border-yellow-300' : 'border-gray-200'} relative`}>
                       {/* Badge Wanted */}
                       {isWanted && (
                         <div className="bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">
                           ⭐ Na sua Wanted List
                         </div>
                       )}
-                      
                       {/* Imagem */}
-                      <div className="bg-gray-100 flex items-center justify-center p-2" style={{minHeight:'150px'}}>
+                      <div className="bg-gray-100 flex items-center justify-center p-2 relative" style={{minHeight:'150px'}}>
+                        {/* Badges de idioma e qualidade */}
+                        <div className="absolute top-1 left-1 flex gap-1 z-10">
+                          {card.language && (
+                            <div className="bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-sm shadow-md" title={card.language === 'JP' ? 'Japonês' : card.language === 'PT' ? 'Português' : 'Inglês'}>
+                              {card.language === 'JP' ? '🇯🇵' : card.language === 'PT' ? '🇧🇷' : '🇺🇸'}
+                            </div>
+                          )}
+                          {card.quality && (
+                            <div className="bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-md">
+                              {card.quality}
+                            </div>
+                          )}
+                        </div>
                         <img src={card.img} alt={card.name}
                           className="h-36 w-auto object-contain drop-shadow-sm"
                           onError={e=>e.target.style.display='none'} />
                       </div>
-                      
                       {/* Info */}
                       <div className="px-2 py-1.5 bg-white">
                         <p className="font-black text-gray-800 text-xs leading-snug truncate">{card.name}</p>
@@ -851,19 +720,11 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
         </div>
 
         {/* ── Pagamento ── */}
-        {((event.payment_methods || event.paymentMethods) || (event.payment_deadline || event.paymentDeadline)) && (
-          <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-3">
-            <p className="font-bold text-gray-700 mb-2 text-sm">💳 Pagamento</p>
-            {(event.payment_methods || event.paymentMethods) && (event.payment_methods || event.paymentMethods).length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(event.payment_methods || event.paymentMethods).map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}
-              </div>
-            )}
-            {(event.payment_deadline || event.paymentDeadline) && (
-              <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.payment_deadline || event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
-            )}
-          </div>
-        )}
+        <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-3">
+          <p className="font-bold text-gray-700 mb-2 text-sm">💳 Pagamento</p>
+          <div className="flex flex-wrap gap-2 mb-2">{event.paymentMethods.map((m,i)=><span key={i} className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">💰 {m}</span>)}</div>
+          <p className="text-xs text-gray-500">Prazo: <span className="font-bold text-gray-800">{new Date(event.paymentDeadline).toLocaleDateString('pt-BR')}</span></p>
+        </div>
 
         {/* ── Ações ── */}
         <div className="space-y-2 pb-2">
@@ -871,12 +732,10 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
-          {(event.whatsapp_link || event.whatsappLink) && (
-            <a href={event.whatsapp_link || event.whatsappLink} target="_blank" rel="noopener noreferrer"
-              className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
-              📲 Ir para o WhatsApp do Grupo
-            </a>
-          )}
+          <a href={event.whatsappLink} target="_blank" rel="noopener noreferrer"
+            className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
+            📲 Ir para o WhatsApp do Grupo
+          </a>
         </div>
       </div>
     </div>
@@ -944,7 +803,6 @@ const AUCTION_GROUPS = [
 
 const App = () => {
   const [user, setUser] = React.useState(null);
-  const [userProfile, setUserProfile] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     
     // Verificar se já está logado ao carregar
@@ -955,35 +813,6 @@ const App = () => {
         if (data?.user) {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
-          
-          // Carregar perfil usando RPC (contorna erro 406)
-          try {
-            console.log('📡 Chamando get_my_profile...');
-            const { data: profileJson, error } = await supabase.rpc('get_my_profile');
-            console.log('📡 RPC retornou:', { data: profileJson, error });
-            
-            if (error) {
-              console.error('❌ Erro RPC:', error);
-            } else if (profileJson) {
-              console.log('✅ Perfil carregado via RPC:', profileJson);
-              setUserProfile(profileJson);
-            } else {
-              console.warn('⚠️ RPC retornou null - tentando SELECT direto...');
-              // Fallback: tentar SELECT direto
-              const { data: profile2 } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', data.user.id)
-                .single();
-              
-              console.log('Fallback profile:', profile2);
-              if (profile2) {
-                setUserProfile(profile2);
-              }
-            }
-          } catch (err) {
-            console.error('❌ Exception ao carregar perfil:', err);
-          }
         } else {
           console.log('⚠️ Nenhum usuário logado');
         }
@@ -993,163 +822,11 @@ const App = () => {
     }, []);
     
     const [screen,      setScreen]      = useState('login');
-  const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
-  const [modalEventShowCards, setModalEventShowCards] = useState(false);
   const [searchLog,   setSearchLog]   = useState([]);
   const [wantedList,  setWantedList]  = useState([]);
   const [alerts,      setAlerts]      = useState([]);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [tutorialStep, setTutorialStep] = useState(0);
-  
-  // CRITICAL: Para compatibilidade com código existente que usa EVENTS
-  const EVENTS = events;
-  
-  // Carregar leilões do Supabase
-  const loadAuctionsFromDB = async () => {
-    if (!supabase) {
-      console.warn('⚠️ Supabase ainda não inicializado, aguardando...');
-      return;
-    }
-    
-    try {
-      console.log('🔄 Carregando leilões do Supabase...');
-      console.log('📡 Fazendo query na tabela auctions...');
-      
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('*')
-        .order('date', { ascending: true });
-      
-      if (error) {
-        console.error('❌ Erro ao carregar leilões:', error);
-        console.error('❌ Código do erro:', error.code);
-        console.error('❌ Mensagem:', error.message);
-        console.error('❌ Detalhes:', error.details);
-        return;
-      }
-      
-      console.log('📦 Query executada com sucesso!');
-      console.log('📊 Dados recebidos:', data);
-      console.log('📈 Quantidade:', data ? data.length : 0);
-      
-      if (data && data.length > 0) {
-        setEvents(data);
-        console.log(`✅ ${data.length} leilões carregados e aplicados ao estado`);
-        console.log('📋 IDs dos leilões:', data.map(a => a.id));
-      } else {
-        console.log('ℹ️ Nenhum leilão encontrado no banco de dados');
-        setEvents([]); // Garantir que está vazio
-      }
-    } catch (err) {
-      console.error('❌ Exception ao carregar leilões:', err);
-      console.error('❌ Stack:', err.stack);
-    }
-  };
-  
-  // Carregar check-ins do Supabase
-  const loadCheckinsFromDB = async () => {
-    if (!supabase || !user) {
-      console.warn('⚠️ Supabase ou usuário não disponível');
-      return;
-    }
-    try {
-      console.log('🔄 Carregando check-ins do Supabase...');
-      const { data, error } = await supabase
-        .from('user_checkins')
-        .select('event_id')
-        .eq('user_id', user.id);
-      
-      if (error) {
-        console.error('❌ Erro ao carregar check-ins:', error);
-        return;
-      }
-      
-      if (data && data.length > 0) {
-        const eventIds = data.map(row => row.event_id);
-        setCheckins(eventIds);
-        console.log(`✅ ${eventIds.length} check-ins carregados`);
-      }
-    } catch (err) {
-      console.error('❌ Erro ao carregar check-ins:', err);
-    }
-  };
-  
-  // Verificar se deve mostrar tutorial (primeira vez)
-  React.useEffect(() => {
-    if (user && !loading) {
-      const hasSeenTutorial = localStorage.getItem(`tutorial_seen_${user.id}`);
-      if (!hasSeenTutorial) {
-        // Esperar 1 segundo para o usuário se acostumar com a tela
-        setTimeout(() => setShowTutorial(true), 1000);
-      }
-    }
-  }, [user, loading]);
-  
-  // Carregar Wanted List do Supabase quando o usuário logar
-  React.useEffect(() => {
-    if (user && userProfile) {
-      loadWantedListFromDB();
-      loadCheckinsFromDB();
-    }
-  }, [user, userProfile]);
-  
-  // Carregar leilões do Supabase (público - todos veem)
-  React.useEffect(() => {
-    // Aguardar Supabase estar pronto
-    const tryLoadAuctions = () => {
-      if (supabase) {
-        loadAuctionsFromDB();
-      } else {
-        console.log('⏳ Aguardando Supabase inicializar...');
-        setTimeout(tryLoadAuctions, 200);
-      }
-    };
-    tryLoadAuctions();
-  }, []);
-  
-  const loadWantedListFromDB = async () => {
-    if (!supabase || !user) {
-      console.warn('⚠️ Supabase ou usuário não disponível');
-      return;
-    }
-    
-    try {
-      console.log('🔄 Carregando Wanted List do Supabase...');
-      const { data, error } = await supabase
-        .from('user_wanted_cards')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (error) {
-        console.error('❌ Erro ao carregar wanted list:', error);
-        return;
-      }
-      
-      if (data && data.length > 0) {
-        const cards = data.map(row => ({
-          ...row.card_data,
-          addedAt: new Date(row.created_at)
-        }));
-        setWantedList(cards);
-        console.log(`✅ ${cards.length} cartas carregadas da Wanted List`);
-      } else {
-        console.log('ℹ️ Nenhuma carta na Wanted List');
-      }
-    } catch (err) {
-      console.error('❌ Erro ao carregar wanted list:', err);
-    }
-  };
-  
-  const closeTutorial = (dontShowAgain) => {
-    if (dontShowAgain && user) {
-      localStorage.setItem(`tutorial_seen_${user.id}`, 'true');
-    }
-    setShowTutorial(false);
-    setTutorialStep(0);
-  };
-  
   // interests: { eventId_cardIdx: true } — cartas marcadas para ser avisado no leilão
   const [interests,   setInterests]   = useState({});
   const toggleInterest = (eventId, cardIdx) => {
@@ -1157,11 +834,7 @@ const App = () => {
     setInterests(prev => ({ ...prev, [key]: !prev[key] }));
   };
   const isInterested = (eventId, cardIdx) => !!interests[eventId + '_' + cardIdx];
-  
-  // Determinar se é leiloeiro baseado no perfil real
-  const isAuctioneer = userProfile?.tipo === 'leiloeiro';
-  const isApproved = userProfile?.approved !== false; // true ou null = aprovado
-  
+  const [isAuctioneer,setIsAuctioneer]= useState(true);   // mock: true = conta leiloeiro
   const [liveAuction, setLiveAuction] = useState(null);   // leilão ao vivo em andamento
 
   /* ─── Verifica alertas toda vez que wantedList ou EVENTS mudam ─── */
@@ -1182,121 +855,10 @@ const App = () => {
   }, [wantedList]);
 
   const unseenAlerts = alerts.filter(a => !a.seen).length;
-  const toggleCheckin = async (id) => {
-    const isCheckedIn = checkins.includes(id);
-    
-    // Atualizar localmente primeiro (UI instantânea)
-    setCheckins(p => isCheckedIn ? p.filter(x => x !== id) : [...p, id]);
-    
-    // Salvar no Supabase se o usuário estiver logado
-    if (user) {
-      try {
-        if (isCheckedIn) {
-          // Remover check-in
-          console.log(`🗑️ Removendo check-in do leilão ${id}...`);
-          const { error } = await supabase
-            .from('user_checkins')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('event_id', id);
-          
-          if (error) {
-            console.error('❌ Erro ao remover check-in:', error);
-          } else {
-            console.log('✅ Check-in removido');
-          }
-        } else {
-          // Adicionar check-in
-          console.log(`✅ Adicionando check-in no leilão ${id}...`);
-          const { error } = await supabase
-            .from('user_checkins')
-            .insert({
-              user_id: user.id,
-              event_id: id
-            });
-          
-          if (error) {
-            console.error('❌ Erro ao adicionar check-in:', error);
-          } else {
-            console.log('✅ Check-in salvo');
-          }
-        }
-      } catch (err) {
-        console.error('❌ Erro ao salvar check-in:', err);
-      }
-    }
-  };
-  
-  const addToWanted = async (card) => {
-    // Garantir que a carta tem um ID único
-    const cardId = card.id || `${card.name}-${card.set || 'unknown'}-${card.number || card.localId || 'no-num'}`.replace(/\s+/g, '-').toLowerCase();
-    
-    // Verificar se já existe (usando o ID gerado ou original)
-    if (wantedList.find(w => w.id === cardId || (w.id && w.id === card.id))) {
-      console.log(`⚠️ ${card.name} já está na Wanted List`);
-      return;
-    }
-    
-    // Criar objeto completo da carta com ID garantido
-    const cardWithId = {
-      ...card,
-      id: cardId,
-      addedAt: new Date()
-    };
-    
-    // Adicionar localmente primeiro
-    setWantedList(p => [...p, cardWithId]);
-    
-    // Salvar no Supabase se o usuário estiver logado
-    if (user) {
-      try {
-        console.log(`💾 Salvando ${card.name} na Wanted List...`);
-        const { error } = await supabase
-          .from('user_wanted_cards')
-          .insert({
-            user_id: user.id,
-            card_id: cardId,
-            card_name: card.name,
-            card_data: cardWithId
-          });
-        
-        if (error) {
-          console.error('❌ Erro ao salvar carta na wanted list:', error);
-        } else {
-          console.log(`✅ ${card.name} salvo no Supabase`);
-        }
-      } catch (err) {
-        console.error('❌ Erro ao salvar no Supabase:', err);
-      }
-    }
-  };
-  
-  const removeWanted = async (id) => {
-    // Remover localmente primeiro
-    setWantedList(p => p.filter(w => w.id !== id));
-    
-    // Remover do Supabase se o usuário estiver logado
-    if (user) {
-      try {
-        console.log(`🗑️ Removendo carta da Wanted List...`);
-        const { error } = await supabase
-          .from('user_wanted_cards')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('card_id', id);
-        
-        if (error) {
-          console.error('❌ Erro ao remover carta da wanted list:', error);
-        } else {
-          console.log('✅ Carta removida do Supabase');
-        }
-      } catch (err) {
-        console.error('❌ Erro ao remover do Supabase:', err);
-      }
-    }
-  };
-  
-  const markAlertSeen = key => setAlerts(p => p.map(a => a.key === key ? { ...a, seen: true } : a));
+  const toggleCheckin = id => setCheckins(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
+  const addToWanted   = card => { if (!wantedList.find(w=>w.id===card.id)) setWantedList(p=>[...p,{...card,addedAt:new Date()}]); };
+  const removeWanted  = id   => setWantedList(p => p.filter(w=>w.id!==id));
+  const markAlertSeen = key  => setAlerts(p => p.map(a=>a.key===key?{...a,seen:true}:a));
   const logSearch = query => {
     if (!query.trim()) return;
     setSearchLog(prev => {
@@ -1344,199 +906,9 @@ const App = () => {
   );
 
   /* ════════════════════════════════════════
-     TUTORIAL MODAL - Primeira vez
-  ════════════════════════════════════════ */
-  const TutorialModal = () => {
-    const [dontShowAgain, setDontShowAgain] = React.useState(false);
-    
-    const slides = [
-      {
-        emoji: '🎴',
-        title: 'Bem-vindo ao PokéEventos!',
-        description: 'Seu app para acompanhar todos os leilões de Pokémon TCG em um só lugar!',
-        color: 'from-red-500 to-yellow-400'
-      },
-      {
-        emoji: '📅',
-        title: 'Calendário de Leilões',
-        description: 'Veja todos os leilões organizados por data. Clique em qualquer evento para ver as cartas, fazer check-in e acessar o link do WhatsApp!',
-        color: 'from-blue-500 to-purple-500'
-      },
-      {
-        emoji: '⭐',
-        title: 'Wanted List',
-        description: 'Adicione suas cartas desejadas na Wanted List e receba alertas automáticos quando elas aparecerem em leilões!',
-        color: 'from-yellow-400 to-orange-500'
-      },
-      {
-        emoji: '🔍',
-        title: 'Busca Inteligente',
-        description: 'Busque cartas por nome, número ou edição. Encontrou em um leilão? Check-in! Não encontrou? Adicione à Wanted List!',
-        color: 'from-green-500 to-teal-500'
-      },
-      {
-        emoji: '🚀',
-        title: 'Pronto para começar!',
-        description: 'Explore o calendário, monte sua Wanted List e nunca mais perca um leilão!',
-        color: 'from-pink-500 to-red-500'
-      }
-    ];
-
-    const currentSlide = slides[tutorialStep];
-    const isLastSlide = tutorialStep === slides.length - 1;
-
-    return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
-          {/* Header com gradiente */}
-          <div className={`bg-gradient-to-r ${currentSlide.color} p-8 text-center relative`}>
-            <div className="text-7xl mb-4 animate-bounce">{currentSlide.emoji}</div>
-            <h2 className="text-2xl font-black text-white mb-2" style={{fontFamily:'Arial Black,sans-serif'}}>
-              {currentSlide.title}
-            </h2>
-            <p className="text-white/90 text-sm leading-relaxed">
-              {currentSlide.description}
-            </p>
-          </div>
-
-          {/* Indicadores de slides */}
-          <div className="flex justify-center gap-2 py-4 bg-gray-50">
-            {slides.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setTutorialStep(idx)}
-                className={`h-2 rounded-full transition-all ${
-                  idx === tutorialStep 
-                    ? 'w-8 bg-blue-500' 
-                    : 'w-2 bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Checkbox "Não mostrar novamente" */}
-          <div className="px-6 py-3 bg-gray-50 border-t">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={dontShowAgain}
-                onChange={(e) => setDontShowAgain(e.target.checked)}
-                className="w-4 h-4 accent-blue-500"
-              />
-              <span className="text-sm text-gray-600">Não mostrar novamente</span>
-            </label>
-          </div>
-
-          {/* Botões de navegação */}
-          <div className="p-6 pt-3 flex gap-3">
-            {tutorialStep > 0 && (
-              <button
-                onClick={() => setTutorialStep(tutorialStep - 1)}
-                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all"
-              >
-                ← Voltar
-              </button>
-            )}
-            <button
-              onClick={() => {
-                if (isLastSlide) {
-                  closeTutorial(dontShowAgain);
-                } else {
-                  setTutorialStep(tutorialStep + 1);
-                }
-              }}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r ${currentSlide.color} hover:opacity-90`}
-            >
-              {isLastSlide ? '🎉 Começar!' : 'Próximo →'}
-            </button>
-          </div>
-
-          {/* Botão pular */}
-          {!isLastSlide && (
-            <button
-              onClick={() => closeTutorial(dontShowAgain)}
-              className="w-full py-3 text-sm text-gray-500 hover:text-gray-700 font-semibold"
-            >
-              Pular tutorial
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
-  const LoginScreen = () => {
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [rememberMe, setRememberMe] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState('');
-
-    // Carregar credenciais salvas ao montar
-    React.useEffect(() => {
-      const savedEmail = localStorage.getItem('pokeventos_email');
-      const savedPassword = localStorage.getItem('pokeventos_password');
-      const savedRemember = localStorage.getItem('pokeventos_remember') === 'true';
-      
-      if (savedRemember && savedEmail && savedPassword) {
-        setEmail(savedEmail);
-        setPassword(savedPassword);
-        setRememberMe(true);
-        console.log('🔐 Credenciais carregadas do localStorage');
-      }
-    }, []);
-
-    const handleLogin = async () => {
-      if (!email || !password) {
-        setError('Preencha email e senha');
-        return;
-      }
-      
-      setLoading(true);
-      setError('');
-      
-      const { data, error: loginError } = await sbAuth.signIn(email, password);
-      
-      if (loginError) {
-        setError(loginError.message || 'Erro ao fazer login');
-        setLoading(false);
-      } else if (data?.user) {
-        console.log('✅ Login bem-sucedido!', data.user);
-        
-        // Salvar ou limpar credenciais baseado em rememberMe
-        if (rememberMe) {
-          localStorage.setItem('pokeventos_email', email);
-          localStorage.setItem('pokeventos_password', password);
-          localStorage.setItem('pokeventos_remember', 'true');
-          console.log('💾 Credenciais salvas no localStorage');
-        } else {
-          localStorage.removeItem('pokeventos_email');
-          localStorage.removeItem('pokeventos_password');
-          localStorage.removeItem('pokeventos_remember');
-          console.log('🗑️ Credenciais removidas do localStorage');
-        }
-        
-        setUser(data.user);
-        
-        // Carregar perfil via RPC
-        try {
-          const { data: profileJson, error: rpcError } = await supabase.rpc('get_my_profile');
-          if (!rpcError && profileJson) {
-            console.log('✅ Perfil carregado via RPC:', profileJson);
-            setUserProfile(profileJson);
-          }
-        } catch (err) {
-          console.error('❌ Erro ao carregar perfil:', err);
-        }
-        
-        setScreen('home');
-      }
-    };
-
-    return (
+  const LoginScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4 relative overflow-hidden">
       <img src={POKE.pikachu}   className="absolute top-8 left-6 w-20 opacity-20 animate-bounce" style={{animationDuration:'3s'}} />
       <img src={POKE.charizard} className="absolute bottom-16 right-6 w-28 opacity-15 animate-bounce" style={{animationDuration:'4s'}} />
@@ -1561,159 +933,22 @@ const App = () => {
             ))}
           </div>
         </div>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-            ⚠️ {error}
-          </div>
-        )}
-        
         <div className="space-y-3">
-          <input 
-            type="email" 
-            placeholder="E-mail" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()} 
-            disabled={loading}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm disabled:bg-gray-50" 
-          />
-          <input 
-            type="password" 
-            placeholder="Senha" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()} 
-            autoComplete="current-password" 
-            disabled={loading}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm disabled:bg-gray-50" 
-          />
-          
-          {/* Remember Me */}
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-            />
-            <span>Lembrar-me neste dispositivo</span>
-          </label>
-          
-          <button 
-            onClick={handleLogin} 
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            {loading ? '⏳ Entrando...' : '⚡ Entrar'}
-          </button>
+          <input type="email" placeholder="E-mail" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <input type="password" placeholder="Senha" onKeyDown={e=>e.key==='Enter'&&setScreen('home')} autoComplete="current-password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm" />
+          <button onClick={()=>setScreen('home')} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700">⚡ Entrar</button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
         </div>
       </div>
     </div>
-    );
-  };
+  );
 
   /* ════════════════════════════════════════
      TELA CADASTRO
   ════════════════════════════════════════ */
   const RegisterScreen = () => {
-    const [accountType, setAccountType] = React.useState('collector');
-    const [formData, setFormData] = React.useState({
-      displayName: '',
-      email: '',
-      whatsapp: '',
-      password: '',
-      confirmPassword: ''
-    });
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState('');
-    const [termsAccepted, setTermsAccepted] = React.useState(false);
-    
+    const [accountType, setAccountType] = React.useState('collector'); // 'collector' | 'auctioneer'
     const isAuc = accountType === 'auctioneer';
-
-    const handleRegister = async () => {
-      setError('');
-      
-      // Validações
-      if (!formData.displayName || !formData.email || !formData.password) {
-        setError('Preencha todos os campos obrigatórios');
-        return;
-      }
-      
-      if (isAuc && !formData.whatsapp) {
-        setError('WhatsApp é obrigatório para leiloeiros');
-        return;
-      }
-      
-      if (formData.password !== formData.confirmPassword) {
-        setError('As senhas não coincidem');
-        return;
-      }
-      
-      if (formData.password.length < 6) {
-        setError('A senha deve ter pelo menos 6 caracteres');
-        return;
-      }
-      
-      if (!termsAccepted) {
-        setError('Aceite os termos para continuar');
-        return;
-      }
-      
-      setLoading(true);
-      
-      // 1. Criar usuário no Supabase Auth
-      const { data, error: signUpError } = await sbAuth.signUp(
-        formData.email, 
-        formData.password, 
-        formData.displayName
-      );
-      
-      if (signUpError) {
-        setError(signUpError.message || 'Erro ao criar conta');
-        setLoading(false);
-        return;
-      }
-      
-      if (data?.user) {
-        console.log('✅ Usuário criado no Auth!', data.user);
-        
-        // Aguardar um momento para garantir que auth.users foi populado
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // 2. Criar perfil usando função SQL (SECURITY DEFINER)
-        try {
-          const { data: result, error: rpcError } = await supabase.rpc('create_user_profile', {
-            user_id: data.user.id,
-            user_email: formData.email,
-            user_name: formData.displayName,
-            user_tipo: isAuc ? 'leiloeiro' : 'participante',
-            user_whatsapp: formData.whatsapp || null
-          });
-          
-          if (rpcError) {
-            console.error('❌ Erro ao criar perfil:', rpcError);
-            setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
-            setLoading(false);
-            return;
-          }
-          
-          console.log('✅ Perfil criado!', result);
-          
-          if (isAuc) {
-            alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe PokéEventos.');
-          }
-          
-          setUser(data.user);
-          setScreen('home');
-        } catch (err) {
-          console.error('❌ Exception ao criar perfil:', err);
-          setError('Erro inesperado ao criar perfil. Tente novamente.');
-          setLoading(false);
-        }
-      }
-    };
-
     return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-yellow-400 flex items-center justify-center p-4 relative overflow-hidden">
         {/* BANNER DE TESTE */}
@@ -1736,21 +971,15 @@ const App = () => {
           <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-            ⚠️ {error}
-          </div>
-        )}
-
         {/* Tipo de conta — com estado */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <button onClick={()=>setAccountType('collector')} disabled={loading}
+          <button onClick={()=>setAccountType('collector')}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='collector'?'border-blue-500 bg-blue-50 text-blue-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
             <span className="text-2xl">👤</span>
             <span>Colecionador</span>
             <span className={`text-[10px] font-normal ${accountType==='collector'?'text-blue-500':'text-gray-400'}`}>Acompanha leilões</span>
           </button>
-          <button onClick={()=>setAccountType('auctioneer')} disabled={loading}
+          <button onClick={()=>setAccountType('auctioneer')}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${accountType==='auctioneer'?'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-md':'border-gray-200 bg-gray-50 text-gray-400'}`}>
             <span className="text-2xl">🔨</span>
             <span>Leiloeiro</span>
@@ -1759,33 +988,13 @@ const App = () => {
         </div>
 
         <div className="space-y-2.5">
-          <input 
-            type="text" 
-            placeholder="Nome completo *" 
-            value={formData.displayName}
-            onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-            disabled={loading}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
-          />
-          <input 
-            type="email" 
-            placeholder="E-mail *" 
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            disabled={loading}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
-          />
+          <input type="text"     placeholder="Nome completo *" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="email"    placeholder="E-mail *"        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
 
           {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
           <div>
-            <input 
-              type="tel" 
-              placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
-              value={formData.whatsapp}
-              onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-              disabled={loading}
-              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm disabled:bg-gray-50 ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} 
-            />
+            <input type="tel" placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
+              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} />
             {!isAuc && (
               <p className="text-[10px] text-gray-400 mt-1 ml-1">
                 ⚡ Necessário para participar de leilões
@@ -1793,44 +1002,20 @@ const App = () => {
             )}
           </div>
 
-          <input 
-            type="password" 
-            placeholder="Senha *" 
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            autoComplete="new-password" 
-            disabled={loading}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
-          />
-          <input 
-            type="password" 
-            placeholder="Confirmar senha *" 
-            value={formData.confirmPassword}
-            onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-            disabled={loading}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
-          />
+          <input type="password" placeholder="Senha *"           autoComplete="new-password" className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
+          <input type="password" placeholder="Confirmar senha *"  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm" />
 
           <div className="flex items-start gap-2 pt-1">
-            <input 
-              type="checkbox" 
-              id="terms2" 
-              checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
-              disabled={loading}
-              className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" 
-            />
+            <input type="checkbox" id="terms2" className="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0" />
             <label htmlFor="terms2" className="text-xs text-gray-500 leading-relaxed">
               Aceito os <button className="text-purple-600 font-semibold hover:underline">Termos de Uso</button> e a <button className="text-purple-600 font-semibold hover:underline">Política de Privacidade</button>
             </label>
           </div>
 
-          <button 
-            onClick={handleRegister}
-            disabled={loading}
-            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 disabled:opacity-50 disabled:cursor-not-allowed ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
+          <button onClick={()=>setScreen(isAuc ? 'auctioneer' : 'home')}
+            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all mt-1 ${isAuc?'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600':'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}>
             <img src={POKE.jolteon} className="w-5 h-5 object-contain" />
-            {loading ? '⏳ Criando conta...' : (isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta')}
+            {isAuc ? 'Criar conta de Leiloeiro' : 'Criar minha conta'}
           </button>
 
           <p className="text-center text-sm">
@@ -1875,13 +1060,13 @@ const App = () => {
                 <p className="font-bold text-gray-800 mb-1">{event.title}</p>
                 <p className="text-xs text-gray-500 mb-3">{event.organizer} · 🕐 {event.time}</p>
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {(event.cards || []).map((card,i)=><img key={i} src={card.img} alt={card.name} className="h-16 w-auto rounded-lg shadow-md border border-yellow-300 object-contain flex-shrink-0" onError={e=>e.target.style.display='none'} />)}
+                  {event.cards.map((card,i)=><img key={i} src={card.img} alt={card.name} className="h-16 w-auto rounded-lg shadow-md border border-yellow-300 object-contain flex-shrink-0" onError={e=>e.target.style.display='none'} />)}
                 </div>
               </div>
             </div>
           ))}
         </div>
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
         <BottomNav current="home" />
       </div>
     );
@@ -1949,7 +1134,7 @@ const App = () => {
             ) : (
               <div className="space-y-3">
                 {upcomingEvs.map(event => {
-                  const hasWanted  = (event.cards || []).some(c => wantedList.some(w => matchWanted(w,c)));
+                  const hasWanted  = event.cards.some(c => wantedList.some(w => matchWanted(w,c)));
                   const grupo      = AUCTION_GROUPS.find(g => g.id === event.groupId);
                   const evDate     = new Date(event.date + 'T00:00:00');
                   const isPast     = evDate < today;
@@ -2017,9 +1202,9 @@ const App = () => {
                         </div>
 
                         {/* Prévia das cartas — scroll horizontal */}
-                        {(event.cards || []).length > 0 && (
+                        {event.cards.length > 0 && (
                           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                            {(event.cards || []).slice(0, 8).map((card, i) => {
+                            {event.cards.slice(0, 8).map((card, i) => {
                               const isCardWanted = wantedList.some(w => matchWanted(w, card));
                               return (
                                 <div key={i} className={`flex-shrink-0 relative rounded-lg overflow-hidden ${isCardWanted ? 'ring-2 ring-yellow-400' : ''}`}>
@@ -2032,9 +1217,9 @@ const App = () => {
                                 </div>
                               );
                             })}
-                            {(event.cards || []).length > 8 && (
+                            {event.cards.length > 8 && (
                               <div className="flex-shrink-0 w-10 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <span className="text-[9px] text-gray-500 font-bold text-center leading-tight">+{(event.cards || []).length-8}<br/>mais</span>
+                                <span className="text-[9px] text-gray-500 font-bold text-center leading-tight">+{event.cards.length-8}<br/>mais</span>
                               </div>
                             )}
                           </div>
@@ -2043,7 +1228,7 @@ const App = () => {
                         {/* Rodapé — número de cartas + CTA */}
                         <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
                           <span className="text-[11px] text-gray-400 font-medium">
-                            🎴 {(event.cards || []).length} carta{(event.cards || []).length !== 1 ? 's' : ''}
+                            🎴 {event.cards.length} carta{event.cards.length !== 1 ? 's' : ''}
                           </span>
                           <span className="text-[11px] text-purple-600 font-black flex items-center gap-1">
                             Ver leilão ›
@@ -2122,7 +1307,7 @@ const App = () => {
               </div>
               <div className="p-4 space-y-3">
                 {getEventsForDate(selectedDate).map(event => {
-                  const hasWanted = (event.cards || []).some(c => wantedList.some(w => matchWanted(w,c)));
+                  const hasWanted = event.cards.some(c => wantedList.some(w => matchWanted(w,c)));
                   const grupo     = AUCTION_GROUPS.find(g => g.id === event.groupId);
                   return (
                     <div key={event.id}
@@ -2152,9 +1337,9 @@ const App = () => {
                         <span className="text-gray-400 text-lg flex-shrink-0">›</span>
                       </div>
                       {/* Mini prévia cartas */}
-                      {(event.cards || []).length > 0 && (
+                      {event.cards.length > 0 && (
                         <div className="flex gap-1 px-3 pb-3 overflow-x-auto">
-                          {(event.cards || []).slice(0,6).map((c,i)=>
+                          {event.cards.slice(0,6).map((c,i)=>
                             <img key={i} src={c.img} alt={c.name} className="h-12 w-auto object-contain rounded-md flex-shrink-0"
                               onError={e=>e.target.style.display='none'} />
                           )}
@@ -2168,7 +1353,7 @@ const App = () => {
           </div>
         )}
 
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} />}
       <BottomNav current="calendar" />
       </div>
     );
@@ -2230,91 +1415,7 @@ const App = () => {
           <img src={POKE.umbreon} className="absolute -right-4 -bottom-2 w-36 opacity-10" />
           <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-1">PokEventos</p>
           <h1 className="text-2xl font-black mb-0.5" style={{fontFamily:'Arial Black,sans-serif'}}>Buscar Carta</h1>
-          <p className="text-gray-400 text-xs mb-2">Nome · número (215/203) · só número (215) · ID (swsh7-215)</p>
-
-          {/* Botão Importar Excel */}
-          <div className="mb-3">
-            <label className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-xl font-bold cursor-pointer hover:from-green-600 hover:to-emerald-700 active:scale-95 transition-all shadow-lg">
-              📊 Importar Cartas do Excel
-              <input 
-                type="file" 
-                accept=".xlsx,.xls" 
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  
-                  // Importar biblioteca XLSX
-                  if (!window.XLSX) {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js';
-                    document.head.appendChild(script);
-                    await new Promise(resolve => script.onload = resolve);
-                  }
-                  
-                  const reader = new FileReader();
-                  reader.onload = async (evt) => {
-                    try {
-                      const data = new Uint8Array(evt.target.result);
-                      const workbook = XLSX.read(data, { type: 'array' });
-                      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                      
-                      // Pular header (primeira linha)
-                      const cartas = rows.slice(1).filter(row => row[0]); // Filtrar linhas vazias
-                      
-                      let processadas = 0;
-                      let erros = 0;
-                      
-                      alert(`📊 Processando ${cartas.length} cartas...`);
-                      
-                      for (const row of cartas) {
-                        const numero = String(row[0] || '').trim();
-                        const nome = String(row[1] || '').trim();
-                        const idioma = String(row[2] || 'EN').trim().toUpperCase();
-                        const setId = String(row[3] || '').trim();
-                        
-                        if (!numero && !nome) continue;
-                        
-                        try {
-                          // Buscar carta
-                          const carta = await buscarCartaIdioma(numero, nome, idioma, setId);
-                          
-                          if (carta && !addedCards.find(c => c.id === carta.id)) {
-                            const newCard = {
-                              ...carta,
-                              quality: 'NM',
-                              startValue: '',
-                              comment: '',
-                              ligaPrice: null,
-                              ligaLoading: false,
-                              pollOptions: ['', '', ''],
-                              minBid: '',
-                              increment: ''
-                            };
-                            setAddedCards(prev => [newCard, ...prev]);
-                            processadas++;
-                          }
-                        } catch (err) {
-                          console.error(`Erro ao processar ${numero} ${nome}:`, err);
-                          erros++;
-                        }
-                        
-                        // Delay para não sobrecarregar API
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                      }
-                      
-                      alert(`✅ Import concluído!\n${processadas} cartas adicionadas\n${erros} erros`);
-                    } catch (error) {
-                      alert(`❌ Erro ao processar Excel: ${error.message}`);
-                    }
-                  };
-                  reader.readAsArrayBuffer(file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-          </div>
+          <p className="text-gray-400 text-xs mb-4">Nome · número (215/203) · só número (215) · ID (swsh7-215)</p>
 
           <div className="flex gap-2">
             <input
@@ -2525,7 +1626,7 @@ const App = () => {
 
         </div>
 
-        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
+        {modalEvent ? <EventModal event={modalEvent} onClose={()=>setModalEvent(null)} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
@@ -2583,9 +1684,19 @@ const App = () => {
 
     const addCardToAuction = (card) => {
       if (auctionCards.find(c=>c.card.id===card.id)) return;
+      
+      // Detectar idioma baseado no set
+      let language = 'EN'; // padrão
+      const setId = card.set?.id || '';
+      if (setId.includes('-jp') || setId.startsWith('s') || setId.startsWith('si')) {
+        language = 'JP';
+      } else if (setId.includes('-pt') || setId.includes('ptbr')) {
+        language = 'PT';
+      }
+      
       // ↓ unshift: nova carta vai pro TOPO
       setAuctionCards(prev => [
-        { card, quality:'NM', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
+        { card, quality:'NM', language, startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
           pollOptions:['','',''], minBid:'', increment:'' },
         ...prev
       ]);
@@ -2641,83 +1752,13 @@ const App = () => {
           name:ac.card.name, number:ac.card.number,
           set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
+          comment:ac.comment, quality:ac.quality, language:ac.language,
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
-      
-      // Salvar no Supabase
-      if (user) {
-        try {
-          console.log('💾 Salvando leilão no Supabase...');
-          console.log('📊 Dados do leilão:', {
-            title: form.name,
-            date: form.date,
-            time: form.time,
-            cards_count: newAuction.cards.length,
-            user_id: user.id
-          });
-          
-          console.log('💾 Salvando leilão no Supabase (tabela: auctions)...');
-          console.log('📋 Dados a serem salvos:', {
-            created_by: user.id,
-            title: form.name,
-            date: form.date,
-            time: form.time,
-            location: form.location || '',
-            host: form.host || userProfile?.nome || 'Leiloeiro',
-            group_name: form.auctionGroup,
-            cards_count: newAuction.cards.length
-          });
-          
-          const { data: savedAuction, error } = await supabase
-            .from('auctions')
-            .insert({
-              created_by: user.id,
-              title: form.name,
-              date: form.date,
-              time: form.time,
-              location: form.location || '',
-              host: form.host || userProfile?.nome || 'Leiloeiro',
-              group_name: form.auctionGroup,
-              cards: newAuction.cards,
-              is_live: false,
-              whatsapp_link: form.whatsappLink || null,
-              payment_methods: newAuction.paymentMethods || [],
-              payment_deadline: newAuction.paymentDeadline || null,
-              announcement_photo: form.announcementPhoto || null,
-              event_photos: form.eventPhotos || []
-            })
-            .select()
-            .single();
-          
-          if (error) {
-            console.error('❌ Erro ao salvar leilão:', error);
-            console.error('❌ Detalhes do erro:', JSON.stringify(error));
-            alert('⚠️ Erro ao salvar leilão no banco de dados: ' + error.message);
-          } else if (savedAuction) {
-            console.log('✅ Leilão salvo! ID:', savedAuction.id);
-            console.log('✅ Dados salvos:', savedAuction);
-            newAuction.id = savedAuction.id;
-            
-            // Adicionar à lista local
-            setEvents(prev => {
-              console.log('📝 Adicionando leilão à lista local. Total antes:', prev.length);
-              const updated = [...prev, savedAuction];
-              console.log('📝 Total depois:', updated.length);
-              return updated;
-            });
-          }
-        } catch (err) {
-          console.error('❌ Exception ao salvar leilão:', err);
-          console.error('❌ Stack:', err.stack);
-          alert('⚠️ Erro inesperado ao salvar: ' + err.message);
-        }
-      } else {
-        console.warn('⚠️ Usuário não logado - leilão não será salvo no Supabase!');
-      }
-      
+      if(supabase){try{console.log('💾 Salvando no Supabase...');const{data:leilao,error:e1}=await sbDB.createLeilao({titulo:form.name,organizador:'Leiloeiro',data:form.date,horario:form.time,descricao:'Leilão '+form.name,tipo_leilao:form.auctionType||'free',whatsapp_link:form.whatsappLink||'#',ativo:true});if(e1){console.error('❌ Erro:',e1);}else if(leilao){console.log('✅ Leilão salvo! ID:',leilao.id);newAuction.id=leilao.id;if(auctionCards.length>0){const cartas=auctionCards.map((ac,i)=>({leilao_id:leilao.id,nome:ac.card.name,numero:ac.card.number||'',ordem:i}));const{error:e2}=await sbDB.createCartas(cartas);if(e2){console.error('❌ Erro cartas:',e2);}else{console.log('✅ Cartas salvas!');}}}}catch(err){console.error('❌ Exception:',err);}}
       setSavedAuctions(prev=>[...prev,newAuction]);
+      EVENTS.push(newAuction);
       setShowSuccess(true);
       setTimeout(()=>{ setShowSuccess(false); setStep(4); }, 1500);
     };
@@ -3091,7 +2132,18 @@ const App = () => {
                             )}
                             <p className="text-xs text-gray-500 mt-0.5">{card.set?.name}</p>
                             <p className="text-[10px] font-mono text-gray-400">{card.number}</p>
-                            {card.rarity && <span className="inline-block mt-1 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{card.rarity}</span>}
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {card.language && (
+                                <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full">
+                                  {card.language === 'JP' ? '🇯🇵' : card.language === 'PT' ? '🇧🇷' : '🇺🇸'}
+                                </span>
+                              )}
+                              {card.rarity && (
+                                <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">
+                                  {card.rarity}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <span className="text-green-500 text-2xl flex-shrink-0">+</span>
                         </button>
@@ -3135,7 +2187,23 @@ const App = () => {
                               <p className="text-[10px] text-blue-500 font-medium">🇧🇷 {card.namePt}</p>
                             )}
                             <p className="text-xs text-gray-500">{card.set?.name} · <span className="font-mono">{card.number}</span></p>
-                            {card.rarity && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{card.rarity}</span>}
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {card.language && (
+                                <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                  {card.language === 'JP' ? '🇯🇵 JP' : card.language === 'PT' ? '🇧🇷 PT' : '🇺🇸 EN'}
+                                </span>
+                              )}
+                              {card.quality && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
+                                  {card.quality}
+                                </span>
+                              )}
+                              {card.rarity && (
+                                <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">
+                                  {card.rarity}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button onClick={()=>removeCard(card.id)}
                             className="w-7 h-7 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center text-lg flex-shrink-0">✕</button>
@@ -3155,6 +2223,23 @@ const App = () => {
                               ))}
                             </div>
                             <p className="text-[9px] text-gray-400 mt-1">{QUALITY_DESC[quality]}</p>
+                          </div>
+
+                          {/* Idioma */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {['EN', 'JP', 'PT'].map(lang => (
+                                <button key={lang} onClick={() => updateCard(card.id, 'language', lang)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all flex items-center gap-1 ${
+                                    card.language === lang 
+                                      ? 'bg-blue-500 text-white border-transparent' 
+                                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                                  }`}>
+                                  {lang === 'JP' ? '🇯🇵 JP' : lang === 'PT' ? '🇧🇷 PT' : '🇺🇸 EN'}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Valores — POLL */}
@@ -3951,142 +3036,7 @@ const App = () => {
       );
     };
   
-  /* ════════════════════════════════════════
-     TELA ADMIN - Aprovar Leiloeiros
-  ════════════════════════════════════════ */
-  const AdminScreen = () => {
-    const [pendingAuctioneers, setPendingAuctioneers] = React.useState([]);
-    const [loading, setLoading] = React.useState(true);
-
-    const loadPending = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('tipo', 'leiloeiro')
-          .eq('approved', false)
-          .order('created_at', { ascending: false });
-        
-        if (!error && data) {
-          setPendingAuctioneers(data);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar leiloeiros pendentes:', err);
-      }
-      setLoading(false);
-    };
-
-    React.useEffect(() => {
-      loadPending();
-    }, []);
-
-    const handleApprove = async (userId) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ approved: true })
-        .eq('id', userId);
-      
-      if (!error) {
-        alert('✅ Leiloeiro aprovado!');
-        loadPending();
-      } else {
-        alert('❌ Erro ao aprovar');
-      }
-    };
-
-    const handleReject = async (userId) => {
-      if (!confirm('Tem certeza que deseja rejeitar este leiloeiro?')) return;
-      
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-      
-      if (!error) {
-        alert('❌ Leiloeiro rejeitado');
-        loadPending();
-      }
-    };
-
-    return (
-      <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 pb-8 relative overflow-hidden">
-          <button onClick={() => setScreen('profile')} className="absolute top-6 left-4 text-white text-2xl">←</button>
-          <h1 className="text-2xl font-black text-center" style={{fontFamily:'Arial Black,sans-serif'}}>🔐 Painel Admin</h1>
-          <p className="text-purple-100 text-sm text-center mt-1">Aprovar Leiloeiros</p>
-        </div>
-
-        <div className="px-4 py-6 space-y-4">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">⏳ Carregando...</p>
-            </div>
-          ) : pendingAuctioneers.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-              <p className="text-5xl mb-3">✅</p>
-              <p className="font-bold text-gray-800 mb-2">Nenhum leiloeiro pendente</p>
-              <p className="text-sm text-gray-500">Todos os leiloeiros foram aprovados!</p>
-            </div>
-          ) : (
-            pendingAuctioneers.map(auctioneer => (
-              <div key={auctioneer.id} className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-orange-400">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-xl font-black">
-                    {auctioneer.nome?.charAt(0).toUpperCase() || '?'}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-black text-gray-800 text-lg">{auctioneer.nome}</p>
-                    <p className="text-sm text-gray-500">{auctioneer.email}</p>
-                    {auctioneer.whatsapp && (
-                      <p className="text-sm text-gray-600 mt-1">📱 {auctioneer.whatsapp}</p>
-                    )}
-                    <span className="inline-block mt-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">
-                      ⏳ Aguardando Aprovação
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleApprove(auctioneer.id)}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-bold shadow-lg hover:from-green-600 hover:to-green-700">
-                    ✅ Aprovar
-                  </button>
-                  <button 
-                    onClick={() => handleReject(auctioneer.id)}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg hover:from-red-600 hover:to-red-700">
-                    ❌ Rejeitar
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <BottomNav current="profile" />
-      </div>
-    );
-  };
-
-  const ProfileScreen = () => {
-    const handleLogout = async () => {
-      const { error } = await sbAuth.signOut();
-      if (!error) {
-        setUser(null);
-        setUserProfile(null);
-        setScreen('login');
-      }
-    };
-
-    const userEmail = user?.email || userProfile?.email || 'email@example.com';
-    const userName = userProfile?.nome || user?.user_metadata?.display_name || 'Usuário';
-    const userInitial = userName.charAt(0).toUpperCase();
-    const userWhatsapp = userProfile?.whatsapp;
-    const userType = userProfile?.tipo;
-    const needsApproval = userType === 'leiloeiro' && userProfile?.approved === false;
-
-    return (
+  const ProfileScreen = () => (
     <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
       <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
         <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
@@ -4095,27 +3045,16 @@ const App = () => {
       <div className="px-4 -mt-10 space-y-4">
         <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">D</div>
             <div>
-              <p className="text-xl font-black text-gray-800">{userName}</p>
-              <p className="text-gray-500 text-sm">{userEmail}</p>
-              {userWhatsapp && (
-                <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
-              )}
+              <p className="text-xl font-black text-gray-800">Dr. João Silva</p>
+              <p className="text-gray-500 text-sm">joao@email.com</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
-                {isAuctioneer && !needsApproval && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
-                {needsApproval && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">⏳ Aguardando Aprovação</span>}
+                {isAuctioneer && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
               </div>
             </div>
           </div>
-
-          {needsApproval && (
-            <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl">
-              <p className="text-sm text-orange-800 font-bold mb-1">🔨 Conta de Leiloeiro em Análise</p>
-              <p className="text-xs text-orange-600">Sua conta está sendo analisada pela equipe PokéEventos. Você será notificado quando for aprovada!</p>
-            </div>
-          )}
 
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-100"><p className="text-2xl font-black text-blue-600">{checkins.length}</p><p className="text-xs text-gray-500 font-semibold">Check-ins</p></div>
@@ -4152,22 +3091,8 @@ const App = () => {
             <button onClick={()=>setScreen('calendar')} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">📅 Calendário</button>
             <button onClick={()=>setScreen('wanted')}   className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl font-semibold border border-yellow-200 text-sm hover:bg-yellow-100">⭐ Wanted List {wantedList.length>0&&`(${wantedList.length})`}</button>
 
-            {/* Área Admin */}
-            {userProfile?.is_admin && (
-              <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Administração</p>
-                <button onClick={()=>setScreen('admin')} className="w-full text-left px-4 py-3 bg-purple-600 text-white rounded-xl font-bold text-sm hover:bg-purple-700 flex items-center gap-2">
-                  🔐 Painel Admin
-                </button>
-                {/* Admin pode criar leilões também */}
-                <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
-                  🔨 Criar Novo Leilão
-                </button>
-              </div>
-            )}
-
-            {/* Área exclusiva leiloeiro APROVADO (que não seja admin) */}
-            {isAuctioneer && isApproved && !userProfile?.is_admin && (
+            {/* Área exclusiva leiloeiro */}
+            {isAuctioneer && (
               <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Área do Leiloeiro</p>
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
@@ -4176,35 +3101,17 @@ const App = () => {
               </div>
             )}
 
-            <button onClick={handleLogout} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
+            <button onClick={()=>setScreen('login')} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
           </div>
         </div>
       </div>
       <BottomNav current="profile" />
     </div>
-    );
-  };
+  );
 
   /* ─── ROTEAMENTO ─── */
-  if (loading) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500">
-        <div className="text-center">
-          <img src={POKE.pikachu} className="w-24 h-24 mx-auto mb-4 animate-bounce" />
-          <p className="text-white text-xl font-black">Carregando PokéEventos...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Se não está logado, mostrar apenas login/register
-  if (!user && screen !== 'register') {
-    return <LoginScreen />;
-  }
-
   return (
     <div className="w-full min-h-screen">
-      {showTutorial && <TutorialModal />}
       {screen==='login'      && <LoginScreen />}
       {screen==='register'   && <RegisterScreen />}
       {screen==='home'       && <HomeScreen />}
@@ -4212,7 +3119,6 @@ const App = () => {
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
       {screen==='auctioneer' && <AuctioneerScreen />}
-      {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
     </div>
   );
