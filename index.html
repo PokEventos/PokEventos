@@ -843,7 +843,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                       )}
                       
                       {/* Badges Condição + Idioma */}
-                      <div className="absolute top-2 left-2 z-10">
+                      <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
                         {card.quality && (
                           <div className={`px-2 py-1 rounded-md text-[10px] font-black shadow-md ${
                             card.quality === 'M' ? 'bg-emerald-500 text-white' :
@@ -857,7 +857,11 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                             {card.quality}
                           </div>
                         )}
-
+                        {card.language && (
+                          <span className="text-lg leading-none drop-shadow">
+                            {({BR:'🇧🇷',EN:'🇺🇸',JP:'🇯🇵',CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[card.language]||'🌐')}
+                          </span>
+                        )}
                       </div>
                       
                       {/* Imagem */}
@@ -2682,7 +2686,7 @@ const App = () => {
       if (auctionCards.find(c=>c.card.id===card.id)) return;
       // ↓ unshift: nova carta vai pro TOPO
       setAuctionCards(prev => [
-        { card, quality:'NM', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
+        { card, quality:'NM', language:'BR', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
           pollOptions:['','',''], minBid:'', increment:'' },
         ...prev
       ]);
@@ -2738,7 +2742,7 @@ const App = () => {
           name:ac.card.name, number:ac.card.number,
           set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
+          comment:ac.comment, quality:ac.quality, language:ac.language||'BR',
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
@@ -3124,7 +3128,7 @@ const App = () => {
                               if (!Array.isArray(cartas)) { alert('❌ JSON inválido!'); return; }
                               let adicionadas = 0;
                               cartas.forEach(carta => { if (auctionCards.find(c => c.card.id === carta.id)) return; adicionadas++; });
-                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
+                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', language: 'BR', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
                               alert(`✅ ${adicionadas} cartas importadas!`);
                             } catch (error) { alert(`❌ Erro: ${error.message}`); }
                           };
@@ -3194,7 +3198,7 @@ const App = () => {
                       {auctionCards.length} carta(s)
                       <span className="text-[10px] text-gray-400 font-normal">— última adicionada aparece primeiro</span>
                     </p>
-                    {auctionCards.map(({card,quality,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
+                    {auctionCards.map(({card,quality,language,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
                       <div key={card.id} className={`bg-white border-2 rounded-xl overflow-hidden shadow-sm ${i===0?'border-yellow-400 ring-2 ring-yellow-200':'border-gray-200'}`}>
 
                         {/* Badge "mais recente" */}
@@ -3237,6 +3241,45 @@ const App = () => {
                             <p className="text-[9px] text-gray-400 mt-1">{QUALITY_DESC[quality]}</p>
                           </div>
 
+                          {/* Idioma */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
+                            <div className="flex items-center gap-2">
+                              {/* 3 botões principais */}
+                              {[{code:'BR',flag:'🇧🇷'},{code:'EN',flag:'🇺🇸'},{code:'JP',flag:'🇯🇵'}].map(({code,flag})=>(
+                                <button key={code} onClick={()=>updateCard(card.id,'language',code)}
+                                  className={`w-11 h-11 rounded-xl border-2 flex items-center justify-center text-2xl transition-all ${(language||'BR')===code?'border-gray-800 shadow-md scale-110 bg-gray-50':'border-gray-200 bg-white opacity-40 hover:opacity-80'}`}>
+                                  {flag}
+                                </button>
+                              ))}
+                              {/* Dropdown outros países */}
+                              <div className="relative">
+                                <select
+                                  value={['BR','EN','JP'].includes(language||'BR') ? '' : (language||'')}
+                                  onChange={e=>{ if(e.target.value) updateCard(card.id,'language',e.target.value); }}
+                                  className={`h-11 pl-2 pr-6 rounded-xl border-2 text-lg appearance-none cursor-pointer transition-all ${!['BR','EN','JP'].includes(language||'BR') && language?'border-gray-800 bg-gray-50 shadow-md':'border-gray-200 bg-white opacity-40 hover:opacity-80'}`}>
+                                  <option value="">🌐</option>
+                                  <option value="CN">🇨🇳 China</option>
+                                  <option value="KR">🇰🇷 Coreia</option>
+                                  <option value="DE">🇩🇪 Alemanha</option>
+                                  <option value="FR">🇫🇷 França</option>
+                                  <option value="IT">🇮🇹 Itália</option>
+                                  <option value="ES">🇪🇸 Espanha</option>
+                                  <option value="PT">🇵🇹 Portugal</option>
+                                  <option value="MX">🇲🇽 México</option>
+                                  <option value="RU">🇷🇺 Rússia</option>
+                                  <option value="PL">🇵🇱 Polônia</option>
+                                </select>
+                                <span className="absolute right-1.5 top-3 text-gray-400 text-[10px] pointer-events-none">▼</span>
+                              </div>
+                              {/* Mostra bandeira selecionada do dropdown */}
+                              {!['BR','EN','JP'].includes(language||'BR') && language && (
+                                <span className="text-xl">{
+                                  {CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[language]||'🌐'
+                                }</span>
+                              )}
+                            </div>
+                          </div>
 
                           {/* Valores — POLL */}
                           {form.auctionType==='poll' && (
@@ -3354,7 +3397,7 @@ const App = () => {
 
                 <div className="space-y-2">
                   <p className="font-bold text-sm text-gray-700">Cartas do leilão:</p>
-                  {auctionCards.map(({card,quality,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
+                  {auctionCards.map(({card,quality,language,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
                     <div key={i} className="flex items-start gap-3 bg-white rounded-xl p-3 border border-gray-200">
                       <img src={card.images?.small} alt={card.name} className="h-12 w-auto object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />
                       <div className="flex-1 min-w-0">
@@ -3371,6 +3414,7 @@ const App = () => {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className={`text-xs font-black text-white px-2 py-1 rounded-lg ${QUALITY_COLOR[quality]}`}>{quality}</span>
+                        {language && <span className="text-base leading-none">{({BR:'🇧🇷',EN:'🇺🇸',JP:'🇯🇵',CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[language]||'🌐')}</span>}
                       </div>
                     </div>
                   ))}
