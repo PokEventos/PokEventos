@@ -858,9 +858,8 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                           </div>
                         )}
                         {card.language && (
-                          <span className="text-lg leading-none drop-shadow">
-                            {({BR:'🇧🇷',EN:'🇺🇸',JP:'🇯🇵',CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[card.language]||'🌐')}
-                          </span>
+                          <img src={`https://flagcdn.com/w40/${card.language.toLowerCase()}.png`} alt={card.language}
+                            className="w-6 h-5 rounded object-cover shadow-md" />
                         )}
                       </div>
                       
@@ -3245,11 +3244,16 @@ const App = () => {
                           <div>
                             <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
                             <div className="flex items-center gap-2">
-                              {/* 3 botões principais */}
-                              {[{code:'BR',flag:'🇧🇷'},{code:'EN',flag:'🇺🇸'},{code:'JP',flag:'🇯🇵'}].map(({code,flag})=>(
+                              {/* 3 botões principais com imagem real */}
+                              {[
+                                {code:'BR', img:'https://flagcdn.com/w40/br.png', label:'Brasil'},
+                                {code:'EN', img:'https://flagcdn.com/w40/us.png', label:'EUA'},
+                                {code:'JP', img:'https://flagcdn.com/w40/jp.png', label:'Japão'},
+                              ].map(({code,img,label})=>(
                                 <button key={code} onClick={()=>updateCard(card.id,'language',code)}
-                                  className={`w-11 h-11 rounded-xl border-2 flex items-center justify-center text-2xl transition-all ${(language||'BR')===code?'border-gray-800 shadow-md scale-110 bg-gray-50':'border-gray-200 bg-white opacity-40 hover:opacity-80'}`}>
-                                  {flag}
+                                  title={label}
+                                  className={`w-11 h-11 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${(language||'BR')===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
+                                  <img src={img} alt={label} className="w-full h-full object-cover" />
                                 </button>
                               ))}
                               {/* Dropdown outros países */}
@@ -3257,8 +3261,8 @@ const App = () => {
                                 <select
                                   value={['BR','EN','JP'].includes(language||'BR') ? '' : (language||'')}
                                   onChange={e=>{ if(e.target.value) updateCard(card.id,'language',e.target.value); }}
-                                  className={`h-11 pl-2 pr-6 rounded-xl border-2 text-lg appearance-none cursor-pointer transition-all ${!['BR','EN','JP'].includes(language||'BR') && language?'border-gray-800 bg-gray-50 shadow-md':'border-gray-200 bg-white opacity-40 hover:opacity-80'}`}>
-                                  <option value="">🌐</option>
+                                  className={`h-11 pl-3 pr-7 rounded-xl border-2 text-sm font-semibold appearance-none cursor-pointer transition-all ${!['BR','EN','JP'].includes(language||'BR') && language?'border-gray-800 bg-gray-50 shadow-md text-gray-800':'border-gray-200 bg-white opacity-40 hover:opacity-80 text-gray-400'}`}>
+                                  <option value="">Outros</option>
                                   <option value="CN">🇨🇳 China</option>
                                   <option value="KR">🇰🇷 Coreia</option>
                                   <option value="DE">🇩🇪 Alemanha</option>
@@ -3270,13 +3274,12 @@ const App = () => {
                                   <option value="RU">🇷🇺 Rússia</option>
                                   <option value="PL">🇵🇱 Polônia</option>
                                 </select>
-                                <span className="absolute right-1.5 top-3 text-gray-400 text-[10px] pointer-events-none">▼</span>
+                                <span className="absolute right-2 top-3.5 text-gray-400 text-[10px] pointer-events-none">▼</span>
                               </div>
-                              {/* Mostra bandeira selecionada do dropdown */}
+                              {/* Mostra bandeira do dropdown selecionado */}
                               {!['BR','EN','JP'].includes(language||'BR') && language && (
-                                <span className="text-xl">{
-                                  {CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[language]||'🌐'
-                                }</span>
+                                <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language}
+                                  className="w-8 h-8 rounded-lg object-cover border-2 border-gray-800 shadow-md" />
                               )}
                             </div>
                           </div>
@@ -3414,7 +3417,7 @@ const App = () => {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className={`text-xs font-black text-white px-2 py-1 rounded-lg ${QUALITY_COLOR[quality]}`}>{quality}</span>
-                        {language && <span className="text-base leading-none">{({BR:'🇧🇷',EN:'🇺🇸',JP:'🇯🇵',CN:'🇨🇳',KR:'🇰🇷',DE:'🇩🇪',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',PT:'🇵🇹',MX:'🇲🇽',RU:'🇷🇺',PL:'🇵🇱'}[language]||'🌐')}</span>}
+                        {language && <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language} className="w-6 h-5 rounded object-cover shadow" />}
                       </div>
                     </div>
                   ))}
