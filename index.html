@@ -116,33 +116,30 @@ const EVENTS = [];
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
-  const wName = wantedCard.name.toLowerCase().trim();
-  const wNum  = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
-  const wSet  = (wantedCard.set?.id || wantedCard.set || wantedCard.setId || '').toLowerCase().trim();
-  const wId   = (wantedCard.id || '').toLowerCase().trim();
+  const wId   = (wantedCard.id || '').trim();
+  const eId   = (eventCard.id  || '').trim();
 
-  const eName = eventCard.name.toLowerCase().trim();
-  const eNum  = (eventCard.number || eventCard.localId || '').toLowerCase().trim();
-  const eSet  = (eventCard.set?.id || eventCard.set || eventCard.setId || '').toLowerCase().trim();
-  const eId   = (eventCard.id || '').toLowerCase().trim();
-
-  // MATCH PERFEITO: ID exato
+  // MATCH PERFEITO: ID exato da carta (ex: "mew-pop4-4")
   if (wId && eId && wId === eId) return true;
 
-  // MATCH FORTE: Nome EXATO + Número exato
-  if (wName && wNum && eNum) {
-    if (wName === eName && wNum === eNum) return true;
-  }
+  const wName = wantedCard.name.toLowerCase().trim();
+  const eName = eventCard.name.toLowerCase().trim();
+  const wNum  = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
+  const eNum  = (eventCard.number  || eventCard.localId  || '').toLowerCase().trim();
+  const wSet  = (wantedCard.setId  || wantedCard.set?.id || '').toLowerCase().trim();
+  const eSet  = (eventCard.setId   || eventCard.set?.id  || '').toLowerCase().trim();
 
-  // MATCH FORTE: Nome EXATO + Set exato
-  if (wName && wSet && eSet) {
-    if (wName === eName && wSet === eSet) return true;
-  }
+  // Nomes têm que ser EXATAMENTE iguais
+  if (wName !== eName) return false;
 
-  // MATCH FORTE: Nome EXATO + Número + Set
-  if (wName && wNum && eNum && wSet && eSet) {
-    if (wName === eName && wNum === eNum && wSet === eSet) return true;
-  }
+  // Nome igual + número igual + set igual = match perfeito
+  if (wNum && eNum && wNum === eNum && wSet && eSet && wSet === eSet) return true;
+
+  // Nome igual + número igual (quando set não disponível)
+  if (wNum && eNum && wNum === eNum) return true;
+
+  // Nome igual + set igual (quando número não disponível)
+  if (wSet && eSet && wSet === eSet) return true;
 
   return false;
 };
@@ -710,7 +707,8 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
                   id: cardId,
                   name: card.name, 
                   number: card.number, 
-                  set: setName, 
+                  set: setName,
+                  setId: card.set?.id || card.setId || '',
                   img: largeSrc 
                 });
               }
@@ -2734,8 +2732,9 @@ const App = () => {
         eventPhotos: form.eventPhotos || [],
         rawCards: auctionCards,
         cards: auctionCards.map(ac=>({
-          name:ac.card.name, number:ac.card.number,
-          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
+          id:ac.card.id, name:ac.card.name, number:ac.card.number,
+          set:ac.card.set?.name, setId:ac.card.set?.id||ac.card.setId,
+          rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
           comment:ac.comment, quality:ac.quality, language:ac.language||'BR',
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
