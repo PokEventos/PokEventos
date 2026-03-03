@@ -2944,7 +2944,8 @@ const App = () => {
                           {filteredGroups.length > 0 ? filteredGroups.map(g => (
                             <button key={g.id}
                               onClick={() => {
-                                setForm(p => ({...p, groupId: g.id, name: g.short}));
+                                setForm(p => ({...p, groupId: g.id, name: g.short, announcementPhoto: g.avatarUrl || p.announcementPhoto}));
+                                if (g.avatarUrl) setPhotoPreviewUrls(p => ({...p, announcement: g.avatarUrl}));
                                 setGroupSearch('');
                                 // Salva grupo para uso futuro se ainda não estiver salvo
                                 if (!savedGroups.find(s => s.id === g.id)) {
@@ -2996,28 +2997,24 @@ const App = () => {
                 {/* ── Avatar do Leiloeiro ── */}
                 <div>
                   <label className="text-xs font-bold text-gray-600 block mb-2">🖼️ Avatar do Leiloeiro</label>
-                  <p className="text-[10px] text-gray-400 mb-2">Foto de perfil/avatar do grupo no WhatsApp</p>
+                  {photoPreviewUrls.announcement ? (
+                    <div className="flex items-center gap-4 p-3 bg-green-50 border-2 border-green-300 rounded-2xl">
+                      <img src={photoPreviewUrls.announcement} alt="Avatar"
+                        className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-gray-800">Avatar definido ✓</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">Vinculado ao grupo</p>
+                      </div>
+                      <button
+                        onClick={e=>{e.preventDefault();setPhotoPreviewUrls(p=>({...p,announcement:null}));setForm(p=>({...p,announcementPhoto:null}));}}
+                        className="w-7 h-7 bg-gray-200 hover:bg-red-100 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">✕</button>
+                    </div>
+                  ) : (
                   <label className="block cursor-pointer">
-                    <div className={`rounded-2xl border-2 border-dashed overflow-hidden transition-all ${photoPreviewUrls.announcement ? 'border-green-300' : 'border-gray-300 hover:border-yellow-400 bg-gray-50'}`}>
-                      {photoPreviewUrls.announcement ? (
-                        <div className="relative flex items-center gap-4 p-3">
-                          <img src={photoPreviewUrls.announcement} alt="Avatar"
-                            className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="font-bold text-sm text-gray-800">Avatar definido ✓</p>
-                            <p className="text-xs text-gray-500">Clique para trocar</p>
-                          </div>
-                          <button
-                            onClick={e=>{e.preventDefault();setPhotoPreviewUrls(p=>({...p,announcement:null}));setForm(p=>({...p,announcementPhoto:null}));}}
-                            className="w-7 h-7 bg-gray-200 hover:bg-red-100 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">✕</button>
-                        </div>
-                      ) : (
-                        <div className="p-5 text-center">
-                          <p className="text-3xl mb-1">👤</p>
-                          <p className="text-sm font-semibold text-gray-500">Adicionar avatar do grupo</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">Foto de perfil do WhatsApp</p>
-                        </div>
-                      )}
+                    <div className="rounded-2xl border-2 border-dashed border-gray-300 hover:border-yellow-400 bg-gray-50 p-5 text-center transition-all">
+                      <p className="text-3xl mb-1">👤</p>
+                      <p className="text-sm font-semibold text-gray-500">Adicionar avatar do grupo</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Foto de perfil do WhatsApp</p>
                     </div>
                     <input type="file" accept="image/*" className="hidden"
                       onChange={async e=>{
@@ -3040,6 +3037,7 @@ const App = () => {
                         }
                       }} />
                   </label>
+                  )}
                 </div>
 
                 {/* ── Data e Horário ── */}
