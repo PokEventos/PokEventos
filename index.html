@@ -116,30 +116,29 @@ const EVENTS = [];
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
-  const wId   = (wantedCard.id || '').trim();
-  const eId   = (eventCard.id  || '').trim();
-
-  // MATCH PERFEITO: ID exato da carta (ex: "mew-pop4-4")
+  // MATCH POR ID EXATO (mais confiável)
+  const wId = (wantedCard.id || '').trim();
+  const eId = (eventCard.id  || '').trim();
   if (wId && eId && wId === eId) return true;
 
   const wName = wantedCard.name.toLowerCase().trim();
   const eName = eventCard.name.toLowerCase().trim();
-  const wNum  = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
-  const eNum  = (eventCard.number  || eventCard.localId  || '').toLowerCase().trim();
-  const wSet  = (wantedCard.setId  || wantedCard.set?.id || '').toLowerCase().trim();
-  const eSet  = (eventCard.setId   || eventCard.set?.id  || '').toLowerCase().trim();
 
-  // Nomes têm que ser EXATAMENTE iguais
-  if (wName !== eName) return false;
+  // Nome tem que ser EXATAMENTE igual
+  if (!wName || !eName || wName !== eName) return false;
 
-  // Nome igual + número igual + set igual = match perfeito
+  const wNum = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
+  const eNum = (eventCard.number  || eventCard.localId  || '').toLowerCase().trim();
+
+  // Set: tenta setId primeiro, depois set como string
+  const wSet = (wantedCard.setId || wantedCard.set?.id || (typeof wantedCard.set==='string' ? wantedCard.set : wantedCard.set?.name) || '').toLowerCase().trim();
+  const eSet = (eventCard.setId  || eventCard.set?.id  || (typeof eventCard.set==='string'  ? eventCard.set  : eventCard.set?.name)  || '').toLowerCase().trim();
+
+  // Precisa de nome + número + set todos coincidindo
   if (wNum && eNum && wNum === eNum && wSet && eSet && wSet === eSet) return true;
 
-  // Nome igual + número igual (quando set não disponível)
-  if (wNum && eNum && wNum === eNum) return true;
-
-  // Nome igual + set igual (quando número não disponível)
-  if (wSet && eSet && wSet === eSet) return true;
+  // Se não tiver set disponível: nome + número completo (com "/")
+  if (wNum && eNum && wNum === eNum && wNum.includes('/')) return true;
 
   return false;
 };
