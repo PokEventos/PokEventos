@@ -2617,6 +2617,44 @@ const App = () => {
       }
     };
 
+    // Upload de avatar para Supabase Storage e salva URL na tabela grupos
+    const uploadAndSaveAvatar = async (file, groupId) => {
+      if (!supabase || !file) return null;
+      try {
+        // Nome único para o arquivo
+        const ext = file.name.split('.').pop();
+        const fileName = `grupo-${groupId}-${Date.now()}.${ext}`;
+        
+        // Upload para o bucket avatars
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, file, { upsert: true });
+        
+        if (uploadError) {
+          console.error('❌ Erro no upload:', uploadError);
+          return null;
+        }
+        
+        // Pegar URL pública
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+        
+        const publicUrl = urlData.publicUrl;
+        console.log('✅ Avatar enviado:', publicUrl);
+        
+        // Salvar URL na tabela grupos se tiver groupId
+        if (groupId) {
+          await supabase.from('grupos').update({ avatar_url: publicUrl }).eq('id', groupId);
+        }
+        
+        return publicUrl;
+      } catch(e) {
+        console.error('Erro ao fazer upload do avatar:', e);
+        return null;
+      }
+    };
+
     // Atualizar avatar de um grupo no Supabase
     const updateGroupAvatar = async (groupId, avatarUrl) => {
       if (!supabase) return;
@@ -2986,18 +3024,23 @@ const App = () => {
                       )}
                     </div>
                     <input type="file" accept="image/*" className="hidden"
-                      onChange={e=>{
+                      onChange={async e=>{
                         const f = e.target.files?.[0]; if (!f) return;
-                        const url = URL.createObjectURL(f);
-                        setPhotoPreviewUrls(p=>({...p,announcement:url}));
-                        setForm(p=>({...p,announcementPhoto:url}));
-                        // Atualiza avatar no grupo salvo também
-                        if (form.groupId) {
-                          const updatedWithAvatar = savedGroups.map(g =>
-                            g.id === form.groupId ? {...g, avatarUrl: url} : g
-                          );
-                          setSavedGroups(updatedWithAvatar);
-                          updateGroupAvatar(form.groupId, url);
+                        // Preview imediato com blob URL
+                        const previewUrl = URL.createObjectURL(f);
+                        setPhotoPreviewUrls(p=>({...p,announcement:previewUrl}));
+                        setForm(p=>({...p,announcementPhoto:previewUrl}));
+                        // Upload para Supabase Storage
+                        const publicUrl = await uploadAndSaveAvatar(f, form.groupId);
+                        if (publicUrl) {
+                          // Substitui blob URL pela URL pública permanente
+                          setForm(p=>({...p,announcementPhoto:publicUrl}));
+                          setPhotoPreviewUrls(p=>({...p,announcement:publicUrl}));
+                          if (form.groupId) {
+                            setSavedGroups(prev => prev.map(g =>
+                              g.id === form.groupId ? {...g, avatarUrl: publicUrl} : g
+                            ));
+                          }
                         }
                       }} />
                   </label>
