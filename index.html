@@ -2577,7 +2577,7 @@ const App = () => {
             emoji:        g.emoji || '🎴',
             color:        g.cor_gradiente || 'from-gray-600 to-gray-800',
             whatsappLink: g.link_whatsapp || null,
-            avatarUrl:    null,
+            avatarUrl:    g.avatar_url || null,
             dbId:         g.id,
           }));
           setSavedGroups(normalized);
@@ -2600,6 +2600,7 @@ const App = () => {
               emoji:          g.emoji || '🎴',
               cor_gradiente:  g.color || 'from-gray-600 to-gray-800',
               link_whatsapp:  g.whatsappLink || null,
+              avatar_url:     g.avatarUrl || null,
               ativo:          true,
             })
             .select()
@@ -2616,10 +2617,13 @@ const App = () => {
       }
     };
 
-    // Atualizar avatar de um grupo (apenas local, tabela não tem coluna de avatar)
+    // Atualizar avatar de um grupo no Supabase
     const updateGroupAvatar = async (groupId, avatarUrl) => {
-      // Tabela grupos não possui coluna de avatar — mantém só no estado local
-      console.log('Avatar atualizado localmente para grupo', groupId);
+      if (!supabase) return;
+      try {
+        await supabase.from('grupos').update({ avatar_url: avatarUrl }).eq('id', groupId);
+        console.log('✅ Avatar salvo no Supabase para grupo', groupId);
+      } catch(e) { console.error('Erro ao atualizar avatar:', e); }
     };
     const [savedAuctions,setSavedAuctions]= useState([]);
     const [showSuccess,  setShowSuccess]  = useState(false);
