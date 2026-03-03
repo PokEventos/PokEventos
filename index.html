@@ -3246,10 +3246,10 @@ const App = () => {
                           {/* Idioma */}
                           <div>
                             <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
-                            <div className="flex gap-1.5">
-                              {[{code:'BR',flag:'🇧🇷',bg:'bg-green-500'},{code:'EN',flag:'🇺🇸',bg:'bg-blue-500'},{code:'JP',flag:'🇯🇵',bg:'bg-red-500'}].map(({code,flag,bg})=>(
+                            <div className="flex gap-2">
+                              {[{code:'BR',flag:'🇧🇷'},{code:'EN',flag:'🇺🇸'},{code:'JP',flag:'🇯🇵'}].map(({code,flag})=>(
                                 <button key={code} onClick={()=>updateCard(card.id,'language',code)}
-                                  className={`px-3 py-1.5 rounded-lg text-base border-2 transition-all ${language===code?`${bg} border-transparent scale-110 shadow-md`:'bg-white border-gray-200 hover:border-gray-400 opacity-50'}`}>
+                                  className={`w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center text-2xl ${language===code?'border-gray-800 shadow-lg scale-110 bg-gray-50':'border-gray-200 bg-white opacity-40 hover:opacity-70'}`}>
                                   {flag}
                                 </button>
                               ))}
