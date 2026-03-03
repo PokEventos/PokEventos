@@ -2627,7 +2627,7 @@ const App = () => {
         
         // Upload para o bucket avatars
         const { error: uploadError } = await supabase.storage
-          .from('avatars')
+          .from('Avatars')
           .upload(fileName, file, { upsert: true });
         
         if (uploadError) {
@@ -2637,7 +2637,7 @@ const App = () => {
         
         // Pegar URL pública
         const { data: urlData } = supabase.storage
-          .from('avatars')
+          .from('Avatars')
           .getPublicUrl(fileName);
         
         const publicUrl = urlData.publicUrl;
