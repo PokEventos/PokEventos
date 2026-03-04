@@ -2847,47 +2847,7 @@ const App = () => {
 
         <div className="px-4 -mt-4 space-y-4">
 
-          {/* ── LEILÕES SALVOS ── */}
-          {(() => {
-            const meusLeiloes = events.filter(e => e.created_by === user?.id);
-            if (meusLeiloes.length === 0) return null;
 
-            const deleteAuction = async (auctionId) => {
-              if (!confirm('Tem certeza que deseja excluir este leilão?')) return;
-              try {
-                const { error } = await supabase.from('auctions').delete().eq('id', auctionId).eq('created_by', user.id);
-                if (error) { alert('Erro ao excluir: ' + error.message); return; }
-                setEvents(prev => prev.filter(e => e.id !== auctionId));
-              } catch(e) { alert('Erro inesperado: ' + e.message); }
-            };
-
-            return (
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-green-400">
-                <div className="px-4 py-3 bg-green-50 border-b">
-                  <p className="font-bold text-gray-700 text-sm">📋 Meus Leilões ({meusLeiloes.length})</p>
-                </div>
-                {meusLeiloes.map((a) => (
-                  <div key={a.id} className="p-3 border-b last:border-0 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {a.announcementPhoto && (
-                        <img src={a.announcementPhoto} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-200" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm text-gray-800 truncate">{a.title || a.name}</p>
-                        <p className="text-xs text-gray-500">{a.date} · {a.time} · {(a.cards||[]).length} cartas</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => deleteAuction(a.id)}
-                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-all"
-                      title="Excluir leilão">
-                      🗑️
-                    </button>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
 
           {/* ── STEPS ── */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-gray-800">
@@ -4313,6 +4273,9 @@ const App = () => {
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
                   🔨 Criar Novo Leilão
                 </button>
+                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                  📋 Meus Leilões
+                </button>
               </div>
             )}
 
@@ -4323,6 +4286,9 @@ const App = () => {
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
                   🔨 Criar Novo Leilão
                 </button>
+                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                  📋 Meus Leilões
+                </button>
               </div>
             )}
 
@@ -4332,6 +4298,77 @@ const App = () => {
       </div>
       <BottomNav current="profile" />
     </div>
+    );
+  };
+
+  /* ─── TELA: MEUS LEILÕES ─── */
+  const MeusLeloesScreen = () => {
+    const meusLeiloes = events.filter(e => e.created_by === user?.id);
+
+    const deleteAuction = async (auctionId) => {
+      if (!confirm('Tem certeza que deseja excluir este leilão?')) return;
+      try {
+        const { error } = await supabase.from('auctions').delete().eq('id', auctionId).eq('created_by', user.id);
+        if (error) { alert('Erro ao excluir: ' + error.message); return; }
+        setEvents(prev => prev.filter(e => e.id !== auctionId));
+      } catch(e) { alert('Erro inesperado: ' + e.message); }
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className="bg-gray-900 text-white p-5">
+          <button onClick={()=>setScreen('profile')} className="text-gray-400 text-sm mb-3 flex items-center gap-1 hover:text-white">
+            ← Voltar
+          </button>
+          <h1 className="text-2xl font-black">📋 Meus Leilões</h1>
+          <p className="text-gray-400 text-sm mt-1">{meusLeiloes.length} leilão{meusLeiloes.length !== 1 ? 'ões' : ''} cadastrado{meusLeiloes.length !== 1 ? 's' : ''}</p>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {/* Botão criar novo */}
+          <button onClick={()=>setScreen('auctioneer')}
+            className="w-full py-4 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+            🔨 Criar Novo Leilão
+          </button>
+
+          {meusLeiloes.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="text-gray-500 font-semibold">Nenhum leilão criado ainda</p>
+            </div>
+          ) : (
+            meusLeiloes.map(a => (
+              <div key={a.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                <div className="p-4 flex items-center gap-3">
+                  {/* Avatar */}
+                  {a.announcementPhoto
+                    ? <img src={a.announcementPhoto} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-gray-100" />
+                    : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                  }
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-gray-900 text-sm truncate">{a.title || a.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'}) : '—'}
+                      {' · '}{a.time}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">🎴 {(a.cards||[]).length} carta{(a.cards||[]).length !== 1 ? 's' : ''}</p>
+                  </div>
+                  {/* Botão excluir */}
+                  <button
+                    onClick={() => deleteAuction(a.id)}
+                    className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-all border border-red-100"
+                    title="Excluir leilão">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <BottomNav current="profile" />
+      </div>
     );
   };
 
@@ -4362,6 +4399,7 @@ const App = () => {
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
       {screen==='auctioneer' && <AuctioneerScreen />}
+      {screen==='meusLeiloes' && <MeusLeloesScreen />}
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
     </div>
