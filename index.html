@@ -2848,22 +2848,46 @@ const App = () => {
         <div className="px-4 -mt-4 space-y-4">
 
           {/* ── LEILÕES SALVOS ── */}
-          {savedAuctions.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-green-400">
-              <div className="px-4 py-3 bg-green-50 border-b flex items-center justify-between">
-                <p className="font-bold text-gray-700 text-sm">📋 Meus Leilões ({savedAuctions.length})</p>
-              </div>
-              {savedAuctions.map((a,i) => (
-                <div key={i} className="p-3 border-b last:border-0 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-500">{a.date} · {a.time} · {a.cards.length} cartas</p>
-                  </div>
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">Rascunho</span>
+          {(() => {
+            const meusLeiloes = events.filter(e => e.created_by === user?.id);
+            if (meusLeiloes.length === 0) return null;
+
+            const deleteAuction = async (auctionId) => {
+              if (!confirm('Tem certeza que deseja excluir este leilão?')) return;
+              try {
+                const { error } = await supabase.from('auctions').delete().eq('id', auctionId).eq('created_by', user.id);
+                if (error) { alert('Erro ao excluir: ' + error.message); return; }
+                setEvents(prev => prev.filter(e => e.id !== auctionId));
+              } catch(e) { alert('Erro inesperado: ' + e.message); }
+            };
+
+            return (
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-green-400">
+                <div className="px-4 py-3 bg-green-50 border-b">
+                  <p className="font-bold text-gray-700 text-sm">📋 Meus Leilões ({meusLeiloes.length})</p>
                 </div>
-              ))}
-            </div>
-          )}
+                {meusLeiloes.map((a) => (
+                  <div key={a.id} className="p-3 border-b last:border-0 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {a.announcementPhoto && (
+                        <img src={a.announcementPhoto} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-200" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-gray-800 truncate">{a.title || a.name}</p>
+                        <p className="text-xs text-gray-500">{a.date} · {a.time} · {(a.cards||[]).length} cartas</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteAuction(a.id)}
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-all"
+                      title="Excluir leilão">
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* ── STEPS ── */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-gray-800">
