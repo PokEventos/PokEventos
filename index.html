@@ -116,38 +116,30 @@ const EVENTS = [];
 
 /* ─── UTIL: verifica se carta wanted aparece em leilão ─── */
 const matchWanted = (wantedCard, eventCard) => {
+  // MATCH POR ID EXATO (mais confiável)
+  const wId = (wantedCard.id || '').trim();
+  const eId = (eventCard.id  || '').trim();
+  if (wId && eId && wId === eId) return true;
+
   const wName = wantedCard.name.toLowerCase().trim();
-  const wNum  = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
-  const wId   = (wantedCard.id || '').toLowerCase().trim();
-  
   const eName = eventCard.name.toLowerCase().trim();
-  const eNum  = (eventCard.number || eventCard.localId || '').toLowerCase().trim();
-  const eId   = (eventCard.id || '').toLowerCase().trim();
-  
-  // MATCH PERFEITO: ID exato (mais confiável)
-  if (wId && eId && wId === eId) {
-    return true;
-  }
-  
-  // MATCH FORTE: Nome E Número (evita falsos positivos)
-  if (wName && wNum && eNum) {
-    const nomeMatch = eName.includes(wName) || wName.includes(eName);
-    const numeroMatch = eNum === wNum;
-    
-    if (nomeMatch && numeroMatch) {
-      return true;
-    }
-  }
-  
-  // MATCH MÉDIO: Apenas número (se for específico o suficiente)
-  // Exemplo: "006/165" é específico, "25" não é
-  if (wNum && eNum && wNum === eNum) {
-    // Só aceita se o número tem "/" (formato completo)
-    if (wNum.includes('/') || wNum.length > 3) {
-      return true;
-    }
-  }
-  
+
+  // Nome tem que ser EXATAMENTE igual
+  if (!wName || !eName || wName !== eName) return false;
+
+  const wNum = (wantedCard.number || wantedCard.localId || '').toLowerCase().trim();
+  const eNum = (eventCard.number  || eventCard.localId  || '').toLowerCase().trim();
+
+  // Set: tenta setId primeiro, depois set como string
+  const wSet = (wantedCard.setId || wantedCard.set?.id || (typeof wantedCard.set==='string' ? wantedCard.set : wantedCard.set?.name) || '').toLowerCase().trim();
+  const eSet = (eventCard.setId  || eventCard.set?.id  || (typeof eventCard.set==='string'  ? eventCard.set  : eventCard.set?.name)  || '').toLowerCase().trim();
+
+  // Precisa de nome + número + set todos coincidindo
+  if (wNum && eNum && wNum === eNum && wSet && eSet && wSet === eSet) return true;
+
+  // Se não tiver set disponível: nome + número completo (com "/")
+  if (wNum && eNum && wNum === eNum && wNum.includes('/')) return true;
+
   return false;
 };
 
@@ -714,7 +706,8 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
                   id: cardId,
                   name: card.name, 
                   number: card.number, 
-                  set: setName, 
+                  set: setName,
+                  setId: card.set?.id || card.setId || '',
                   img: largeSrc 
                 });
               }
@@ -842,20 +835,26 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                         </div>
                       )}
                       
-                      {/* Badge Condição */}
-                      {card.quality && (
-                        <div className={`absolute top-2 left-2 z-10 px-2 py-1 rounded-md text-[10px] font-black shadow-md ${
-                          card.quality === 'M' ? 'bg-emerald-500 text-white' :
-                          card.quality === 'NM' ? 'bg-blue-500 text-white' :
-                          card.quality === 'LP' ? 'bg-yellow-500 text-gray-900' :
-                          card.quality === 'MP' ? 'bg-orange-500 text-white' :
-                          card.quality === 'HP' ? 'bg-red-500 text-white' :
-                          card.quality === 'DMG' ? 'bg-gray-700 text-white' :
-                          'bg-gray-400 text-white'
-                        }`}>
-                          {card.quality}
-                        </div>
-                      )}
+                      {/* Badges Condição + Idioma */}
+                      <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
+                        {card.quality && (
+                          <div className={`px-2 py-1 rounded-md text-[10px] font-black shadow-md ${
+                            card.quality === 'M' ? 'bg-emerald-500 text-white' :
+                            card.quality === 'NM' ? 'bg-blue-500 text-white' :
+                            card.quality === 'LP' ? 'bg-yellow-500 text-gray-900' :
+                            card.quality === 'MP' ? 'bg-orange-500 text-white' :
+                            card.quality === 'HP' ? 'bg-red-500 text-white' :
+                            card.quality === 'DMG' ? 'bg-gray-700 text-white' :
+                            'bg-gray-400 text-white'
+                          }`}>
+                            {card.quality}
+                          </div>
+                        )}
+                        {card.language && (
+                          <img src={`https://flagcdn.com/w40/${card.language.toLowerCase()}.png`} alt={card.language}
+                            className="w-6 h-5 rounded object-cover shadow-md" />
+                        )}
+                      </div>
                       
                       {/* Imagem */}
                       <div className="bg-gray-100 flex items-center justify-center p-2" style={{minHeight:'150px'}}>
@@ -917,57 +916,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
 /* ════════════════════════════════════════
    GRUPOS DE LEILÃO — cadastro dos grupos do WhatsApp
 ════════════════════════════════════════ */
-const AUCTION_GROUPS = [
-  { id:'karmaytcg',      name:'KARMA TCG - ÉPICO DNS ÉPIC...', short:'KARMA TCG',         emoji:'⚡', color:'from-yellow-500 to-orange-500',  members:null },
-  { id:'armarstcg',      name:'ARMARSTCG ● Leilões Notic...', short:'ARMARSTCG',           emoji:'🏆', color:'from-red-500 to-pink-500',        members:null },
-  { id:'aliadotcg',      name:'ALIADO TCG - Leilões, Rifas...', short:'ALIADO TCG',        emoji:'🃏', color:'from-blue-500 to-cyan-500',       members:null },
-  { id:'pimtcg',         name:'PIM - Compra Venda Leilão', short:'PIM TCG',                emoji:'🎴', color:'from-green-500 to-teal-500',      members:null },
-  { id:'meaplafenby',    name:'MEAPLA EMBY',              short:'MEAPLA EMBY',              emoji:'🌟', color:'from-purple-500 to-indigo-500',   members:null },
-  { id:'limacardvenda',  name:'LIMA CARDS & VENDA LG...',  short:'LIMA CARDS',              emoji:'🐉', color:'from-red-600 to-red-800',         members:null },
-  { id:'dreamfieldtcg',  name:'DreamField TCG Leilões, Ve...', short:'DreamField TCG',     emoji:'✨', color:'from-sky-400 to-blue-600',        members:null },
-  { id:'dominatcg',      name:'Dominators & grupo E...',   short:'Dominators TCG',          emoji:'👑', color:'from-yellow-600 to-amber-700',    members:null },
-  { id:'dmgtcg',         name:'DMG TCG',                   short:'DMG TCG',                 emoji:'💎', color:'from-cyan-500 to-blue-700',       members:null },
-  { id:'buenohowtcg',    name:'Bueno HowTCG 🎴 A grupo E...', short:'Bueno HowTCG',        emoji:'🎯', color:'from-orange-400 to-red-500',      members:null },
-  { id:'ghostudios',     name:'GhostStudios Card game...',  short:'GhostStudios',            emoji:'👻', color:'from-gray-600 to-gray-900',       members:null },
-  { id:'espertogudalupe',name:'Esperto de Gudar Fouks Jr...', short:'Esperto de Gudar',    emoji:'🦊', color:'from-orange-500 to-yellow-600',   members:null },
-  { id:'pokemonpikachu', name:'Pokemon Pikachu',            short:'Pokémon Pikachu',         emoji:'⚡', color:'from-yellow-400 to-yellow-600',   members:null },
-  { id:'estandoon',      name:'ESTAMOS ON 🎴🎴🎴',         short:'ESTAMOS ON',              emoji:'🔥', color:'from-red-500 to-orange-600',      members:null },
-  { id:'tcgpokeshield',  name:'TCG PokéShield',             short:'TCG PokéShield',          emoji:'🛡️', color:'from-blue-600 to-indigo-800',    members:null },
-  { id:'boogcardshop',   name:'BOOGCARDSHOP 🎴',           short:'BOOGCARDSHOP',            emoji:'🎪', color:'from-pink-500 to-purple-600',     members:null },
-  { id:'armandotcg2',    name:'ArmandoTCG 2',              short:'ArmandoTCG 2',            emoji:'⚔️', color:'from-gray-700 to-gray-900',      members:null },
-  { id:'descontocardgame',name:'Desconto Card game',        short:'Desconto Card Game',      emoji:'💰', color:'from-green-600 to-emerald-700',   members:null },
-  { id:'slarrpokfire',   name:'SLAR FOR POKEFIR AUC...',   short:'SLAR POKFIRE',            emoji:'🌋', color:'from-red-700 to-orange-800',      members:null },
-  { id:'jjamestcg',      name:'# James TCG 🎴',            short:'James TCG',               emoji:'🎭', color:'from-indigo-500 to-purple-700',   members:null },
-  { id:'moretcg',        name:'moretCG 🎴🎴🎴🎴🎴 15%...',  short:'moretCG',                emoji:'💫', color:'from-teal-500 to-cyan-600',       members:null },
-  { id:'hpretcg',        name:'+HPRE - GRUPO OFICIAL...',  short:'+HPRE TCG',               emoji:'🏅', color:'from-gold-400 to-yellow-600',     members:null },
-  { id:'freeletchtcg',   name:'FreeletchTCG 🎴🎴...',      short:'FreeletchTCG',            emoji:'🦅', color:'from-blue-800 to-indigo-900',     members:null },
-  { id:'collectlubishop',name:'COLLECTLUBI SHOP PSA...',   short:'COLLECTLUBI SHOP',        emoji:'🏪', color:'from-emerald-500 to-green-700',   members:null },
-  { id:'ritafire',       name:'RITA DE CHARIZARD DE ELKO', short:'RITA DE CHARIZARD',       emoji:'🔥', color:'from-red-600 to-orange-700',      members:null },
-  { id:'mkabpremium',    name:'M KAB PREMIUM CHAN...',     short:'M KAB PREMIUM',           emoji:'💎', color:'from-purple-600 to-indigo-800',   members:null },
-  { id:'ymgtcg',         name:'YMG TCG 🎴',               short:'YMG TCG',                  emoji:'🌊', color:'from-blue-400 to-teal-600',       members:null },
-  { id:'meoxboxpremium', name:'MEO XBOX PREMIUM CHAN...',  short:'MEO XBOX PREMIUM',        emoji:'🎮', color:'from-green-700 to-emerald-900',   members:null },
-  { id:'meadowtcg',      name:'Meadow TCG',                short:'Meadow TCG',               emoji:'🌿', color:'from-green-500 to-lime-600',      members:null },
-  { id:'silvertcg',      name:'Silver TCG 🎴',             short:'Silver TCG',               emoji:'🥈', color:'from-gray-400 to-slate-600',      members:null },
-  { id:'tabernamento',   name:'TABERNA NERD - TIN...',     short:'TABERNA NERD',            emoji:'🍺', color:'from-amber-600 to-yellow-800',    members:null },
-  { id:'leilaorecovery', name:'LEILÃO RECOVERY 💎 100...',  short:'LEILÃO RECOVERY',        emoji:'💎', color:'from-cyan-600 to-blue-800',       members:null },
-  { id:'leilaomineral',  name:'LEILÃO DE MINERAL (PORTU...', short:'LEILÃO MINERAL',        emoji:'💎', color:'from-purple-700 to-indigo-900',   members:null },
-  { id:'collectfosso',   name:'COLLECTIVOS (PORTUGA...)',   short:'COLLECTIVOS PT',          emoji:'🇵🇹', color:'from-green-600 to-red-600',      members:null },
-  { id:'communiquedesc', name:'COMMUNIQUE - DESCONT...',   short:'COMMUNIQUE',              emoji:'📢', color:'from-blue-500 to-sky-600',        members:null },
-  { id:'yttstore',       name:'YTT STORE TCG 🎴',          short:'YTT STORE',               emoji:'🏬', color:'from-violet-500 to-purple-700',   members:null },
-  { id:'maranatcg',      name:'MaranaTCG TCG',             short:'MaranaTCG',               emoji:'✝️', color:'from-blue-700 to-indigo-900',    members:null },
-  { id:'andreatcgplus',  name:'Andreatcg+ Representante...', short:'Andreatcg+',             emoji:'👩‍💼', color:'from-pink-500 to-rose-600',   members:null },
-  { id:'reidobrasil',    name:'REI DO BRASIL PROMO...',    short:'REI DO BRASIL',           emoji:'👑', color:'from-yellow-500 to-green-600',    members:null },
-  { id:'yyt111store',    name:'YYT 111 STORE TCG 🎴',      short:'YYT 111 STORE',           emoji:'💯', color:'from-orange-500 to-red-600',      members:null },
-  { id:'pokemonoferta',  name:'POKEMON OFERTAS SHOPE...',  short:'POKEMON OFERTAS',         emoji:'🛍️', color:'from-yellow-400 to-orange-500',  members:null },
-  { id:'francisotcg',    name:'Franciscon Pokemon',        short:'Franciscon',               emoji:'🎲', color:'from-teal-400 to-cyan-600',       members:null },
-  { id:'youngtcg',       name:'YOUNG TCG 🎴🎴',            short:'YOUNG TCG',               emoji:'🌱', color:'from-lime-500 to-green-600',      members:null },
-  { id:'leilaonerd',     name:'LEILÃO NO BREAK (TURMA...', short:'LEILÃO NO BREAK',         emoji:'⚡', color:'from-yellow-600 to-orange-700',   members:null },
-  { id:'leilaobrasil',   name:'LEILÃO EM BREAK (TURMA...', short:'LEILÃO EM BREAK',         emoji:'🎪', color:'from-purple-500 to-pink-600',     members:null },
-  { id:'zapzaptcg',      name:'ZapZapCards',               short:'ZapZap Cards',             emoji:'⚡', color:'from-yellow-400 to-amber-500',    members:null },
-  { id:'plantasatopiche', name:'Plantas atopiche OE',      short:'Plantas atopiche',         emoji:'🌺', color:'from-green-400 to-emerald-600',   members:null },
-  { id:'maranatcg2',     name:'MaranaTCG TCG Cópia',       short:'MaranaTCG 2',              emoji:'✝️', color:'from-indigo-700 to-blue-900',    members:null },
-  { id:'pokemonshopbr',  name:'POKEMON SHOP BR - Leilão...', short:'POKEMON SHOP BR',       emoji:'🇧🇷', color:'from-green-500 to-yellow-400',  members:null },
-];
+const AUCTION_GROUPS = [];
 
 const App = () => {
   const [user, setUser] = React.useState(null);
@@ -1020,6 +969,7 @@ const App = () => {
     }, []);
     
     const [screen,      setScreen]      = useState('login');
+  const [editingAuction, setEditingAuction] = useState(null);
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
@@ -1062,9 +1012,20 @@ const App = () => {
       console.log('📈 Quantidade:', data ? data.length : 0);
       
       if (data && data.length > 0) {
-        setEvents(data);
-        console.log(`✅ ${data.length} leilões carregados e aplicados ao estado`);
-        console.log('📋 IDs dos leilões:', data.map(a => a.id));
+        // Normalizar snake_case → camelCase para compatibilidade com o frontend
+        const normalized = data.map(a => ({
+          ...a,
+          announcementPhoto: a.announcementPhoto || a.announcement_photo || null,
+          eventPhotos:       a.eventPhotos       || a.event_photos       || [],
+          whatsappLink:      a.whatsappLink      || a.whatsapp_link      || null,
+          paymentMethods:    a.paymentMethods    || a.payment_methods    || [],
+          paymentDeadline:   a.paymentDeadline   || a.payment_deadline   || null,
+          organizer:         a.organizer         || a.host               || 'Leiloeiro',
+          title:             a.title             || a.name               || '',
+        }));
+        setEvents(normalized);
+        console.log(`✅ ${normalized.length} leilões carregados e aplicados ao estado`);
+        console.log('📋 IDs dos leilões:', normalized.map(a => a.id));
       } else {
         console.log('ℹ️ Nenhum leilão encontrado no banco de dados');
         setEvents([]); // Garantir que está vazio
@@ -2562,7 +2523,7 @@ const App = () => {
 
 
 
-  const AuctioneerScreen = () => {
+  const AuctioneerScreen = ({ editingAuction = null }) => {
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
@@ -2584,11 +2545,154 @@ const App = () => {
     const [excluirComunsL,  setExcluirComunsL] = useState(false);
     const cardDebounceRef = React.useRef(null);
     const [groupSearch,  setGroupSearch]  = useState('');
-    const [savedGroups,  setSavedGroups]  = useState(
-      // Grupos salvos pelo leiloeiro (começa vazio; futuramente persistido)
-      []
-    );
+    const [savedGroups,  setSavedGroups]  = useState([]);
     const [auctionCards, setAuctionCards] = useState([]);
+    const [editingAuctionId, setEditingAuctionId] = useState(null);
+
+    // Carregar dados de leilão para edição
+    React.useEffect(() => {
+      if (editingAuction) {
+        const a = editingAuction;
+        setForm({
+          name:             a.title || a.name || '',
+          date:             a.date  || '',
+          time:             a.time  || '',
+          whatsappLink:     a.whatsappLink || a.whatsapp_link || '',
+          auctionType:      a.auctionType  || a.auction_type  || 'free',
+          categories:       a.categories   || [],
+          photos:           a.photos       || [],
+          groupId:          a.groupId      || a.group_id      || '',
+          announcementPhoto: a.announcementPhoto || null,
+          eventPhotos:      a.eventPhotos  || [],
+        });
+        setPhotoPreviewUrls({ announcement: a.announcementPhoto || null, content: [] });
+        // Reconstituir auctionCards a partir das cartas salvas
+        const cards = (a.cards || []).map(c => ({
+          card: { id: c.id, name: c.name, number: c.number, set: { name: c.set }, images: { large: c.img, small: c.img } },
+          quality:     c.quality  || 'NM',
+          language:    c.language || 'BR',
+          startValue:  c.startValue || '',
+          comment:     c.comment || '',
+          ligaPrice:   c.ligaPrice || null,
+          ligaLoading: false,
+          pollOptions: c.pollOptions || ['','',''],
+          minBid:      c.minBid || '',
+          increment:   c.increment || '',
+        }));
+        setAuctionCards(cards);
+        setEditingAuctionId(a.id);
+        setStep(1);
+      }
+    }, [editingAuction]);
+
+    // Carregar grupos do Supabase ao montar
+    React.useEffect(() => {
+      if (user) loadGroups();
+    }, [user]);
+
+    // Carregar grupos da tabela grupos
+    const loadGroups = async () => {
+      if (!supabase || !user) return;
+      try {
+        const { data, error } = await supabase
+          .from('grupos')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) { console.error('Erro ao carregar grupos:', error); return; }
+        if (data && data.length > 0) {
+          const normalized = data.map(g => ({
+            id:           g.id,
+            name:         g.nome || '',
+            short:        g.nome_curto || g.nome || '',
+            emoji:        g.emoji || '🎴',
+            color:        g.cor_gradiente || 'from-gray-600 to-gray-800',
+            whatsappLink: g.link_whatsapp || null,
+            avatarUrl:    g.avatar_url || null,
+            dbId:         g.id,
+          }));
+          setSavedGroups(normalized);
+          console.log(`✅ ${normalized.length} grupos carregados`);
+        }
+      } catch(e) { console.error('Erro ao carregar grupos:', e); }
+    };
+
+    // Salvar novo grupo na tabela grupos
+    const persistGroups = async (groups) => {
+      if (!supabase || !user) return;
+      const novos = groups.filter(g => !g.dbId);
+      for (const g of novos) {
+        try {
+          const { data, error } = await supabase
+            .from('grupos')
+            .insert({
+              nome:           g.name,
+              nome_curto:     g.short || g.name,
+              emoji:          g.emoji || '🎴',
+              cor_gradiente:  g.color || 'from-gray-600 to-gray-800',
+              link_whatsapp:  g.whatsappLink || null,
+              avatar_url:     g.avatarUrl || null,
+              ativo:          true,
+            })
+            .select()
+            .single();
+          if (!error && data) {
+            setSavedGroups(prev => prev.map(sg =>
+              sg.id === g.id ? { ...sg, dbId: data.id, id: data.id } : sg
+            ));
+            console.log(`✅ Grupo "${g.name}" salvo no Supabase`);
+          } else {
+            console.error('Erro ao salvar grupo:', error);
+          }
+        } catch(e) { console.error('Erro ao salvar grupo:', e); }
+      }
+    };
+
+    // Upload de avatar para Supabase Storage e salva URL na tabela grupos
+    const uploadAndSaveAvatar = async (file, groupId) => {
+      if (!supabase || !file) return null;
+      try {
+        // Nome único para o arquivo
+        const ext = file.name.split('.').pop();
+        const fileName = `grupo-${groupId}-${Date.now()}.${ext}`;
+        
+        // Upload para o bucket avatars
+        const { error: uploadError } = await supabase.storage
+          .from('Avatars')
+          .upload(fileName, file, { upsert: true });
+        
+        if (uploadError) {
+          console.error('❌ Erro no upload:', uploadError);
+          return null;
+        }
+        
+        // Pegar URL pública
+        const { data: urlData } = supabase.storage
+          .from('Avatars')
+          .getPublicUrl(fileName);
+        
+        const publicUrl = urlData.publicUrl;
+        console.log('✅ Avatar enviado:', publicUrl);
+        
+        // Salvar URL na tabela grupos se tiver groupId
+        if (groupId) {
+          await supabase.from('grupos').update({ avatar_url: publicUrl }).eq('id', groupId);
+        }
+        
+        return publicUrl;
+      } catch(e) {
+        console.error('Erro ao fazer upload do avatar:', e);
+        return null;
+      }
+    };
+
+    // Atualizar avatar de um grupo no Supabase
+    const updateGroupAvatar = async (groupId, avatarUrl) => {
+      if (!supabase) return;
+      try {
+        await supabase.from('grupos').update({ avatar_url: avatarUrl }).eq('id', groupId);
+        console.log('✅ Avatar salvo no Supabase para grupo', groupId);
+      } catch(e) { console.error('Erro ao atualizar avatar:', e); }
+    };
     const [savedAuctions,setSavedAuctions]= useState([]);
     const [showSuccess,  setShowSuccess]  = useState(false);
     const [photoPreviewUrls, setPhotoPreviewUrls] = useState({ announcement: null, content: [] });
@@ -2612,7 +2716,7 @@ const App = () => {
       if (auctionCards.find(c=>c.card.id===card.id)) return;
       // ↓ unshift: nova carta vai pro TOPO
       setAuctionCards(prev => [
-        { card, quality:'NM', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
+        { card, quality:'NM', language:'BR', startValue:'', comment:'', ligaPrice:null, ligaLoading:false,
           pollOptions:['','',''], minBid:'', increment:'' },
         ...prev
       ]);
@@ -2655,7 +2759,7 @@ const App = () => {
     const saveAuction = async () => {
       const newAuction = {
         ...form, id:Date.now(), status:'published', createdAt:new Date(),
-        title:form.name, time:form.time, organizer:'Dr. João Silva',
+        title:form.name, time:form.time, organizer:userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro',
         description:`Leilão criado via painel. ${auctionCards.length} cartas.`,
         featured:false,
         whatsappLink: form.whatsappLink || '#',
@@ -2665,10 +2769,11 @@ const App = () => {
         eventPhotos: form.eventPhotos || [],
         rawCards: auctionCards,
         cards: auctionCards.map(ac=>({
-          name:ac.card.name, number:ac.card.number,
-          set:ac.card.set?.name, rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
+          id:ac.card.id, name:ac.card.name, number:ac.card.number,
+          set:ac.card.set?.name, setId:ac.card.set?.id||ac.card.setId,
+          rarity:ac.quality==='M'||ac.quality==='NM'?'ultra-rare':'holo',
           img:ac.card.images?.large||ac.card.images?.small,
-          comment:ac.comment, quality:ac.quality,
+          comment:ac.comment, quality:ac.quality, language:ac.language||'BR',
           minBid:ac.minBid, increment:ac.increment, pollOptions:ac.pollOptions, ligaPrice:ac.ligaPrice,
         })),
       };
@@ -2697,15 +2802,12 @@ const App = () => {
             cards_count: newAuction.cards.length
           });
           
-          const { data: savedAuction, error } = await supabase
-            .from('auctions')
-            .insert({
-              created_by: user.id,
+          const auctionPayload = {
               title: form.name,
               date: form.date,
               time: form.time,
               location: form.location || '',
-              host: form.host || userProfile?.nome || 'Leiloeiro',
+              host: userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro',
               group_name: form.auctionGroup,
               cards: newAuction.cards,
               is_live: false,
@@ -2714,9 +2816,11 @@ const App = () => {
               payment_deadline: newAuction.paymentDeadline || null,
               announcement_photo: form.announcementPhoto || null,
               event_photos: form.eventPhotos || []
-            })
-            .select()
-            .single();
+            };
+
+          const { data: savedAuction, error } = editingAuctionId
+            ? await supabase.from('auctions').update(auctionPayload).eq('id', editingAuctionId).eq('created_by', user.id).select().single()
+            : await supabase.from('auctions').insert({ created_by: user.id, ...auctionPayload }).select().single();
           
           if (error) {
             console.error('❌ Erro ao salvar leilão:', error);
@@ -2727,10 +2831,21 @@ const App = () => {
             console.log('✅ Dados salvos:', savedAuction);
             newAuction.id = savedAuction.id;
             
-            // Adicionar à lista local
+            // Adicionar à lista local (normalizado)
+            const normalizedSaved = {
+              ...savedAuction,
+              announcementPhoto: savedAuction.announcementPhoto || savedAuction.announcement_photo || null,
+              eventPhotos:       savedAuction.eventPhotos       || savedAuction.event_photos       || [],
+              whatsappLink:      savedAuction.whatsappLink      || savedAuction.whatsapp_link      || null,
+              paymentMethods:    savedAuction.paymentMethods    || savedAuction.payment_methods    || [],
+              paymentDeadline:   savedAuction.paymentDeadline   || savedAuction.payment_deadline   || null,
+              organizer:         savedAuction.organizer         || savedAuction.host               || 'Leiloeiro',
+            };
             setEvents(prev => {
-              console.log('📝 Adicionando leilão à lista local. Total antes:', prev.length);
-              const updated = [...prev, savedAuction];
+              console.log('📝 Atualizando lista local. Total antes:', prev.length);
+              const updated = editingAuctionId
+                ? prev.map(e => e.id === editingAuctionId ? normalizedSaved : e)
+                : [...prev, normalizedSaved];
               console.log('📝 Total depois:', updated.length);
               return updated;
             });
@@ -2771,23 +2886,7 @@ const App = () => {
 
         <div className="px-4 -mt-4 space-y-4">
 
-          {/* ── LEILÕES SALVOS ── */}
-          {savedAuctions.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-green-400">
-              <div className="px-4 py-3 bg-green-50 border-b flex items-center justify-between">
-                <p className="font-bold text-gray-700 text-sm">📋 Meus Leilões ({savedAuctions.length})</p>
-              </div>
-              {savedAuctions.map((a,i) => (
-                <div key={i} className="p-3 border-b last:border-0 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-500">{a.date} · {a.time} · {a.cards.length} cartas</p>
-                  </div>
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">Rascunho</span>
-                </div>
-              ))}
-            </div>
-          )}
+
 
           {/* ── STEPS ── */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-t-4 border-gray-800">
@@ -2865,11 +2964,14 @@ const App = () => {
                           {filteredGroups.length > 0 ? filteredGroups.map(g => (
                             <button key={g.id}
                               onClick={() => {
-                                setForm(p => ({...p, groupId: g.id, name: g.short}));
+                                setForm(p => ({...p, groupId: g.id, name: g.short, announcementPhoto: g.avatarUrl || p.announcementPhoto}));
+                                if (g.avatarUrl) setPhotoPreviewUrls(p => ({...p, announcement: g.avatarUrl}));
                                 setGroupSearch('');
                                 // Salva grupo para uso futuro se ainda não estiver salvo
                                 if (!savedGroups.find(s => s.id === g.id)) {
-                                  setSavedGroups(prev => [g, ...prev]);
+                                  const updated = [g, ...savedGroups.filter(s => s.id !== g.id)];
+                                setSavedGroups(updated);
+                                persistGroups(updated);
                                 }
                               }}
                               className="w-full flex items-center gap-3 p-2.5 hover:bg-yellow-50 border-b last:border-0 text-left transition-all">
@@ -2892,7 +2994,9 @@ const App = () => {
                                   emoji: '🎴', color: 'from-gray-600 to-gray-800',
                                   avatarUrl: null,
                                 };
-                                setSavedGroups(prev => [newGroup, ...prev]);
+                                const updatedGroups = [newGroup, ...savedGroups];
+                                setSavedGroups(updatedGroups);
+                                persistGroups(updatedGroups);
                                 setForm(p => ({...p, groupId: newGroup.id, name: groupSearch}));
                                 setGroupSearch('');
                               }}
@@ -2913,43 +3017,47 @@ const App = () => {
                 {/* ── Avatar do Leiloeiro ── */}
                 <div>
                   <label className="text-xs font-bold text-gray-600 block mb-2">🖼️ Avatar do Leiloeiro</label>
-                  <p className="text-[10px] text-gray-400 mb-2">Foto de perfil/avatar do grupo no WhatsApp</p>
+                  {photoPreviewUrls.announcement ? (
+                    <div className="flex items-center gap-4 p-3 bg-green-50 border-2 border-green-300 rounded-2xl">
+                      <img src={photoPreviewUrls.announcement} alt="Avatar"
+                        className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-gray-800">Avatar definido ✓</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">Vinculado ao grupo</p>
+                      </div>
+                      <button
+                        onClick={e=>{e.preventDefault();setPhotoPreviewUrls(p=>({...p,announcement:null}));setForm(p=>({...p,announcementPhoto:null}));}}
+                        className="w-7 h-7 bg-gray-200 hover:bg-red-100 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">✕</button>
+                    </div>
+                  ) : (
                   <label className="block cursor-pointer">
-                    <div className={`rounded-2xl border-2 border-dashed overflow-hidden transition-all ${photoPreviewUrls.announcement ? 'border-green-300' : 'border-gray-300 hover:border-yellow-400 bg-gray-50'}`}>
-                      {photoPreviewUrls.announcement ? (
-                        <div className="relative flex items-center gap-4 p-3">
-                          <img src={photoPreviewUrls.announcement} alt="Avatar"
-                            className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="font-bold text-sm text-gray-800">Avatar definido ✓</p>
-                            <p className="text-xs text-gray-500">Clique para trocar</p>
-                          </div>
-                          <button
-                            onClick={e=>{e.preventDefault();setPhotoPreviewUrls(p=>({...p,announcement:null}));setForm(p=>({...p,announcementPhoto:null}));}}
-                            className="w-7 h-7 bg-gray-200 hover:bg-red-100 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">✕</button>
-                        </div>
-                      ) : (
-                        <div className="p-5 text-center">
-                          <p className="text-3xl mb-1">👤</p>
-                          <p className="text-sm font-semibold text-gray-500">Adicionar avatar do grupo</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">Foto de perfil do WhatsApp</p>
-                        </div>
-                      )}
+                    <div className="rounded-2xl border-2 border-dashed border-gray-300 hover:border-yellow-400 bg-gray-50 p-5 text-center transition-all">
+                      <p className="text-3xl mb-1">👤</p>
+                      <p className="text-sm font-semibold text-gray-500">Adicionar avatar do grupo</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Foto de perfil do WhatsApp</p>
                     </div>
                     <input type="file" accept="image/*" className="hidden"
-                      onChange={e=>{
+                      onChange={async e=>{
                         const f = e.target.files?.[0]; if (!f) return;
-                        const url = URL.createObjectURL(f);
-                        setPhotoPreviewUrls(p=>({...p,announcement:url}));
-                        setForm(p=>({...p,announcementPhoto:url}));
-                        // Atualiza avatar no grupo salvo também
-                        if (form.groupId) {
-                          setSavedGroups(prev => prev.map(g =>
-                            g.id === form.groupId ? {...g, avatarUrl: url} : g
-                          ));
+                        // Preview imediato com blob URL
+                        const previewUrl = URL.createObjectURL(f);
+                        setPhotoPreviewUrls(p=>({...p,announcement:previewUrl}));
+                        setForm(p=>({...p,announcementPhoto:previewUrl}));
+                        // Upload para Supabase Storage
+                        const publicUrl = await uploadAndSaveAvatar(f, form.groupId);
+                        if (publicUrl) {
+                          // Substitui blob URL pela URL pública permanente
+                          setForm(p=>({...p,announcementPhoto:publicUrl}));
+                          setPhotoPreviewUrls(p=>({...p,announcement:publicUrl}));
+                          if (form.groupId) {
+                            setSavedGroups(prev => prev.map(g =>
+                              g.id === form.groupId ? {...g, avatarUrl: publicUrl} : g
+                            ));
+                          }
                         }
                       }} />
                   </label>
+                  )}
                 </div>
 
                 {/* ── Data e Horário ── */}
@@ -2995,38 +3103,6 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* ── Fotos dos Blocos ── */}
-                <div>
-                  <label className="text-xs font-bold text-gray-600 block mb-1">📦 Fotos dos Blocos do Leilão</label>
-                  <p className="text-[10px] text-gray-400 mb-2">Cada foto vira um bloco numerado no evento</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {photoPreviewUrls.content.map((url, i) => (
-                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border-2 border-yellow-300 bg-gray-100">
-                        <img src={url} alt={`Bloco ${i+1}`} className="w-full h-full object-cover" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-bold text-center py-0.5">
-                          Bloco {i+1}
-                        </div>
-                        <button
-                          onClick={()=>{
-                            setPhotoPreviewUrls(p=>({...p,content:p.content.filter((_,j)=>j!==i)}));
-                            setForm(p=>({...p,eventPhotos:p.eventPhotos.filter((_,j)=>j!==i)}));
-                          }}
-                          className="absolute top-1 right-1 bg-black/60 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center">✕</button>
-                      </div>
-                    ))}
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-yellow-400 bg-gray-50 flex flex-col items-center justify-center cursor-pointer transition-all">
-                      <span className="text-2xl text-gray-400">+</span>
-                      <span className="text-[10px] text-gray-400 mt-1">Bloco {photoPreviewUrls.content.length + 1}</span>
-                      <input type="file" accept="image/*" multiple className="hidden"
-                        onChange={e=>{
-                          const files = Array.from(e.target.files||[]);
-                          const urls  = files.map(f=>URL.createObjectURL(f));
-                          setPhotoPreviewUrls(p=>({...p,content:[...p.content,...urls]}));
-                          setForm(p=>({...p,eventPhotos:[...p.eventPhotos,...urls]}));
-                        }} />
-                    </label>
-                  </div>
-                </div>
 
                 <button onClick={()=>setStep(2)} disabled={!form.date||!form.time||(!form.groupId&&!form.name)}
                   className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold disabled:opacity-40 hover:bg-gray-900 transition-all">
@@ -3039,9 +3115,6 @@ const App = () => {
             {/* ══ STEP 2: CARTAS ══ */}
             {step===2 && (
               <div className="p-4 space-y-4">
-
-                {/* ── Fotos dos blocos — referência visual para adicionar cartas ── */}
-                <BlocoCarrossel fotos={photoPreviewUrls.content} dark={true} />
 
                 {/* Busca de cartas */}
                 <div>
@@ -3071,7 +3144,7 @@ const App = () => {
                               if (!Array.isArray(cartas)) { alert('❌ JSON inválido!'); return; }
                               let adicionadas = 0;
                               cartas.forEach(carta => { if (auctionCards.find(c => c.card.id === carta.id)) return; adicionadas++; });
-                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
+                              setAuctionCards(prev => [...prev, ...cartas.filter(c => !auctionCards.find(ac => ac.card.id === c.id)).map(carta => ({ card: carta, quality: 'NM', language: 'BR', startValue: '', comment: '', ligaPrice: null, ligaLoading: false, pollOptions: ['', '', ''], minBid: '', increment: '' }))]);
                               alert(`✅ ${adicionadas} cartas importadas!`);
                             } catch (error) { alert(`❌ Erro: ${error.message}`); }
                           };
@@ -3141,7 +3214,7 @@ const App = () => {
                       {auctionCards.length} carta(s)
                       <span className="text-[10px] text-gray-400 font-normal">— última adicionada aparece primeiro</span>
                     </p>
-                    {auctionCards.map(({card,quality,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
+                    {auctionCards.map(({card,quality,language,startValue,comment,ligaPrice,ligaLoading,pollOptions,minBid,increment},i)=>(
                       <div key={card.id} className={`bg-white border-2 rounded-xl overflow-hidden shadow-sm ${i===0?'border-yellow-400 ring-2 ring-yellow-200':'border-gray-200'}`}>
 
                         {/* Badge "mais recente" */}
@@ -3182,6 +3255,50 @@ const App = () => {
                               ))}
                             </div>
                             <p className="text-[9px] text-gray-400 mt-1">{QUALITY_DESC[quality]}</p>
+                          </div>
+
+                          {/* Idioma */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA DA CARTA</label>
+                            <div className="flex items-center gap-2">
+                              {/* 3 botões principais com imagem real */}
+                              {[
+                                {code:'BR', img:'https://flagcdn.com/w40/br.png', label:'Brasil'},
+                                {code:'EN', img:'https://flagcdn.com/w40/us.png', label:'EUA'},
+                                {code:'JP', img:'https://flagcdn.com/w40/jp.png', label:'Japão'},
+                              ].map(({code,img,label})=>(
+                                <button key={code} onClick={()=>updateCard(card.id,'language',code)}
+                                  title={label}
+                                  className={`w-11 h-11 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${(language||'BR')===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
+                                  <img src={img} alt={label} className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                              {/* Dropdown outros países */}
+                              <div className="relative">
+                                <select
+                                  value={['BR','EN','JP'].includes(language||'BR') ? '' : (language||'')}
+                                  onChange={e=>{ if(e.target.value) updateCard(card.id,'language',e.target.value); }}
+                                  className={`h-11 pl-3 pr-7 rounded-xl border-2 text-sm font-semibold appearance-none cursor-pointer transition-all ${!['BR','EN','JP'].includes(language||'BR') && language?'border-gray-800 bg-gray-50 shadow-md text-gray-800':'border-gray-200 bg-white opacity-40 hover:opacity-80 text-gray-400'}`}>
+                                  <option value="">Outros</option>
+                                  <option value="CN">🇨🇳 China</option>
+                                  <option value="KR">🇰🇷 Coreia</option>
+                                  <option value="DE">🇩🇪 Alemanha</option>
+                                  <option value="FR">🇫🇷 França</option>
+                                  <option value="IT">🇮🇹 Itália</option>
+                                  <option value="ES">🇪🇸 Espanha</option>
+                                  <option value="PT">🇵🇹 Portugal</option>
+                                  <option value="MX">🇲🇽 México</option>
+                                  <option value="RU">🇷🇺 Rússia</option>
+                                  <option value="PL">🇵🇱 Polônia</option>
+                                </select>
+                                <span className="absolute right-2 top-3.5 text-gray-400 text-[10px] pointer-events-none">▼</span>
+                              </div>
+                              {/* Mostra bandeira do dropdown selecionado */}
+                              {!['BR','EN','JP'].includes(language||'BR') && language && (
+                                <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language}
+                                  className="w-8 h-8 rounded-lg object-cover border-2 border-gray-800 shadow-md" />
+                              )}
+                            </div>
                           </div>
 
                           {/* Valores — POLL */}
@@ -3300,7 +3417,7 @@ const App = () => {
 
                 <div className="space-y-2">
                   <p className="font-bold text-sm text-gray-700">Cartas do leilão:</p>
-                  {auctionCards.map(({card,quality,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
+                  {auctionCards.map(({card,quality,language,ligaPrice,comment,pollOptions,minBid,increment},i)=>(
                     <div key={i} className="flex items-start gap-3 bg-white rounded-xl p-3 border border-gray-200">
                       <img src={card.images?.small} alt={card.name} className="h-12 w-auto object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />
                       <div className="flex-1 min-w-0">
@@ -3315,7 +3432,10 @@ const App = () => {
                         {ligaPrice && <p className="text-[10px] text-green-600">Liga: R$ {ligaPrice.toLocaleString('pt-BR')}</p>}
                         {comment && <p className="text-[10px] text-gray-400 italic mt-0.5 truncate">💬 {comment}</p>}
                       </div>
-                      <span className={`text-xs font-black text-white px-2 py-1 rounded-lg flex-shrink-0 ${QUALITY_COLOR[quality]}`}>{quality}</span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className={`text-xs font-black text-white px-2 py-1 rounded-lg ${QUALITY_COLOR[quality]}`}>{quality}</span>
+                        {language && <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language} className="w-6 h-5 rounded object-cover shadow" />}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3800,9 +3920,11 @@ const App = () => {
                     alt={currentCard.card?.name}
                     className="h-32 w-auto object-contain rounded-xl shadow-2xl border-2 border-gray-600"
                     onError={e=>e.target.style.display='none'} />
-                  <span className={`absolute -top-1 -right-1 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]||'bg-gray-400'}`}>
-                    {currentCard.quality}
-                  </span>
+                  <div className="absolute -top-1 -right-1">
+                    <span className={`text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${QUALITY_COLOR[currentCard.quality]||'bg-gray-400'}`}>
+                      {currentCard.quality}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex-1 text-white min-w-0">
                   <p className="font-black text-base leading-tight">{currentCard.card?.name}</p>
@@ -4115,11 +4237,11 @@ const App = () => {
 
     return (
     <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
-      <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-14 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-20 relative overflow-hidden">
         <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
         <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
       </div>
-      <div className="px-4 -mt-10 space-y-4">
+      <div className="px-4 -mt-6 space-y-4">
         <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
@@ -4190,6 +4312,9 @@ const App = () => {
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
                   🔨 Criar Novo Leilão
                 </button>
+                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                  📋 Leilões Criados
+                </button>
               </div>
             )}
 
@@ -4200,6 +4325,9 @@ const App = () => {
                 <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
                   🔨 Criar Novo Leilão
                 </button>
+                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                  📋 Leilões Criados
+                </button>
               </div>
             )}
 
@@ -4209,6 +4337,123 @@ const App = () => {
       </div>
       <BottomNav current="profile" />
     </div>
+    );
+  };
+
+  /* ─── TELA: MEUS LEILÕES ─── */
+  const MeusLeloesScreen = () => {
+    const meusLeiloes = events.filter(e => e.created_by === user?.id);
+    const [expandedId, setExpandedId] = React.useState(null);
+
+    const deleteAuction = async (auctionId) => {
+      if (!confirm('Tem certeza que deseja excluir este leilão?')) return;
+      try {
+        const { error } = await supabase.from('auctions').delete().eq('id', auctionId).eq('created_by', user.id);
+        if (error) { alert('Erro ao excluir: ' + error.message); return; }
+        setEvents(prev => prev.filter(e => e.id !== auctionId));
+      } catch(e) { alert('Erro inesperado: ' + e.message); }
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className="bg-gray-900 text-white p-5">
+          <button onClick={()=>setScreen('profile')} className="text-gray-400 text-sm mb-3 flex items-center gap-1 hover:text-white">
+            ← Voltar
+          </button>
+          <h1 className="text-2xl font-black">📋 Leilões Criados</h1>
+          <p className="text-gray-400 text-sm mt-1">{meusLeiloes.length} leilão{meusLeiloes.length !== 1 ? 'ões' : ''} cadastrado{meusLeiloes.length !== 1 ? 's' : ''}</p>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {/* Botão criar novo */}
+          <button onClick={()=>{ setEditingAuction(null); setScreen('auctioneer'); }}
+            className="w-full py-4 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+            🔨 Criar Novo Leilão
+          </button>
+
+          {meusLeiloes.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="text-gray-500 font-semibold">Nenhum leilão criado ainda</p>
+            </div>
+          ) : (
+            meusLeiloes.map(a => {
+              const isExpanded = expandedId === a.id;
+              return (
+                <div key={a.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+
+                  {/* Cabeçalho clicável */}
+                  <div className="p-4 flex items-center gap-3 cursor-pointer" onClick={()=>setExpandedId(isExpanded ? null : a.id)}>
+                    {a.announcementPhoto
+                      ? <img src={a.announcementPhoto} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-gray-100" />
+                      : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-gray-900 text-sm truncate">{a.title || a.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {a.date ? new Date(a.date+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '—'}
+                        {' · '}{a.time}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">🎴 {(a.cards||[]).length} carta{(a.cards||[]).length!==1?'s':''}</p>
+                    </div>
+                    <span className="text-gray-400 text-sm flex-shrink-0">{isExpanded ? '▲' : '▼'}</span>
+                  </div>
+
+                  {/* Detalhes expandidos */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100">
+                      {/* Info geral */}
+                      <div className="px-4 py-3 bg-gray-50 space-y-1.5">
+                        {a.whatsappLink && (
+                          <p className="text-xs text-gray-600">💬 <span className="font-semibold">WhatsApp:</span> <a href={a.whatsappLink} target="_blank" className="text-blue-500 underline truncate">{a.whatsappLink}</a></p>
+                        )}
+                        <p className="text-xs text-gray-600">🏆 <span className="font-semibold">Tipo:</span> {a.auctionType==='poll'?'Poll de Lances':'Lances Livres'}</p>
+                        <p className="text-xs text-gray-600">🎴 <span className="font-semibold">{(a.cards||[]).length} carta{(a.cards||[]).length!==1?'s':''} cadastrada{(a.cards||[]).length!==1?'s':''}</span></p>
+                      </div>
+
+                      {/* Preview cartas */}
+                      {(a.cards||[]).length > 0 && (
+                        <div className="px-4 py-3 border-t border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Cartas</p>
+                          <div className="space-y-1.5">
+                            {(a.cards||[]).map((c,i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                {c.img && <img src={c.img} className="w-8 h-10 object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-gray-800 truncate">{c.name}</p>
+                                  <p className="text-[10px] text-gray-400">{c.set} · {c.number}</p>
+                                </div>
+                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded text-white ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Botões ação */}
+                      <div className="p-3 border-t border-gray-100 flex gap-2">
+                        <button
+                          onClick={() => { setEditingAuction(a); setScreen('auctioneer'); }}
+                          className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => deleteAuction(a.id)}
+                          className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                          🗑️ Excluir
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })
+          )}
+        </div>
+        <BottomNav current="profile" />
+      </div>
     );
   };
 
@@ -4238,7 +4483,8 @@ const App = () => {
       {screen==='calendar'   && <CalendarScreen />}
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
-      {screen==='auctioneer' && <AuctioneerScreen />}
+      {screen==='auctioneer' && <AuctioneerScreen editingAuction={editingAuction} />}
+      {screen==='meusLeiloes' && <MeusLeloesScreen />}
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
     </div>
