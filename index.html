@@ -2393,11 +2393,7 @@ const App = () => {
                   const rarity   = card.rarity || '';
                   const inWanted = wantedList.find(w => w.id === card.id);
                   const auctions = EVENTS.filter(ev =>
-                    (ev.cards||[]).some(ec => {
-                      const ecName = (ec.name||'').toLowerCase();
-                      const cName  = (card.name||'').toLowerCase();
-                      return ecName.includes(cName) || cName.includes(ecName);
-                    })
+                    (ev.cards||[]).some(ec => matchWanted(card, ec))
                   );
                   const rarityColor = rarity.toLowerCase().includes('secret') || rarity.toLowerCase().includes('rainbow') || rarity.toLowerCase().includes('illustration')
                     ? 'bg-purple-100 text-purple-700'
