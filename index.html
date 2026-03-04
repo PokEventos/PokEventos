@@ -969,6 +969,7 @@ const App = () => {
     }, []);
     
     const [screen,      setScreen]      = useState('login');
+  const [editingAuction, setEditingAuction] = useState(null);
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
@@ -2522,7 +2523,7 @@ const App = () => {
 
 
 
-  const AuctioneerScreen = () => {
+  const AuctioneerScreen = ({ editingAuction = null }) => {
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
     const CATEGORIES  = ['1st Edition','Promo','Vintage','Arte Rara','Ultra Rara','Arte Secreta','Holo','Reverse Holo','Full Art','Rainbow','Gold'];
     const AUCTION_TYPES = [
@@ -2546,6 +2547,43 @@ const App = () => {
     const [groupSearch,  setGroupSearch]  = useState('');
     const [savedGroups,  setSavedGroups]  = useState([]);
     const [auctionCards, setAuctionCards] = useState([]);
+    const [editingAuctionId, setEditingAuctionId] = useState(null);
+
+    // Carregar dados de leilão para edição
+    React.useEffect(() => {
+      if (editingAuction) {
+        const a = editingAuction;
+        setForm({
+          name:             a.title || a.name || '',
+          date:             a.date  || '',
+          time:             a.time  || '',
+          whatsappLink:     a.whatsappLink || a.whatsapp_link || '',
+          auctionType:      a.auctionType  || a.auction_type  || 'free',
+          categories:       a.categories   || [],
+          photos:           a.photos       || [],
+          groupId:          a.groupId      || a.group_id      || '',
+          announcementPhoto: a.announcementPhoto || null,
+          eventPhotos:      a.eventPhotos  || [],
+        });
+        setPhotoPreviewUrls({ announcement: a.announcementPhoto || null, content: [] });
+        // Reconstituir auctionCards a partir das cartas salvas
+        const cards = (a.cards || []).map(c => ({
+          card: { id: c.id, name: c.name, number: c.number, set: { name: c.set }, images: { large: c.img, small: c.img } },
+          quality:     c.quality  || 'NM',
+          language:    c.language || 'BR',
+          startValue:  c.startValue || '',
+          comment:     c.comment || '',
+          ligaPrice:   c.ligaPrice || null,
+          ligaLoading: false,
+          pollOptions: c.pollOptions || ['','',''],
+          minBid:      c.minBid || '',
+          increment:   c.increment || '',
+        }));
+        setAuctionCards(cards);
+        setEditingAuctionId(a.id);
+        setStep(1);
+      }
+    }, [editingAuction]);
 
     // Carregar grupos do Supabase ao montar
     React.useEffect(() => {
@@ -2764,10 +2802,7 @@ const App = () => {
             cards_count: newAuction.cards.length
           });
           
-          const { data: savedAuction, error } = await supabase
-            .from('auctions')
-            .insert({
-              created_by: user.id,
+          const auctionPayload = {
               title: form.name,
               date: form.date,
               time: form.time,
@@ -2781,9 +2816,11 @@ const App = () => {
               payment_deadline: newAuction.paymentDeadline || null,
               announcement_photo: form.announcementPhoto || null,
               event_photos: form.eventPhotos || []
-            })
-            .select()
-            .single();
+            };
+
+          const { data: savedAuction, error } = editingAuctionId
+            ? await supabase.from('auctions').update(auctionPayload).eq('id', editingAuctionId).eq('created_by', user.id).select().single()
+            : await supabase.from('auctions').insert({ created_by: user.id, ...auctionPayload }).select().single();
           
           if (error) {
             console.error('❌ Erro ao salvar leilão:', error);
@@ -2805,8 +2842,10 @@ const App = () => {
               organizer:         savedAuction.organizer         || savedAuction.host               || 'Leiloeiro',
             };
             setEvents(prev => {
-              console.log('📝 Adicionando leilão à lista local. Total antes:', prev.length);
-              const updated = [...prev, normalizedSaved];
+              console.log('📝 Atualizando lista local. Total antes:', prev.length);
+              const updated = editingAuctionId
+                ? prev.map(e => e.id === editingAuctionId ? normalizedSaved : e)
+                : [...prev, normalizedSaved];
               console.log('📝 Total depois:', updated.length);
               return updated;
             });
@@ -4304,6 +4343,7 @@ const App = () => {
   /* ─── TELA: MEUS LEILÕES ─── */
   const MeusLeloesScreen = () => {
     const meusLeiloes = events.filter(e => e.created_by === user?.id);
+    const [expandedId, setExpandedId] = React.useState(null);
 
     const deleteAuction = async (auctionId) => {
       if (!confirm('Tem certeza que deseja excluir este leilão?')) return;
@@ -4327,7 +4367,7 @@ const App = () => {
 
         <div className="p-4 space-y-3">
           {/* Botão criar novo */}
-          <button onClick={()=>setScreen('auctioneer')}
+          <button onClick={()=>{ setEditingAuction(null); setScreen('auctioneer'); }}
             className="w-full py-4 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
             🔨 Criar Novo Leilão
           </button>
@@ -4338,33 +4378,78 @@ const App = () => {
               <p className="text-gray-500 font-semibold">Nenhum leilão criado ainda</p>
             </div>
           ) : (
-            meusLeiloes.map(a => (
-              <div key={a.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
-                <div className="p-4 flex items-center gap-3">
-                  {/* Avatar */}
-                  {a.announcementPhoto
-                    ? <img src={a.announcementPhoto} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-gray-100" />
-                    : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
-                  }
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-gray-900 text-sm truncate">{a.title || a.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'}) : '—'}
-                      {' · '}{a.time}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">🎴 {(a.cards||[]).length} carta{(a.cards||[]).length !== 1 ? 's' : ''}</p>
+            meusLeiloes.map(a => {
+              const isExpanded = expandedId === a.id;
+              return (
+                <div key={a.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+
+                  {/* Cabeçalho clicável */}
+                  <div className="p-4 flex items-center gap-3 cursor-pointer" onClick={()=>setExpandedId(isExpanded ? null : a.id)}>
+                    {a.announcementPhoto
+                      ? <img src={a.announcementPhoto} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-gray-100" />
+                      : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-gray-900 text-sm truncate">{a.title || a.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {a.date ? new Date(a.date+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '—'}
+                        {' · '}{a.time}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">🎴 {(a.cards||[]).length} carta{(a.cards||[]).length!==1?'s':''}</p>
+                    </div>
+                    <span className="text-gray-400 text-sm flex-shrink-0">{isExpanded ? '▲' : '▼'}</span>
                   </div>
-                  {/* Botão excluir */}
-                  <button
-                    onClick={() => deleteAuction(a.id)}
-                    className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-all border border-red-100"
-                    title="Excluir leilão">
-                    🗑️
-                  </button>
+
+                  {/* Detalhes expandidos */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100">
+                      {/* Info geral */}
+                      <div className="px-4 py-3 bg-gray-50 space-y-1.5">
+                        {a.whatsappLink && (
+                          <p className="text-xs text-gray-600">💬 <span className="font-semibold">WhatsApp:</span> <a href={a.whatsappLink} target="_blank" className="text-blue-500 underline truncate">{a.whatsappLink}</a></p>
+                        )}
+                        <p className="text-xs text-gray-600">🏆 <span className="font-semibold">Tipo:</span> {a.auctionType==='poll'?'Poll de Lances':'Lances Livres'}</p>
+                        <p className="text-xs text-gray-600">🎴 <span className="font-semibold">{(a.cards||[]).length} carta{(a.cards||[]).length!==1?'s':''} cadastrada{(a.cards||[]).length!==1?'s':''}</span></p>
+                      </div>
+
+                      {/* Preview cartas */}
+                      {(a.cards||[]).length > 0 && (
+                        <div className="px-4 py-3 border-t border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Cartas</p>
+                          <div className="space-y-1.5">
+                            {(a.cards||[]).map((c,i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                {c.img && <img src={c.img} className="w-8 h-10 object-contain rounded flex-shrink-0" onError={e=>e.target.style.display='none'} />}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-gray-800 truncate">{c.name}</p>
+                                  <p className="text-[10px] text-gray-400">{c.set} · {c.number}</p>
+                                </div>
+                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded text-white ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Botões ação */}
+                      <div className="p-3 border-t border-gray-100 flex gap-2">
+                        <button
+                          onClick={() => { setEditingAuction(a); setScreen('auctioneer'); }}
+                          className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => deleteAuction(a.id)}
+                          className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                          🗑️ Excluir
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         <BottomNav current="profile" />
@@ -4398,7 +4483,7 @@ const App = () => {
       {screen==='calendar'   && <CalendarScreen />}
       {screen==='search'     && <SearchWantedScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
-      {screen==='auctioneer' && <AuctioneerScreen />}
+      {screen==='auctioneer' && <AuctioneerScreen editingAuction={editingAuction} />}
       {screen==='meusLeiloes' && <MeusLeloesScreen />}
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
