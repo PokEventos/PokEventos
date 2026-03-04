@@ -1058,6 +1058,16 @@ const App = () => {
         const eventIds = data.map(row => row.event_id);
         setCheckins(eventIds);
         console.log(`✅ ${eventIds.length} check-ins carregados`);
+        // Limpar checkins órfãos (leilões que não existem mais)
+        setTimeout(async () => {
+          const validIds = events.map(e => String(e.id));
+          const orphans = eventIds.filter(id => !validIds.includes(String(id)));
+          if (orphans.length > 0) {
+            console.log(`🧹 Removendo ${orphans.length} check-in(s) órfão(s)...`);
+            await supabase.from('user_checkins').delete().eq('user_id', user.id).in('event_id', orphans);
+            setCheckins(prev => prev.filter(id => !orphans.includes(id)));
+          }
+        }, 1500);
       }
     } catch (err) {
       console.error('❌ Erro ao carregar check-ins:', err);
@@ -1322,8 +1332,8 @@ const App = () => {
             {tab.id==='wanted' && unseenAlerts>0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white pulse-dot">{unseenAlerts}</span>
             )}
-            {tab.id==='home' && checkins.length>0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white">{checkins.length}</span>
+            {tab.id==='home' && EVENTS.filter(e=>checkins.includes(e.id)||checkins.includes(String(e.id))).length>0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white">{EVENTS.filter(e=>checkins.includes(e.id)||checkins.includes(String(e.id))).length}</span>
             )}
           </button>
         ))}
@@ -1834,7 +1844,7 @@ const App = () => {
      TELA HOME
   ════════════════════════════════════════ */
   const HomeScreen = () => {
-    const myEvents = EVENTS.filter(e=>checkins.includes(e.id));
+    const myEvents = EVENTS.filter(e => checkins.includes(e.id) || checkins.includes(String(e.id)));
     return (
       <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
         <div className="bg-gradient-to-r from-red-500 via-red-600 to-red-700 text-white p-6 pb-8 relative overflow-hidden">
