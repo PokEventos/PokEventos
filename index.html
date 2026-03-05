@@ -1109,6 +1109,7 @@ const App = () => {
     const tryLoadAuctions = () => {
       if (supabase) {
         loadAuctionsFromDB();
+        loadVitrineAll();
       } else {
         console.log('⏳ Aguardando Supabase inicializar...');
         setTimeout(tryLoadAuctions, 200);
@@ -2246,10 +2247,18 @@ const App = () => {
     const wantedWithMatches = wantedList.map(wc => ({
       ...wc,
       matches: EVENTS.filter(ev => (ev.cards||[]).some(c => matchWanted(wc, c))),
-      vitrineMatches: vitrineAll.filter(vc =>
-        vc.name && wc.name && vc.name === wc.name &&
-        (!wc.number || !vc.number || vc.number === wc.number)
-      )
+      vitrineMatches: vitrineAll.filter(vc => {
+        // Adapta carta da vitrine para o formato esperado pelo matchWanted
+        const vcAdapted = {
+          name: vc.name,
+          nameEn: vc.name,
+          number: vc.number || '',
+          set: vc.set_name || '',
+          setId: vc.card_id || '',
+          id: vc.card_id || vc.id,
+        };
+        return matchWanted(wc, vcAdapted);
+      })
     }));
 
     const TAGS = ['Charizard','Pikachu','Umbreon','Mewtwo','Lugia','Rayquaza','Mew','Arceus','Gengar','Eevee'];
