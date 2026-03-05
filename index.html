@@ -2496,7 +2496,7 @@ const App = () => {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-gray-900 text-lg leading-tight">{wantedModal.name}</p>
-                        {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
+                        {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{typeof wantedModal.set === 'object' ? wantedModal.set?.name : wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
                         <div className="mt-3 space-y-1.5">
                           {wantedModal.matches.length > 0 ? (
                             <div>
@@ -2537,7 +2537,7 @@ const App = () => {
                         {wc.img ? <img src={wc.img} alt={wc.name} className="h-16 w-auto object-contain rounded-lg shadow border border-yellow-100 flex-shrink-0" /> : null}
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-gray-800 text-sm">{wc.name}</p>
-                          {wc.set ? <p className="text-xs text-gray-400">{wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
+                          {wc.set ? <p className="text-xs text-gray-400">{typeof wc.set === 'object' ? wc.set?.name : wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
                           {wc.matches.length > 0
                             ? <p className="text-[10px] font-black text-green-600 mt-1">✅ Em {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</p>
                             : <p className="text-[10px] text-gray-400 mt-1">⏳ Aguardando leilão…</p>
@@ -4880,7 +4880,7 @@ const App = () => {
             <div className="grid grid-cols-2 gap-3">
               {displayCards.map(c => {
                 const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
-                const vCard = { id: c.card_id||c.id, name: c.name, set: { name: c.set_name }, number: c.number, images: { small: c.img_url, large: c.img_url } };
+                const vCard = { id: c.card_id||c.id, name: c.name, set: c.set_name||'', number: c.number, img: c.img_url, images: { small: c.img_url, large: c.img_url } };
                 return (
                 <div key={c.id}
                   className={`bg-white rounded-2xl shadow-md overflow-hidden active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'}`}>
@@ -4960,7 +4960,7 @@ const App = () => {
               <div className="px-5 mt-4 space-y-2">
                 {(() => {
                   const mWanted = wantedList.find(w => (selCard.card_id && w.id === selCard.card_id) || (w.name && selCard.name && w.name === selCard.name && w.number === selCard.number));
-                  const mCard = { id: selCard.card_id||selCard.id, name: selCard.name, set: { name: selCard.set_name }, number: selCard.number, images: { small: selCard.img_url, large: selCard.img_url } };
+                  const mCard = { id: selCard.card_id||selCard.id, name: selCard.name, set: selCard.set_name||'', number: selCard.number, img: selCard.img_url, images: { small: selCard.img_url, large: selCard.img_url } };
                   return (
                     <button onClick={()=> mWanted ? removeWanted(mWanted.id) : addToWanted(mCard)}
                       className={`w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all border-2 ${mWanted ? 'bg-yellow-400 border-yellow-400 text-gray-900' : 'bg-white border-yellow-300 text-yellow-600 hover:bg-yellow-50'}`}>
