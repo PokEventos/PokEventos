@@ -4878,15 +4878,14 @@ const App = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {displayCards.map(c => (
-                {(() => {
-                  const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
-                  const vCard = { id: c.card_id||c.id, name: c.name, set: { name: c.set_name }, number: c.number, images: { small: c.img_url, large: c.img_url } };
-                  return (
+              {displayCards.map(c => {
+                const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
+                const vCard = { id: c.card_id||c.id, name: c.name, set: { name: c.set_name }, number: c.number, images: { small: c.img_url, large: c.img_url } };
+                return (
                 <div key={c.id}
-                  className={`bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'}`}>
+                  className={`bg-white rounded-2xl shadow-md overflow-hidden active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'}`}>
                   {/* Imagem */}
-                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative" onClick={()=>setSelCard(c)}>
+                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={()=>setSelCard(c)}>
                     {c.img_url
                       ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
                       : <span className="text-5xl">🎴</span>}
@@ -4905,11 +4904,10 @@ const App = () => {
                     {vWanted && <div className="absolute bottom-0 left-0 right-0 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">⭐ Na sua Wanted List</div>}
                   </div>
                   {/* Info */}
-                  <div className="p-2.5" onClick={()=>setSelCard(c)}>
+                  <div className="p-2.5 cursor-pointer" onClick={()=>setSelCard(c)}>
                     <p className="font-black text-gray-900 text-sm leading-tight truncate">{c.name}</p>
                     <p className="text-[10px] text-gray-400 truncate">{c.set_name}{c.number?` · ${c.number}`:''}</p>
                     <p className="font-black text-green-600 text-base mt-1">R$ {Number(c.price).toFixed(2)}</p>
-                    {/* Vendedor */}
                     <div className="flex items-center gap-1 mt-1.5">
                       {c.avatar_url
                         ? <img src={c.avatar_url} className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
@@ -4918,9 +4916,8 @@ const App = () => {
                     </div>
                   </div>
                 </div>
-                  );
-                })()}
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
