@@ -1323,6 +1323,7 @@ const App = () => {
           { id:'home',     icon:'🎴', label:'Leilões'    },
           { id:'calendar', icon:'📅', label:'Calendário'  },
           { id:'search',   icon:'🔍', label:'Buscar'      },
+          { id:'vitrine',  icon:'🏪', label:'Vitrine'     },
         ].map(tab=>(
           <button key={tab.id} onClick={()=>setScreen(tab.id)}
             className={`flex flex-col items-center gap-0.5 relative ${current===tab.id?'text-red-600':'text-gray-400'}`}>
@@ -4558,6 +4559,308 @@ const App = () => {
     );
   };
 
+
+  /* ════════════════════════════════════════
+     TELA VITRINE
+  ════════════════════════════════════════ */
+  const VitrineScreen = () => {
+    const [cards,       setCards]       = React.useState([]);
+    const [loading,     setLoading]     = React.useState(true);
+    const [selCard,     setSelCard]     = React.useState(null);
+    const [selVendedor, setSelVendedor] = React.useState(null); // null = feed geral
+    const [myCards,     setMyCards]     = React.useState([]);
+    const [showForm,    setShowForm]    = React.useState(false);
+    const [uploading,   setUploading]   = React.useState(false);
+    const [form,        setForm]        = React.useState({ name:'', set:'', number:'', quality:'NM', price:'', whatsapp:'', img:null, imgPreview:null });
+    const fileRef = React.useRef();
+
+    const canPost = isAuctioneer && isApproved;
+
+    React.useEffect(() => { loadCards(); }, []);
+
+    const loadCards = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.from('vitrine').select('*').eq('ativo', true).order('created_at', { ascending: false });
+        if (!error && data) setCards(data);
+      } catch(e) {}
+      setLoading(false);
+    };
+
+    React.useEffect(() => {
+      if (canPost && user) setMyCards(cards.filter(c => c.user_id === user.id));
+    }, [cards]);
+
+    const handleImgSelect = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setForm(p => ({ ...p, img: file, imgPreview: URL.createObjectURL(file) }));
+    };
+
+    const handlePost = async () => {
+      if (!form.name || !form.price || !form.whatsapp) { alert('Preencha nome, preço e WhatsApp'); return; }
+      setUploading(true);
+      try {
+        let imgUrl = null;
+        if (form.img) {
+          const ext = form.img.name.split('.').pop();
+          const fileName = `vitrine-${user.id}-${Date.now()}.${ext}`;
+          const { error: upErr } = await supabase.storage.from('Avatars').upload(fileName, form.img, { upsert: true });
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from('Avatars').getPublicUrl(fileName);
+            imgUrl = urlData.publicUrl;
+          }
+        }
+        const vendedor = userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro';
+        const { error } = await supabase.from('vitrine').insert({
+          user_id:    user.id,
+          vendedor:   vendedor,
+          avatar_url: userProfile?.avatar_url || null,
+          name:       form.name,
+          set_name:   form.set,
+          number:     form.number,
+          quality:    form.quality,
+          price:      parseFloat(form.price),
+          whatsapp:   form.whatsapp,
+          img_url:    imgUrl,
+          ativo:      true,
+        });
+        if (error) { alert('Erro ao postar: ' + error.message); setUploading(false); return; }
+        setForm({ name:'', set:'', number:'', quality:'NM', price:'', whatsapp:'', img:null, imgPreview:null });
+        setShowForm(false);
+        loadCards();
+      } catch(e) { alert('Erro: ' + e.message); }
+      setUploading(false);
+    };
+
+    const handleDelete = async (id) => {
+      if (!confirm('Remover esta carta da vitrine?')) return;
+      await supabase.from('vitrine').update({ ativo: false }).eq('id', id).eq('user_id', user.id);
+      setCards(p => p.filter(c => c.id !== id));
+    };
+
+    // Agrupa por vendedor
+    const vendedores = [...new Map(cards.map(c => [c.user_id, { user_id: c.user_id, vendedor: c.vendedor, avatar_url: c.avatar_url }])).values()];
+    const displayCards = selVendedor ? cards.filter(c => c.user_id === selVendedor) : cards;
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-5 pb-6 relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">🏪</div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <p className="text-yellow-900/60 text-[10px] font-black tracking-widest uppercase mb-0.5">PokEventos</p>
+              <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Vitrine</h1>
+              <p className="text-yellow-900/60 text-xs mt-0.5">Cartas à venda por preço fixo</p>
+            </div>
+            <ProfileBtn />
+          </div>
+        </div>
+
+        {/* Filtro por vendedor */}
+        {vendedores.length > 0 && (
+          <div className="px-4 pt-4 pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <button onClick={()=>setSelVendedor(null)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${!selVendedor?'bg-yellow-400 border-yellow-400 text-gray-900':'bg-white border-gray-200 text-gray-500'}`}>
+                Todos ({cards.length})
+              </button>
+              {vendedores.map(v => (
+                <button key={v.user_id} onClick={()=>setSelVendedor(v.user_id)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${selVendedor===v.user_id?'bg-yellow-400 border-yellow-400 text-gray-900':'bg-white border-gray-200 text-gray-500'}`}>
+                  {v.avatar_url
+                    ? <img src={v.avatar_url} className="w-4 h-4 rounded-full object-cover" />
+                    : <span className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-[9px] font-black">{v.vendedor?.charAt(0)}</span>
+                  }
+                  {v.vendedor}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pt-2 space-y-4">
+
+          {/* Botão postar (só leiloeiros aprovados) */}
+          {canPost && (
+            <button onClick={()=>setShowForm(p=>!p)}
+              className="w-full py-3 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+              {showForm ? '✕ Cancelar' : '＋ Postar Carta na Vitrine'}
+            </button>
+          )}
+
+          {/* Formulário postar */}
+          {showForm && canPost && (
+            <div className="bg-white rounded-2xl shadow-lg p-4 border-t-4 border-yellow-400 space-y-3">
+              <p className="font-black text-gray-800 text-sm">📋 Nova Carta na Vitrine</p>
+
+              {/* Foto */}
+              <div className="flex gap-3 items-center">
+                <div onClick={()=>fileRef.current.click()}
+                  className="w-20 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-yellow-400 overflow-hidden flex-shrink-0 bg-gray-50">
+                  {form.imgPreview
+                    ? <img src={form.imgPreview} className="w-full h-full object-contain" />
+                    : <span className="text-2xl">📷</span>}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImgSelect} />
+                <div className="flex-1 space-y-2">
+                  <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}
+                    placeholder="Nome do Pokémon *" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400" />
+                  <div className="flex gap-2">
+                    <input value={form.set} onChange={e=>setForm(p=>({...p,set:e.target.value}))}
+                      placeholder="Edição" className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400" />
+                    <input value={form.number} onChange={e=>setForm(p=>({...p,number:e.target.value}))}
+                      placeholder="Nº" className="w-16 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Qualidade */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Qualidade</label>
+                <div className="flex gap-1.5 mt-1 flex-wrap">
+                  {['M','NM','SP','MP','HP','D'].map(q=>(
+                    <button key={q} onClick={()=>setForm(p=>({...p,quality:q}))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${form.quality===q?`${QUALITY_COLOR[q]} text-white border-transparent`:'bg-white text-gray-500 border-gray-200'}`}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preço e WhatsApp */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Preço (R$) *</label>
+                  <input value={form.price} onChange={e=>setForm(p=>({...p,price:e.target.value}))}
+                    placeholder="150,00" type="number" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400 mt-1" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">WhatsApp *</label>
+                  <input value={form.whatsapp} onChange={e=>setForm(p=>({...p,whatsapp:e.target.value}))}
+                    placeholder="(11) 99999-9999" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400 mt-1" />
+                </div>
+              </div>
+
+              <button onClick={handlePost} disabled={uploading}
+                className="w-full py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black rounded-2xl text-sm transition-all disabled:opacity-50">
+                {uploading ? '⏳ Enviando...' : '🏪 Publicar na Vitrine'}
+              </button>
+            </div>
+          )}
+
+          {/* Minhas cartas na vitrine */}
+          {canPost && myCards.length > 0 && !showForm && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center justify-between">
+                <p className="text-xs font-black text-gray-500 uppercase tracking-wide">Minhas cartas na vitrine</p>
+                <span className="text-xs text-gray-400">{myCards.length}</span>
+              </div>
+              {myCards.map(c => (
+                <div key={c.id} className="flex items-center gap-3 p-3 border-b last:border-0">
+                  {c.img_url
+                    ? <img src={c.img_url} className="w-10 h-12 object-contain rounded flex-shrink-0" />
+                    : <div className="w-10 h-12 bg-gray-100 rounded flex items-center justify-center text-lg flex-shrink-0">🎴</div>}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-gray-800 truncate">{c.name}</p>
+                    <p className="text-xs text-gray-400">{c.set_name} {c.number && `· ${c.number}`}</p>
+                  </div>
+                  <p className="font-black text-green-600 text-sm flex-shrink-0">R$ {Number(c.price).toFixed(2)}</p>
+                  <button onClick={()=>handleDelete(c.id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-400 flex-shrink-0">🗑️</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Feed de cartas */}
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3 animate-bounce">🏪</div>
+              <p className="text-gray-400 font-semibold">Carregando vitrine...</p>
+            </div>
+          ) : displayCards.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="text-gray-500 font-semibold">Nenhuma carta na vitrine ainda</p>
+              {canPost && <p className="text-gray-400 text-sm mt-1">Seja o primeiro a postar!</p>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {displayCards.map(c => (
+                <div key={c.id} onClick={()=>setSelCard(c)}
+                  className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-transform border border-gray-100">
+                  {/* Imagem */}
+                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative">
+                    {c.img_url
+                      ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
+                      : <span className="text-5xl">🎴</span>}
+                    <span className={`absolute top-2 left-2 text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                  </div>
+                  {/* Info */}
+                  <div className="p-2.5">
+                    <p className="font-black text-gray-900 text-sm leading-tight truncate">{c.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{c.set_name}{c.number?` · ${c.number}`:''}</p>
+                    <p className="font-black text-green-600 text-base mt-1">R$ {Number(c.price).toFixed(2)}</p>
+                    {/* Vendedor */}
+                    <div className="flex items-center gap-1 mt-1.5">
+                      {c.avatar_url
+                        ? <img src={c.avatar_url} className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
+                        : <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-[8px] font-black flex-shrink-0">{c.vendedor?.charAt(0)}</div>}
+                      <span className="text-[10px] text-gray-400 truncate">{c.vendedor}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modal carta */}
+        {selCard && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={()=>setSelCard(null)}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-t-3xl w-full max-w-md shadow-2xl z-10 pb-8" onClick={e=>e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-3" />
+              <div className="flex gap-4 px-5">
+                {/* Imagem */}
+                <div className="w-28 flex-shrink-0 bg-gray-50 rounded-2xl flex items-center justify-center overflow-hidden border border-gray-100">
+                  {selCard.img_url
+                    ? <img src={selCard.img_url} className="w-full object-contain p-1" />
+                    : <span className="text-5xl p-4">🎴</span>}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-black text-gray-900 text-xl leading-tight">{selCard.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{selCard.set_name}{selCard.number?` · ${selCard.number}`:''}</p>
+                  <span className={`inline-block mt-1.5 text-[10px] font-black text-white px-2 py-0.5 rounded-md ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                  <p className="font-black text-green-600 text-2xl mt-2">R$ {Number(selCard.price).toFixed(2)}</p>
+                  {/* Vendedor */}
+                  <div className="flex items-center gap-2 mt-2">
+                    {selCard.avatar_url
+                      ? <img src={selCard.avatar_url} className="w-6 h-6 rounded-full object-cover" />
+                      : <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-black">{selCard.vendedor?.charAt(0)}</div>}
+                    <span className="text-sm text-gray-600 font-semibold">{selCard.vendedor}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Botão WhatsApp */}
+              <div className="px-5 mt-5">
+                <a href={`https://wa.me/${selCard.whatsapp.replace(/\D/g,'')}`} target="_blank"
+                  className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg">
+                  💬 Falar com vendedor no WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BottomNav current="vitrine" />
+      </div>
+    );
+  };
+
   /* ─── ROTEAMENTO ─── */
   if (loading) {
     return (
@@ -4588,6 +4891,7 @@ const App = () => {
       {screen==='meusLeiloes' && <MeusLeloesScreen />}
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
+      {screen==='vitrine'    && <VitrineScreen />}
     </div>
   );
 };
