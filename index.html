@@ -972,6 +972,7 @@ const App = () => {
     const [screen,      setScreen]      = useState('login');
   const [editingAuction, setEditingAuction] = useState(null);
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
+  const [vitrineAll,  setVitrineAll]  = useState([]); // Cartas da vitrine (global)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
   const [modalEventShowCards, setModalEventShowCards] = useState(false);
@@ -1038,6 +1039,14 @@ const App = () => {
   };
   
   // Carregar check-ins do Supabase
+  const loadVitrineAll = async () => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase.from('vitrine').select('*').eq('ativo', true);
+      if (data) setVitrineAll(data);
+    } catch(e) {}
+  };
+
   const loadCheckinsFromDB = async () => {
     if (!supabase || !user) {
       console.warn('⚠️ Supabase ou usuário não disponível');
@@ -2236,7 +2245,11 @@ const App = () => {
 
     const wantedWithMatches = wantedList.map(wc => ({
       ...wc,
-      matches: EVENTS.filter(ev => (ev.cards||[]).some(c => matchWanted(wc, c)))
+      matches: EVENTS.filter(ev => (ev.cards||[]).some(c => matchWanted(wc, c))),
+      vitrineMatches: vitrineAll.filter(vc =>
+        vc.name && wc.name && vc.name === wc.name &&
+        (!wc.number || !vc.number || vc.number === wc.number)
+      )
     }));
 
     const TAGS = ['Charizard','Pikachu','Umbreon','Mewtwo','Lugia','Rayquaza','Mew','Arceus','Gengar','Eevee'];
@@ -2498,8 +2511,8 @@ const App = () => {
                         <p className="font-black text-gray-900 text-lg leading-tight">{wantedModal.name}</p>
                         {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{typeof wantedModal.set === 'object' ? wantedModal.set?.name : wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
                         <div className="mt-3 space-y-1.5">
-                          {wantedModal.matches.length > 0 ? (
-                            <div>
+                          {wantedModal.matches.length > 0 && (
+                            <div className="mb-2">
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Em leilão</p>
                               {wantedModal.matches.map((ev,j) => (
                                 <button key={j} onClick={()=>{ setWantedModal(null); setModalEvent(ev); }}
@@ -2509,8 +2522,21 @@ const App = () => {
                                 </button>
                               ))}
                             </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em nenhum leilão ainda</p>
+                          )}
+                          {wantedModal.vitrineMatches && wantedModal.vitrineMatches.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">À venda na vitrine</p>
+                              {wantedModal.vitrineMatches.map((vc,j) => (
+                                <button key={j} onClick={()=>{ setWantedModal(null); setScreen('vitrine'); }}
+                                  className="flex items-center gap-1.5 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold w-full text-left mb-1">
+                                  <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse flex-shrink-0" />
+                                  {vc.vendedor} · R$ {Number(vc.price).toFixed(2)} · {vc.quality}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {(!wantedModal.matches || wantedModal.matches.length === 0) && (!wantedModal.vitrineMatches || wantedModal.vitrineMatches.length === 0) && (
+                            <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em leilão ou vitrine ainda</p>
                           )}
                         </div>
                       </div>
@@ -2538,10 +2564,17 @@ const App = () => {
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-gray-800 text-sm">{wc.name}</p>
                           {wc.set ? <p className="text-xs text-gray-400">{typeof wc.set === 'object' ? wc.set?.name : wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
-                          {wc.matches.length > 0
-                            ? <p className="text-[10px] font-black text-green-600 mt-1">✅ Em {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</p>
-                            : <p className="text-[10px] text-gray-400 mt-1">⏳ Aguardando leilão…</p>
-                          }
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {wc.matches.length > 0 && (
+                              <span className="text-[10px] font-black text-green-600">✅ {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</span>
+                            )}
+                            {wc.vitrineMatches && wc.vitrineMatches.length > 0 && (
+                              <span className="text-[10px] font-black text-orange-500">🏪 {wc.vitrineMatches.length} na vitrine</span>
+                            )}
+                            {wc.matches.length === 0 && (!wc.vitrineMatches || wc.vitrineMatches.length === 0) && (
+                              <span className="text-[10px] text-gray-400">⏳ Aguardando…</span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-gray-300 text-sm flex-shrink-0">›</span>
                       </div>
