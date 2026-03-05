@@ -4886,11 +4886,13 @@ const App = () => {
                     {c.img_url
                       ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
                       : <span className="text-5xl">🎴</span>}
-                    <span className={`absolute top-2 left-2 text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
-                    {c.language && (
-                      <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
-                        className="absolute bottom-2 right-2 w-6 h-4 rounded object-cover shadow-md" />
-                    )}
+                    <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+                      <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                      {c.language && (
+                        <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
+                          className="w-6 h-4 rounded object-cover shadow-md" />
+                      )}
+                    </div>
                   </div>
                   {/* Info */}
                   <div className="p-2.5">
