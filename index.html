@@ -271,7 +271,7 @@ const searchLocalCards = (query) => {
 
 /* ─── CONSTANTES GLOBAIS ─── */
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
-  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -3614,7 +3614,7 @@ const App = () => {
       const isPoll = atype === 'poll';
   
       const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
-  const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
       const [cardIdx,    setCardIdx]    = useState(0);
