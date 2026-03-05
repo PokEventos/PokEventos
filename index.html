@@ -4671,6 +4671,7 @@ const App = () => {
     const [selCard,      setSelCard]      = React.useState(null);
     const [selVendedor,  setSelVendedor]  = React.useState(null);
     const [sortBy,       setSortBy]       = React.useState('recente'); // recente | menor | maior | az | za
+    const [searchQ,      setSearchQ]      = React.useState('');
     const [myCards,      setMyCards]      = React.useState([]);
     const [showForm,     setShowForm]     = React.useState(false);
     const [publishing,   setPublishing]   = React.useState(false);
@@ -4758,7 +4759,17 @@ const App = () => {
     };
 
     const vendedores = [...new Map(cards.map(c => [c.user_id, { user_id: c.user_id, vendedor: c.vendedor, avatar_url: c.avatar_url }])).values()];
-    const filteredCards = selVendedor ? cards.filter(c => c.user_id === selVendedor) : cards;
+    const searchedCards = searchQ.trim()
+      ? cards.filter(c => {
+          const q = searchQ.toLowerCase();
+          return (c.name||'').toLowerCase().includes(q) ||
+                 (c.set_name||'').toLowerCase().includes(q) ||
+                 (c.vendedor||'').toLowerCase().includes(q) ||
+                 (c.number||'').toLowerCase().includes(q) ||
+                 (c.comment||'').toLowerCase().includes(q);
+        })
+      : cards;
+    const filteredCards = selVendedor ? searchedCards.filter(c => c.user_id === selVendedor) : searchedCards;
     const displayCards = [...filteredCards].sort((a, b) => {
       if (sortBy === 'menor') return a.price - b.price;
       if (sortBy === 'maior') return b.price - a.price;
@@ -4783,8 +4794,31 @@ const App = () => {
           </div>
         </div>
 
+        {/* Campo de busca */}
+        <div className="px-4 pt-4 pb-0">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+            <input
+              value={searchQ}
+              onChange={e=>{ setSearchQ(e.target.value); setSelVendedor(null); }}
+              placeholder="Buscar carta ou vendedor…"
+              className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 rounded-2xl text-sm outline-none focus:border-yellow-400 bg-white" />
+            {searchQ && (
+              <button onClick={()=>setSearchQ('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-lg leading-none">
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQ && (
+            <p className="text-xs text-gray-400 mt-1.5 ml-1">
+              {filteredCards.length} resultado{filteredCards.length !== 1 ? 's' : ''} para "<span className="font-bold text-gray-600">{searchQ}</span>"
+            </p>
+          )}
+        </div>
+
         {/* Filtro por vendedor */}
-        {vendedores.length > 0 && (
+        {!searchQ && vendedores.length > 0 && (
           <div className="px-4 pt-4 pb-2">
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button onClick={()=>setSelVendedor(null)}
