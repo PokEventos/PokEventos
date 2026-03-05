@@ -1323,7 +1323,6 @@ const App = () => {
           { id:'home',     icon:'🎴', label:'Leilões'    },
           { id:'calendar', icon:'📅', label:'Calendário'  },
           { id:'search',   icon:'🔍', label:'Buscar'      },
-          { id:'profile',  icon:'👤', label:'Perfil'      },
         ].map(tab=>(
           <button key={tab.id} onClick={()=>setScreen(tab.id)}
             className={`flex flex-col items-center gap-0.5 relative ${current===tab.id?'text-red-600':'text-gray-400'}`}>
