@@ -271,7 +271,7 @@ const searchLocalCards = (query) => {
 
 /* ─── CONSTANTES GLOBAIS ─── */
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
-  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -839,15 +839,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                       {/* Badges Condição + Idioma */}
                       <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
                         {card.quality && (
-                          <div className={`px-2 py-1 rounded-md text-[10px] font-black shadow-md ${
-                            card.quality === 'M' ? 'bg-emerald-500 text-white' :
-                            card.quality === 'NM' ? 'bg-blue-500 text-white' :
-                            card.quality === 'LP' ? 'bg-yellow-500 text-gray-900' :
-                            card.quality === 'MP' ? 'bg-orange-500 text-white' :
-                            card.quality === 'HP' ? 'bg-red-500 text-white' :
-                            card.quality === 'DMG' ? 'bg-gray-700 text-white' :
-                            'bg-gray-400 text-white'
-                          }`}>
+                          <div className={`px-2 py-1 rounded-md text-[10px] font-black text-white shadow-md ${QUALITY_COLOR[card.quality]||'bg-gray-400'}`}>
                             {card.quality}
                           </div>
                         )}
@@ -3614,7 +3606,7 @@ const App = () => {
       const isPoll = atype === 'poll';
   
       const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
-  const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
       const [cardIdx,    setCardIdx]    = useState(0);
