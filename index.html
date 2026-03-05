@@ -4249,6 +4249,37 @@ const App = () => {
   };
 
   const ProfileScreen = () => {
+    const [photoUploading, setPhotoUploading] = useState(false);
+
+    const handleProfilePhoto = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !user) return;
+      setPhotoUploading(true);
+      try {
+        const ext = file.name.split('.').pop();
+        const fileName = `profile-${user.id}-${Date.now()}.${ext}`;
+
+        // 1. Upload para Storage
+        const { data: upData, error: upErr } = await supabase.storage.from('Avatars').upload(fileName, file, { upsert: true });
+        if (upErr) { alert('Erro no upload: ' + upErr.message); setPhotoUploading(false); return; }
+
+        // 2. Pegar URL pública
+        const { data: urlData } = supabase.storage.from('Avatars').getPublicUrl(fileName);
+        const photoUrl = urlData.publicUrl;
+
+        // 3. Salvar na tabela profiles
+        const { error: dbErr } = await supabase.from('profiles').update({ avatar_url: photoUrl }).eq('id', user.id);
+        if (dbErr) { alert('Erro ao salvar no perfil: ' + dbErr.message + '\nSQL: ' + JSON.stringify(dbErr)); setPhotoUploading(false); return; }
+
+        // 4. Atualizar estado local
+        setUserProfile(p => ({ ...p, avatar_url: photoUrl }));
+        alert('✅ Foto salva com sucesso!');
+      } catch(err) {
+        alert('Erro inesperado: ' + err.message);
+      }
+      setPhotoUploading(false);
+    };
+
     const handleLogout = async () => {
       const { error } = await sbAuth.signOut();
       if (!error) {
@@ -4274,7 +4305,16 @@ const App = () => {
       <div className="px-4 -mt-6 space-y-4">
         <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
+            <label className="relative cursor-pointer group flex-shrink-0">
+                {userProfile?.avatar_url
+                  ? <img src={userProfile.avatar_url} className="w-16 h-16 rounded-full object-cover shadow-lg border-4 border-white" />
+                  : <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
+                }
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {photoUploading ? <span className="text-white text-xs">...</span> : <span className="text-white text-lg">📷</span>}
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhoto} disabled={photoUploading} />
+              </label>
             <div>
               <p className="text-xl font-black text-gray-800">{userName}</p>
               <p className="text-gray-500 text-sm">{userEmail}</p>
