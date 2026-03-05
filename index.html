@@ -4879,10 +4879,14 @@ const App = () => {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {displayCards.map(c => (
-                <div key={c.id} onClick={()=>setSelCard(c)}
-                  className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-transform border border-gray-100">
+                {(() => {
+                  const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
+                  const vCard = { id: c.card_id||c.id, name: c.name, set: { name: c.set_name }, number: c.number, images: { small: c.img_url, large: c.img_url } };
+                  return (
+                <div key={c.id}
+                  className={`bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'}`}>
                   {/* Imagem */}
-                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative">
+                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative" onClick={()=>setSelCard(c)}>
                     {c.img_url
                       ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
                       : <span className="text-5xl">🎴</span>}
@@ -4893,9 +4897,15 @@ const App = () => {
                           className="w-6 h-4 rounded object-cover shadow-md" />
                       )}
                     </div>
+                    {/* Sininho Wanted */}
+                    <button onClick={e=>{ e.stopPropagation(); vWanted ? removeWanted(vWanted.id) : addToWanted(vCard); }}
+                      className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-base shadow-md transition-all active:scale-90 ${vWanted ? 'bg-yellow-400 text-gray-900' : 'bg-white/90 text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'}`}>
+                      {vWanted ? '⭐' : '☆'}
+                    </button>
+                    {vWanted && <div className="absolute bottom-0 left-0 right-0 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">⭐ Na sua Wanted List</div>}
                   </div>
                   {/* Info */}
-                  <div className="p-2.5">
+                  <div className="p-2.5" onClick={()=>setSelCard(c)}>
                     <p className="font-black text-gray-900 text-sm leading-tight truncate">{c.name}</p>
                     <p className="text-[10px] text-gray-400 truncate">{c.set_name}{c.number?` · ${c.number}`:''}</p>
                     <p className="font-black text-green-600 text-base mt-1">R$ {Number(c.price).toFixed(2)}</p>
@@ -4908,6 +4918,8 @@ const App = () => {
                     </div>
                   </div>
                 </div>
+                  );
+                })()}
               ))}
             </div>
           )}
@@ -4948,7 +4960,17 @@ const App = () => {
                 </div>
               </div>
               {/* Botão WhatsApp */}
-              <div className="px-5 mt-5">
+              <div className="px-5 mt-4 space-y-2">
+                {(() => {
+                  const mWanted = wantedList.find(w => (selCard.card_id && w.id === selCard.card_id) || (w.name && selCard.name && w.name === selCard.name && w.number === selCard.number));
+                  const mCard = { id: selCard.card_id||selCard.id, name: selCard.name, set: { name: selCard.set_name }, number: selCard.number, images: { small: selCard.img_url, large: selCard.img_url } };
+                  return (
+                    <button onClick={()=> mWanted ? removeWanted(mWanted.id) : addToWanted(mCard)}
+                      className={`w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all border-2 ${mWanted ? 'bg-yellow-400 border-yellow-400 text-gray-900' : 'bg-white border-yellow-300 text-yellow-600 hover:bg-yellow-50'}`}>
+                      {mWanted ? '⭐ Na sua Wanted List' : '☆ Adicionar à Wanted List'}
+                    </button>
+                  );
+                })()}
                 <a href={`https://wa.me/${selCard.whatsapp.replace(/\D/g,'')}`} target="_blank"
                   className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg">
                   💬 Falar com vendedor no WhatsApp
