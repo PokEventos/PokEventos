@@ -270,7 +270,8 @@ const searchLocalCards = (query) => {
 };
 
 /* ─── CONSTANTES GLOBAIS ─── */
-const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
+const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -851,7 +852,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
                           </div>
                         )}
                         {card.language && (
-                          <img src={`https://flagcdn.com/w40/${card.language.toLowerCase()}.png`} alt={card.language}
+                          <img src={`https://flagcdn.com/w40/${langFlag(card.language)}.png`} alt={card.language}
                             className="w-6 h-5 rounded object-cover shadow-md" />
                         )}
                       </div>
@@ -971,6 +972,7 @@ const App = () => {
     const [screen,      setScreen]      = useState('login');
   const [editingAuction, setEditingAuction] = useState(null);
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
+  const [vitrineAll,  setVitrineAll]  = useState([]); // Cartas da vitrine (global)
   const [checkins,    setCheckins]    = useState([]);
   const [modalEvent,  setModalEvent]  = useState(null);
   const [modalEventShowCards, setModalEventShowCards] = useState(false);
@@ -1037,6 +1039,14 @@ const App = () => {
   };
   
   // Carregar check-ins do Supabase
+  const loadVitrineAll = async () => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase.from('vitrine').select('*').eq('ativo', true);
+      if (data) setVitrineAll(data);
+    } catch(e) {}
+  };
+
   const loadCheckinsFromDB = async () => {
     if (!supabase || !user) {
       console.warn('⚠️ Supabase ou usuário não disponível');
@@ -1099,6 +1109,7 @@ const App = () => {
     const tryLoadAuctions = () => {
       if (supabase) {
         loadAuctionsFromDB();
+        loadVitrineAll();
       } else {
         console.log('⏳ Aguardando Supabase inicializar...');
         setTimeout(tryLoadAuctions, 200);
@@ -1323,6 +1334,7 @@ const App = () => {
           { id:'home',     icon:'🎴', label:'Leilões'    },
           { id:'calendar', icon:'📅', label:'Calendário'  },
           { id:'search',   icon:'🔍', label:'Buscar'      },
+          { id:'vitrine',  icon:'🏪', label:'Vitrine'     },
         ].map(tab=>(
           <button key={tab.id} onClick={()=>setScreen(tab.id)}
             className={`flex flex-col items-center gap-0.5 relative ${current===tab.id?'text-red-600':'text-gray-400'}`}>
@@ -1617,6 +1629,7 @@ const App = () => {
     const [accountType, setAccountType] = React.useState('collector');
     const [formData, setFormData] = React.useState({
       displayName: '',
+      apelido: '',
       email: '',
       whatsapp: '',
       password: '',
@@ -1632,7 +1645,7 @@ const App = () => {
       setError('');
       
       // Validações
-      if (!formData.displayName || !formData.email || !formData.password) {
+      if (!formData.displayName || !formData.apelido || !formData.email || !formData.password) {
         setError('Preencha todos os campos obrigatórios');
         return;
       }
@@ -1683,7 +1696,7 @@ const App = () => {
           const { data: result, error: rpcError } = await supabase.rpc('create_user_profile', {
             user_id: data.user.id,
             user_email: formData.email,
-            user_name: formData.displayName,
+            user_name: formData.apelido,
             user_tipo: isAuc ? 'leiloeiro' : 'participante',
             user_whatsapp: formData.whatsapp || null
           });
@@ -1764,6 +1777,17 @@ const App = () => {
             disabled={loading}
             className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
           />
+          <div>
+            <input 
+              type="text" 
+              placeholder="Apelido / Nome público *" 
+              value={formData.apelido}
+              onChange={(e) => setFormData({...formData, apelido: e.target.value})}
+              disabled={loading}
+              className="w-full px-4 py-2.5 border-2 border-yellow-300 focus:border-yellow-500 rounded-xl outline-none text-sm disabled:bg-gray-50" 
+            />
+            <p className="text-[10px] text-gray-400 mt-1 ml-1">🏪 Este nome aparece na vitrine e nos leilões</p>
+          </div>
           <input 
             type="email" 
             placeholder="E-mail *" 
@@ -2234,7 +2258,19 @@ const App = () => {
 
     const wantedWithMatches = wantedList.map(wc => ({
       ...wc,
-      matches: EVENTS.filter(ev => (ev.cards||[]).some(c => matchWanted(wc, c)))
+      matches: EVENTS.filter(ev => (ev.cards||[]).some(c => matchWanted(wc, c))),
+      vitrineMatches: vitrineAll.filter(vc => {
+        // Adapta carta da vitrine para o formato esperado pelo matchWanted
+        const vcAdapted = {
+          name: vc.name,
+          nameEn: vc.name,
+          number: vc.number || '',
+          set: vc.set_name || '',
+          setId: vc.card_id || '',
+          id: vc.card_id || vc.id,
+        };
+        return matchWanted(wc, vcAdapted);
+      })
     }));
 
     const TAGS = ['Charizard','Pikachu','Umbreon','Mewtwo','Lugia','Rayquaza','Mew','Arceus','Gengar','Eevee'];
@@ -2494,10 +2530,10 @@ const App = () => {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-gray-900 text-lg leading-tight">{wantedModal.name}</p>
-                        {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
+                        {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{typeof wantedModal.set === 'object' ? wantedModal.set?.name : wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
                         <div className="mt-3 space-y-1.5">
-                          {wantedModal.matches.length > 0 ? (
-                            <div>
+                          {wantedModal.matches.length > 0 && (
+                            <div className="mb-2">
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Em leilão</p>
                               {wantedModal.matches.map((ev,j) => (
                                 <button key={j} onClick={()=>{ setWantedModal(null); setModalEvent(ev); }}
@@ -2507,8 +2543,21 @@ const App = () => {
                                 </button>
                               ))}
                             </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em nenhum leilão ainda</p>
+                          )}
+                          {wantedModal.vitrineMatches && wantedModal.vitrineMatches.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">À venda na vitrine</p>
+                              {wantedModal.vitrineMatches.map((vc,j) => (
+                                <button key={j} onClick={()=>{ setWantedModal(null); setScreen('vitrine'); }}
+                                  className="flex items-center gap-1.5 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold w-full text-left mb-1">
+                                  <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse flex-shrink-0" />
+                                  {vc.vendedor} · R$ {Number(vc.price).toFixed(2)} · {vc.quality}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {(!wantedModal.matches || wantedModal.matches.length === 0) && (!wantedModal.vitrineMatches || wantedModal.vitrineMatches.length === 0) && (
+                            <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em leilão ou vitrine ainda</p>
                           )}
                         </div>
                       </div>
@@ -2535,11 +2584,18 @@ const App = () => {
                         {wc.img ? <img src={wc.img} alt={wc.name} className="h-16 w-auto object-contain rounded-lg shadow border border-yellow-100 flex-shrink-0" /> : null}
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-gray-800 text-sm">{wc.name}</p>
-                          {wc.set ? <p className="text-xs text-gray-400">{wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
-                          {wc.matches.length > 0
-                            ? <p className="text-[10px] font-black text-green-600 mt-1">✅ Em {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</p>
-                            : <p className="text-[10px] text-gray-400 mt-1">⏳ Aguardando leilão…</p>
-                          }
+                          {wc.set ? <p className="text-xs text-gray-400">{typeof wc.set === 'object' ? wc.set?.name : wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {wc.matches.length > 0 && (
+                              <span className="text-[10px] font-black text-green-600">✅ {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</span>
+                            )}
+                            {wc.vitrineMatches && wc.vitrineMatches.length > 0 && (
+                              <span className="text-[10px] font-black text-orange-500">🏪 {wc.vitrineMatches.length} na vitrine</span>
+                            )}
+                            {wc.matches.length === 0 && (!wc.vitrineMatches || wc.vitrineMatches.length === 0) && (
+                              <span className="text-[10px] text-gray-400">⏳ Aguardando…</span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-gray-300 text-sm flex-shrink-0">›</span>
                       </div>
@@ -3352,7 +3408,7 @@ const App = () => {
                               </div>
                               {/* Mostra bandeira do dropdown selecionado */}
                               {!['BR','EN','JP'].includes(language||'BR') && language && (
-                                <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language}
+                                <img src={`https://flagcdn.com/w40/${langFlag(language)}.png`} alt={language}
                                   className="w-8 h-8 rounded-lg object-cover border-2 border-gray-800 shadow-md" />
                               )}
                             </div>
@@ -3491,7 +3547,7 @@ const App = () => {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className={`text-xs font-black text-white px-2 py-1 rounded-lg ${QUALITY_COLOR[quality]}`}>{quality}</span>
-                        {language && <img src={`https://flagcdn.com/w40/${language.toLowerCase()}.png`} alt={language} className="w-6 h-5 rounded object-cover shadow" />}
+                        {language && <img src={`https://flagcdn.com/w40/${langFlag(language)}.png`} alt={language} className="w-6 h-5 rounded object-cover shadow" />}
                       </div>
                     </div>
                   ))}
@@ -3557,7 +3613,8 @@ const App = () => {
       const isFree = atype === 'free';
       const isPoll = atype === 'poll';
   
-      const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
+      const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
+  const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
       const [cardIdx,    setCardIdx]    = useState(0);
@@ -4281,6 +4338,21 @@ const App = () => {
 
   const ProfileScreen = () => {
     const [photoUploading, setPhotoUploading] = useState(false);
+    const [editingNome,   setEditingNome]   = useState(false);
+    const [novoNome,      setNovoNome]      = useState('');
+    const [savingNome,    setSavingNome]    = useState(false);
+
+    const handleSaveNome = async () => {
+      if (!novoNome.trim()) return;
+      setSavingNome(true);
+      const { error } = await supabase.from('profiles').update({ nome: novoNome.trim() }).eq('id', user.id);
+      if (error) { alert('Erro ao salvar: ' + error.message); }
+      else {
+        setUserProfile(p => ({ ...p, nome: novoNome.trim() }));
+        setEditingNome(false);
+      }
+      setSavingNome(false);
+    };
 
     const handleProfilePhoto = async (e) => {
       const file = e.target.files?.[0];
@@ -4346,9 +4418,33 @@ const App = () => {
                 </div>
                 <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhoto} disabled={photoUploading} />
               </label>
-            <div>
-              <p className="text-xl font-black text-gray-800">{userName}</p>
-              <p className="text-gray-500 text-sm">{userEmail}</p>
+            <div className="flex-1 min-w-0">
+              {/* Nome editável */}
+              {editingNome ? (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <input autoFocus value={novoNome} onChange={e=>setNovoNome(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter') handleSaveNome(); if(e.key==='Escape') setEditingNome(false); }}
+                    className="flex-1 min-w-0 px-2 py-1 border-2 border-yellow-400 rounded-lg text-sm font-black text-gray-800 outline-none" />
+                  <button onClick={handleSaveNome} disabled={savingNome}
+                    className="w-7 h-7 bg-yellow-400 hover:bg-yellow-500 rounded-lg flex items-center justify-center text-xs font-black disabled:opacity-50">
+                    {savingNome ? '…' : '✓'}
+                  </button>
+                  <button onClick={()=>setEditingNome(false)}
+                    className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xl font-black text-gray-800 truncate">{userName}</p>
+                  <button onClick={()=>{ setNovoNome(userName); setEditingNome(true); }}
+                    className="flex-shrink-0 w-6 h-6 bg-gray-100 hover:bg-yellow-100 rounded-md flex items-center justify-center text-xs text-gray-400 hover:text-yellow-600 transition-all"
+                    title="Editar apelido">
+                    ✏️
+                  </button>
+                </div>
+              )}
+              <p className="text-gray-500 text-sm truncate">{userEmail}</p>
               {userWhatsapp && (
                 <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
               )}
@@ -4416,6 +4512,9 @@ const App = () => {
                 <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
                   📋 Leilões Criados
                 </button>
+                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
+                  🏪 Cartas na Vitrine
+                </button>
               </div>
             )}
 
@@ -4428,6 +4527,9 @@ const App = () => {
                 </button>
                 <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
                   📋 Leilões Criados
+                </button>
+                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
+                  🏪 Cartas na Vitrine
                 </button>
               </div>
             )}
@@ -4558,6 +4660,646 @@ const App = () => {
     );
   };
 
+
+  /* ════════════════════════════════════════
+     TELA VITRINE
+  ════════════════════════════════════════ */
+  const VitrineScreen = () => {
+    const QUALITIES_V = ['M','NM','SP','MP','HP','D'];
+    const [cards,        setCards]        = React.useState([]);
+    const [loading,      setLoading]      = React.useState(true);
+    const [selCard,      setSelCard]      = React.useState(null);
+    const [selVendedor,  setSelVendedor]  = React.useState(null);
+    const [myCards,      setMyCards]      = React.useState([]);
+    const [showForm,     setShowForm]     = React.useState(false);
+    const [publishing,   setPublishing]   = React.useState(false);
+    const [whatsapp,     setWhatsapp]     = React.useState(userProfile?.whatsapp || '');
+    // cartas sendo montadas para publicar
+    const [vitrineCards, setVitrineCards] = React.useState([]);
+    const [vCardQuery,   setVCardQuery]   = React.useState('');
+    const [vCardResults, setVCardResults] = React.useState([]);
+    const [vCardLoading, setVCardLoading] = React.useState(false);
+    const vDebounceRef = React.useRef(null);
+
+    const canPost = isAuctioneer && isApproved;
+
+    React.useEffect(() => { loadCards(); }, []);
+    React.useEffect(() => { if (canPost && user) setMyCards(cards.filter(c => c.user_id === user.id)); }, [cards]);
+
+    const loadCards = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.from('vitrine').select('*').eq('ativo', true).order('created_at', { ascending: false });
+        if (!error && data) setCards(data);
+      } catch(e) {}
+      setLoading(false);
+    };
+
+    const searchVitrineCards = (q) => {
+      setVCardQuery(q);
+      if (!q.trim()) { setVCardResults([]); return; }
+      if (vDebounceRef.current) clearTimeout(vDebounceRef.current);
+      vDebounceRef.current = setTimeout(async () => {
+        setVCardLoading(true);
+        try { const found = await tcgdexBuscar(q.trim()); setVCardResults(found); } catch(e) {}
+        setVCardLoading(false);
+      }, 500);
+    };
+
+    const addVitrineCard = (card) => {
+      if (vitrineCards.find(c => c.card.id === card.id)) return;
+      setVitrineCards(p => [{ card, quality:'NM', language:'BR', price:'', comment:'' }, ...p]);
+      setVCardQuery(''); setVCardResults([]);
+    };
+
+    const updateVitrineCard = (id, field, val) =>
+      setVitrineCards(p => p.map(c => c.card.id === id ? {...c, [field]: val} : c));
+
+    const removeVitrineCard = (id) => setVitrineCards(p => p.filter(c => c.card.id !== id));
+
+    const handlePublish = async () => {
+      if (!whatsapp) { alert('Informe seu WhatsApp'); return; }
+      if (vitrineCards.length === 0) { alert('Adicione pelo menos uma carta'); return; }
+      if (vitrineCards.some(c => !c.price)) { alert('Defina o preço de todas as cartas'); return; }
+      setPublishing(true);
+      const vendedor = userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro';
+      try {
+        for (const vc of vitrineCards) {
+          const { error } = await supabase.from('vitrine').insert({
+            user_id:    user.id,
+            vendedor,
+            avatar_url: userProfile?.avatar_url || null,
+            name:       vc.card.name,
+            set_name:   vc.card.set?.name || '',
+            number:     vc.card.number || '',
+            quality:    vc.quality,
+            language:   vc.language,
+            price:      parseFloat(vc.price),
+            whatsapp,
+            img_url:    vc.card.images?.large || vc.card.images?.small || null,
+            comment:    vc.comment || '',
+            card_id:    vc.card.id || '',
+            ativo:      true,
+          });
+          if (error) { alert('Erro ao publicar ' + vc.card.name + ': ' + error.message); }
+        }
+        setVitrineCards([]);
+        setShowForm(false);
+        loadCards();
+      } catch(e) { alert('Erro: ' + e.message); }
+      setPublishing(false);
+    };
+
+    const handleDelete = async (id) => {
+      if (!confirm('Remover esta carta da vitrine?')) return;
+      await supabase.from('vitrine').update({ ativo: false }).eq('id', id).eq('user_id', user.id);
+      setCards(p => p.filter(c => c.id !== id));
+    };
+
+    const vendedores = [...new Map(cards.map(c => [c.user_id, { user_id: c.user_id, vendedor: c.vendedor, avatar_url: c.avatar_url }])).values()];
+    const displayCards = selVendedor ? cards.filter(c => c.user_id === selVendedor) : cards;
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-5 pb-6 relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">🏪</div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <p className="text-yellow-900/60 text-[10px] font-black tracking-widest uppercase mb-0.5">PokEventos</p>
+              <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Vitrine</h1>
+              <p className="text-yellow-900/60 text-xs mt-0.5">Cartas à venda por preço fixo</p>
+            </div>
+            <ProfileBtn />
+          </div>
+        </div>
+
+        {/* Filtro por vendedor */}
+        {vendedores.length > 0 && (
+          <div className="px-4 pt-4 pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button onClick={()=>setSelVendedor(null)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${!selVendedor?'bg-yellow-400 border-yellow-400 text-gray-900':'bg-white border-gray-200 text-gray-500'}`}>
+                Todos ({cards.length})
+              </button>
+              {vendedores.map(v => (
+                <button key={v.user_id} onClick={()=>setSelVendedor(v.user_id)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${selVendedor===v.user_id?'bg-yellow-400 border-yellow-400 text-gray-900':'bg-white border-gray-200 text-gray-500'}`}>
+                  {v.avatar_url ? <img src={v.avatar_url} className="w-4 h-4 rounded-full object-cover" /> : <span className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-[9px] font-black">{v.vendedor?.charAt(0)}</span>}
+                  {v.vendedor}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pt-2 space-y-4">
+
+          {/* Botão postar */}
+          {canPost && (
+            <button onClick={()=>setShowForm(p=>!p)}
+              className="w-full py-3 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+              {showForm ? '✕ Cancelar' : '＋ Postar Cartas na Vitrine'}
+            </button>
+          )}
+
+          {/* Formulário postar — igual ao leilão */}
+          {showForm && canPost && (
+            <div className="bg-white rounded-2xl shadow-lg border-t-4 border-yellow-400 overflow-hidden">
+              <div className="p-4 border-b border-gray-100">
+                <p className="font-black text-gray-800">📋 Adicionar à Vitrine</p>
+                <p className="text-xs text-gray-400 mt-0.5">Busque as cartas e configure preço individualmente</p>
+              </div>
+
+              {/* WhatsApp global */}
+              <div className="px-4 pt-3 pb-0">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">WhatsApp para contato *</label>
+                <input value={whatsapp} onChange={e=>setWhatsapp(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400 mt-1" />
+              </div>
+
+              {/* Busca de carta */}
+              <div className="p-4 space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Buscar Carta</label>
+                <div className="flex gap-2">
+                  <input value={vCardQuery} onChange={e=>searchVitrineCards(e.target.value)}
+                    placeholder="Nome, número, edição…"
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-yellow-400 outline-none" />
+                  {vCardLoading && <span className="self-center text-gray-400 text-sm flex-shrink-0">⏳</span>}
+                  <label className="flex items-center gap-1 bg-gray-900 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer flex-shrink-0">
+                    📷
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const n=f.name.replace(/\.[^.]+$/,'').replace(/[_-]/g,' '); searchVitrineCards(n); e.target.value=''; }} />
+                  </label>
+                </div>
+
+                {/* Resultados */}
+                {vCardResults.length > 0 && (
+                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto shadow-lg">
+                    {vCardResults.map((card, i) => (
+                      <button key={i} onClick={()=>addVitrineCard(card)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-yellow-50 border-b last:border-0 text-left transition-all">
+                        <img src={card.images?.small} alt={card.name} className="h-20 w-auto object-contain rounded-lg border border-gray-200 flex-shrink-0" onError={e=>e.target.style.display='none'} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-gray-800">{card.name}</p>
+                          {card.namePt && card.namePt !== card.nameEn && <p className="text-[10px] text-blue-500">🇧🇷 {card.namePt}</p>}
+                          <p className="text-xs text-gray-400">{card.set?.name} · <span className="font-mono">{card.number}</span></p>
+                          {card.rarity && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full mt-0.5 inline-block">{card.rarity}</span>}
+                        </div>
+                        <span className="text-green-500 text-2xl flex-shrink-0">+</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Cartas adicionadas */}
+              {vitrineCards.length === 0 ? (
+                <div className="mx-4 mb-4 text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <p className="text-3xl mb-2">🎴</p>
+                  <p className="text-sm text-gray-400">Busque e adicione cartas acima</p>
+                </div>
+              ) : (
+                <div className="px-4 pb-2 space-y-3">
+                  <p className="font-bold text-sm text-gray-700">{vitrineCards.length} carta(s) para publicar</p>
+                  {vitrineCards.map(({card,quality,language,price,comment}) => (
+                    <div key={card.id} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                      {/* Header */}
+                      <div className="flex items-center gap-3 p-3 border-b border-gray-100">
+                        <img src={card.images?.large||card.images?.small} alt={card.name}
+                          className="h-16 w-auto object-contain rounded-lg border border-gray-200 flex-shrink-0"
+                          onError={e=>e.target.style.display='none'} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-sm text-gray-800">{card.name}</p>
+                          {card.namePt && card.namePt !== card.nameEn && <p className="text-[10px] text-blue-500">🇧🇷 {card.namePt}</p>}
+                          <p className="text-xs text-gray-500">{card.set?.name} · <span className="font-mono">{card.number}</span></p>
+                        </div>
+                        <button onClick={()=>removeVitrineCard(card.id)}
+                          className="w-7 h-7 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center flex-shrink-0">✕</button>
+                      </div>
+
+                      <div className="p-3 space-y-3">
+                        {/* Qualidade */}
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1.5">QUALIDADE</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {QUALITIES_V.map(q=>(
+                              <button key={q} onClick={()=>updateVitrineCard(card.id,'quality',q)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${quality===q?`${QUALITY_COLOR[q]} text-white border-transparent`:'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>
+                                {q}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Idioma */}
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1.5">IDIOMA</label>
+                          <div className="flex items-center gap-2">
+                            {[{code:'BR',img:'https://flagcdn.com/w40/br.png'},{code:'EN',img:'https://flagcdn.com/w40/us.png'},{code:'JP',img:'https://flagcdn.com/w40/jp.png'}].map(({code,img})=>(
+                              <button key={code} onClick={()=>updateVitrineCard(card.id,'language',code)}
+                                className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${language===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
+                                <img src={img} className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                            <div className="relative">
+                              <select value={['BR','EN','JP'].includes(language)?'':language}
+                                onChange={e=>{if(e.target.value) updateVitrineCard(card.id,'language',e.target.value);}}
+                                className={`h-10 pl-2 pr-6 rounded-xl border-2 text-xs appearance-none cursor-pointer transition-all ${!['BR','EN','JP'].includes(language)&&language?'border-gray-800 bg-gray-50 shadow-md':'border-gray-200 bg-white opacity-40 hover:opacity-80'}`}>
+                                <option value="">Outros</option>
+                                <option value="CN">🇨🇳 China</option>
+                                <option value="KR">🇰🇷 Coreia</option>
+                                <option value="DE">🇩🇪 Alemanha</option>
+                                <option value="FR">🇫🇷 França</option>
+                                <option value="IT">🇮🇹 Itália</option>
+                                <option value="ES">🇪🇸 Espanha</option>
+                                <option value="PT">🇵🇹 Portugal</option>
+                              </select>
+                              <span className="absolute right-1.5 top-3 text-gray-400 text-[9px] pointer-events-none">▼</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Preço + Comentário */}
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1">PREÇO (R$) *</label>
+                            <input value={price} onChange={e=>updateVitrineCard(card.id,'price',e.target.value)}
+                              placeholder="Ex: 150" type="number"
+                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm outline-none focus:border-yellow-400" />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-gray-500 block mb-1">OBSERVAÇÃO</label>
+                            <input value={comment} onChange={e=>updateVitrineCard(card.id,'comment',e.target.value)}
+                              placeholder="Ex: PSA 9, LP+"
+                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm outline-none focus:border-yellow-400" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Botão publicar */}
+              {vitrineCards.length > 0 && (
+                <div className="p-4 border-t border-gray-100">
+                  <button onClick={handlePublish} disabled={publishing}
+                    className="w-full py-4 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black rounded-2xl text-sm transition-all disabled:opacity-50 shadow-md">
+                    {publishing ? '⏳ Publicando...' : `🏪 Publicar ${vitrineCards.length} carta${vitrineCards.length>1?'s':''} na Vitrine`}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+
+
+          {/* Feed de cartas */}
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3 animate-bounce">🏪</div>
+              <p className="text-gray-400 font-semibold">Carregando vitrine...</p>
+            </div>
+          ) : displayCards.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="text-gray-500 font-semibold">Nenhuma carta na vitrine ainda</p>
+              {canPost && <p className="text-gray-400 text-sm mt-1">Seja o primeiro a postar!</p>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {displayCards.map(c => {
+                const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
+                const vCard = { id: c.card_id||c.id, name: c.name, set: c.set_name||'', number: c.number, img: c.img_url, images: { small: c.img_url, large: c.img_url } };
+                return (
+                <div key={c.id}
+                  className={`bg-white rounded-2xl shadow-md overflow-hidden active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'}`}>
+                  {/* Imagem */}
+                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={()=>setSelCard(c)}>
+                    {c.img_url
+                      ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
+                      : <span className="text-5xl">🎴</span>}
+                    <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+                      <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                      {c.language && (
+                        <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
+                          className="w-6 h-4 rounded object-cover shadow-md" />
+                      )}
+                    </div>
+                    {/* Sininho Wanted */}
+                    <button onClick={e=>{ e.stopPropagation(); vWanted ? removeWanted(vWanted.id) : addToWanted(vCard); }}
+                      className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-base shadow-md transition-all active:scale-90 ${vWanted ? 'bg-yellow-400 text-gray-900' : 'bg-white/90 text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'}`}>
+                      {vWanted ? '⭐' : '☆'}
+                    </button>
+                    {vWanted && <div className="absolute bottom-0 left-0 right-0 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">⭐ Na sua Wanted List</div>}
+                  </div>
+                  {/* Info */}
+                  <div className="p-2.5 cursor-pointer" onClick={()=>setSelCard(c)}>
+                    <p className="font-black text-gray-900 text-sm leading-tight truncate">{c.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{c.set_name}{c.number?` · ${c.number}`:''}</p>
+                    <p className="font-black text-green-600 text-base mt-1">R$ {Number(c.price).toFixed(2)}</p>
+                    <div className="flex items-center gap-1 mt-1.5">
+                      {c.avatar_url
+                        ? <img src={c.avatar_url} className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
+                        : <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-[8px] font-black flex-shrink-0">{c.vendedor?.charAt(0)}</div>}
+                      <span className="text-[10px] text-gray-400 truncate">{c.vendedor}</span>
+                    </div>
+                  </div>
+                </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Modal carta */}
+        {selCard && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={()=>setSelCard(null)}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-t-3xl w-full max-w-md shadow-2xl z-10 pb-8" onClick={e=>e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-3" />
+              <div className="flex gap-4 px-5">
+                {/* Imagem */}
+                <div className="w-28 flex-shrink-0 bg-gray-50 rounded-2xl flex items-center justify-center overflow-hidden border border-gray-100">
+                  {selCard.img_url
+                    ? <img src={selCard.img_url} className="w-full object-contain p-1" />
+                    : <span className="text-5xl p-4">🎴</span>}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-black text-gray-900 text-xl leading-tight">{selCard.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{selCard.set_name}{selCard.number?` · ${selCard.number}`:''}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[10px] font-black text-white px-2 py-0.5 rounded-md ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                    {selCard.language && (
+                      <img src={`https://flagcdn.com/w40/${langFlag(selCard.language)}.png`} alt={selCard.language}
+                        className="w-6 h-4 rounded object-cover shadow-md" />
+                    )}
+                  </div>
+                  <p className="font-black text-green-600 text-2xl mt-2">R$ {Number(selCard.price).toFixed(2)}</p>
+                  {/* Vendedor */}
+                  <div className="flex items-center gap-2 mt-2">
+                    {selCard.avatar_url
+                      ? <img src={selCard.avatar_url} className="w-6 h-6 rounded-full object-cover" />
+                      : <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-black">{selCard.vendedor?.charAt(0)}</div>}
+                    <span className="text-sm text-gray-600 font-semibold">{selCard.vendedor}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Botão WhatsApp */}
+              <div className="px-5 mt-4 space-y-2">
+                {(() => {
+                  const mWanted = wantedList.find(w => (selCard.card_id && w.id === selCard.card_id) || (w.name && selCard.name && w.name === selCard.name && w.number === selCard.number));
+                  const mCard = { id: selCard.card_id||selCard.id, name: selCard.name, set: selCard.set_name||'', number: selCard.number, img: selCard.img_url, images: { small: selCard.img_url, large: selCard.img_url } };
+                  return (
+                    <button onClick={()=> mWanted ? removeWanted(mWanted.id) : addToWanted(mCard)}
+                      className={`w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all border-2 ${mWanted ? 'bg-yellow-400 border-yellow-400 text-gray-900' : 'bg-white border-yellow-300 text-yellow-600 hover:bg-yellow-50'}`}>
+                      {mWanted ? '⭐ Na sua Wanted List' : '☆ Adicionar à Wanted List'}
+                    </button>
+                  );
+                })()}
+                <a href={`https://wa.me/${selCard.whatsapp.replace(/\D/g,'')}`} target="_blank"
+                  className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg">
+                  💬 Falar com vendedor no WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BottomNav current="vitrine" />
+      </div>
+    );
+  };
+
+
+  /* ════════════════════════════════════════
+     TELA MINHA VITRINE
+  ════════════════════════════════════════ */
+  const MinhaVitrineScreen = () => {
+    const QUALITIES_MV = ['M','NM','SP','MP','HP','D'];
+    const [myCards,   setMyCards]   = React.useState([]);
+    const [loading,   setLoading]   = React.useState(true);
+    const [expanded,  setExpanded]  = React.useState(null);
+    const [editing,   setEditing]   = React.useState(null); // { id, price, quality, language, comment }
+    const [saving,    setSaving]    = React.useState(false);
+
+    React.useEffect(() => { loadMyCards(); }, []);
+
+    const loadMyCards = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('vitrine')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('ativo', true)
+          .order('created_at', { ascending: false });
+        if (!error && data) setMyCards(data);
+      } catch(e) {}
+      setLoading(false);
+    };
+
+    const startEdit = (c) => setEditing({ id: c.id, price: String(c.price), quality: c.quality, language: c.language || 'BR', comment: c.comment || '' });
+
+    const handleSave = async () => {
+      if (!editing.price) { alert('Informe o preço'); return; }
+      setSaving(true);
+      const { error } = await supabase.from('vitrine').update({
+        price:    parseFloat(editing.price),
+        quality:  editing.quality,
+        language: editing.language,
+        comment:  editing.comment,
+      }).eq('id', editing.id).eq('user_id', user.id);
+      if (error) { alert('Erro ao salvar: ' + error.message); }
+      else {
+        setMyCards(p => p.map(c => c.id === editing.id ? { ...c, price: parseFloat(editing.price), quality: editing.quality, language: editing.language, comment: editing.comment } : c));
+        setEditing(null);
+      }
+      setSaving(false);
+    };
+
+    const handleDelete = async (id) => {
+      if (!confirm('Remover esta carta da vitrine?')) return;
+      const { error } = await supabase.from('vitrine').update({ ativo: false }).eq('id', id).eq('user_id', user.id);
+      if (!error) { setMyCards(p => p.filter(c => c.id !== id)); setEditing(null); }
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-400 to-yellow-500 text-white p-5 pb-8 relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">🏪</div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <button onClick={()=>setScreen('profile')} className="text-white/70 text-xs mb-2 flex items-center gap-1 hover:text-white">← Perfil</button>
+              <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Minha Vitrine</h1>
+              <p className="text-orange-100 text-sm mt-0.5">{myCards.length} carta{myCards.length !== 1 ? 's' : ''} à venda</p>
+            </div>
+            <ProfileBtn />
+          </div>
+        </div>
+
+        <div className="px-4 -mt-4 space-y-3 pt-2">
+          {/* Botão ir para vitrine postar */}
+          <button onClick={()=>setScreen('vitrine')}
+            className="w-full py-3 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+            ＋ Postar Nova Carta
+          </button>
+
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3 animate-bounce">🏪</div>
+              <p className="text-gray-400">Carregando...</p>
+            </div>
+          ) : myCards.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="font-bold text-gray-700 mb-1">Nenhuma carta na vitrine</p>
+              <p className="text-sm text-gray-400 mb-4">Publique cartas para vender!</p>
+              <button onClick={()=>setScreen('vitrine')} className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold text-sm">
+                Ir para a Vitrine
+              </button>
+            </div>
+          ) : myCards.map(c => (
+            <div key={c.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+              {/* Row colapsada */}
+              <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={()=>setExpanded(expanded===c.id?null:c.id)}>
+                {c.img_url
+                  ? <img src={c.img_url} className="h-14 w-auto object-contain rounded-lg border border-gray-100 flex-shrink-0" />
+                  : <div className="w-10 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-gray-800 text-sm truncate">{c.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{c.set_name}{c.number ? ' · ' + c.number : ''}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                    {c.language && <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language} className="w-5 h-3.5 rounded object-cover shadow" />}
+                    <span className="font-black text-green-600 text-sm">R$ {Number(c.price).toFixed(2)}</span>
+                  </div>
+                </div>
+                <span className={`text-gray-300 transition-transform ${expanded===c.id?'rotate-90':''}`}>›</span>
+              </div>
+
+              {/* Expandido */}
+              {expanded === c.id && (
+                <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-2">
+                  {c.img_url && (
+                    <div className="flex justify-center">
+                      <img src={c.img_url} className="h-48 w-auto object-contain rounded-2xl shadow-md" />
+                    </div>
+                  )}
+
+                  {/* Modo visualização */}
+                  {editing?.id !== c.id && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {c.set_name && <div><span className="text-gray-400">Edição</span><p className="font-bold text-gray-700">{c.set_name}</p></div>}
+                        {c.number   && <div><span className="text-gray-400">Número</span><p className="font-bold text-gray-700">{c.number}</p></div>}
+                        {c.language && <div><span className="text-gray-400">Idioma</span>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} className="w-5 h-3.5 rounded object-cover shadow" />
+                            <p className="font-bold text-gray-700">{c.language}</p>
+                          </div>
+                        </div>}
+                        {c.comment  && <div className="col-span-2"><span className="text-gray-400">Obs</span><p className="font-bold text-gray-700">{c.comment}</p></div>}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={()=>startEdit(c)}
+                          className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl text-sm transition-all">
+                          ✏️ Editar
+                        </button>
+                        <button onClick={()=>handleDelete(c.id)}
+                          className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-sm transition-all">
+                          🗑️ Remover
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Modo edição */}
+                  {editing?.id === c.id && (
+                    <div className="space-y-3 pt-1">
+                      {/* Qualidade */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Qualidade</label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {QUALITIES_MV.map(q => (
+                            <button key={q} onClick={()=>setEditing(p=>({...p,quality:q}))}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${editing.quality===q?`${QUALITY_COLOR[q]} text-white border-transparent`:'bg-white text-gray-500 border-gray-200'}`}>
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Idioma */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Idioma</label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {[{code:'BR',img:'https://flagcdn.com/w40/br.png'},{code:'EN',img:'https://flagcdn.com/w40/us.png'},{code:'JP',img:'https://flagcdn.com/w40/jp.png'}].map(({code,img})=>(
+                            <button key={code} onClick={()=>setEditing(p=>({...p,language:code}))}
+                              className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${editing.language===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
+                              <img src={img} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                          <select value={['BR','EN','JP'].includes(editing.language)?'':editing.language}
+                            onChange={e=>{if(e.target.value) setEditing(p=>({...p,language:e.target.value}));}}
+                            className="h-10 pl-2 pr-6 rounded-xl border-2 border-gray-200 text-xs appearance-none cursor-pointer">
+                            <option value="">Outros</option>
+                            <option value="CN">🇨🇳 China</option>
+                            <option value="KR">🇰🇷 Coreia</option>
+                            <option value="DE">🇩🇪 Alemanha</option>
+                            <option value="FR">🇫🇷 França</option>
+                            <option value="IT">🇮🇹 Itália</option>
+                            <option value="ES">🇪🇸 Espanha</option>
+                            <option value="PT">🇵🇹 Portugal</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Preço + Obs */}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Preço (R$)</label>
+                          <input value={editing.price} onChange={e=>setEditing(p=>({...p,price:e.target.value}))}
+                            type="number" placeholder="Ex: 150"
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Observação</label>
+                          <input value={editing.comment} onChange={e=>setEditing(p=>({...p,comment:e.target.value}))}
+                            placeholder="Ex: PSA 9"
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                        </div>
+                      </div>
+
+                      {/* Botões salvar/cancelar */}
+                      <div className="flex gap-2">
+                        <button onClick={()=>setEditing(null)}
+                          className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black rounded-xl text-sm transition-all">
+                          Cancelar
+                        </button>
+                        <button onClick={handleSave} disabled={saving}
+                          className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl text-sm transition-all disabled:opacity-50">
+                          {saving ? '⏳ Salvando…' : '✅ Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <BottomNav current="profile" />
+      </div>
+    );
+  };
+
   /* ─── ROTEAMENTO ─── */
   if (loading) {
     return (
@@ -4588,6 +5330,8 @@ const App = () => {
       {screen==='meusLeiloes' && <MeusLeloesScreen />}
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
+      {screen==='vitrine'    && <VitrineScreen />}
+      {screen==='minhaVitrine' && <MinhaVitrineScreen />}
     </div>
   );
 };
