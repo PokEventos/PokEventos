@@ -270,7 +270,8 @@ const searchLocalCards = (query) => {
 };
 
 /* ─── CONSTANTES GLOBAIS ─── */
-const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
+const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
+  const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-500' };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -3558,7 +3559,8 @@ const App = () => {
       const isFree = atype === 'free';
       const isPoll = atype === 'poll';
   
-      const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
+      const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
+  const QUALITY_COLOR = {M:'bg-green-500',NM:'bg-blue-500',SP:'bg-yellow-500',MP:'bg-orange-500',HP:'bg-red-500',D:'bg-gray-500'};
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
       const [cardIdx,    setCardIdx]    = useState(0);
@@ -4885,6 +4887,10 @@ const App = () => {
                       ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
                       : <span className="text-5xl">🎴</span>}
                     <span className={`absolute top-2 left-2 text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                    {c.language && (
+                      <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
+                        className="absolute bottom-2 right-2 w-6 h-4 rounded object-cover shadow-md" />
+                    )}
                   </div>
                   {/* Info */}
                   <div className="p-2.5">
@@ -4922,7 +4928,13 @@ const App = () => {
                 <div className="flex-1 min-w-0 pt-1">
                   <p className="font-black text-gray-900 text-xl leading-tight">{selCard.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{selCard.set_name}{selCard.number?` · ${selCard.number}`:''}</p>
-                  <span className={`inline-block mt-1.5 text-[10px] font-black text-white px-2 py-0.5 rounded-md ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[10px] font-black text-white px-2 py-0.5 rounded-md ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                    {selCard.language && (
+                      <img src={`https://flagcdn.com/w40/${langFlag(selCard.language)}.png`} alt={selCard.language}
+                        className="w-6 h-4 rounded object-cover shadow-md" />
+                    )}
+                  </div>
                   <p className="font-black text-green-600 text-2xl mt-2">R$ {Number(selCard.price).toFixed(2)}</p>
                   {/* Vendedor */}
                   <div className="flex items-center gap-2 mt-2">
@@ -5029,6 +5041,7 @@ const App = () => {
                   <p className="text-xs text-gray-400 truncate">{c.set_name}{c.number ? ' · ' + c.number : ''}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                    {c.language && <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language} className="w-5 h-3.5 rounded object-cover shadow" />}
                     <span className="font-black text-green-600 text-sm">R$ {Number(c.price).toFixed(2)}</span>
                   </div>
                 </div>
