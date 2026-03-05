@@ -4970,7 +4970,7 @@ const App = () => {
               {canPost && <p className="text-gray-400 text-sm mt-1">Seja o primeiro a postar!</p>}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {displayCards.map(c => {
                 const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
                 const vCard = { id: c.card_id||c.id, name: c.name, set: c.set_name||'', number: c.number, img: c.img_url, images: { small: c.img_url, large: c.img_url } };
