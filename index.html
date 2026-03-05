@@ -4417,6 +4417,9 @@ const App = () => {
                 <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
                   📋 Leilões Criados
                 </button>
+                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
+                  🏪 Cartas na Vitrine
+                </button>
               </div>
             )}
 
@@ -4429,6 +4432,9 @@ const App = () => {
                 </button>
                 <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
                   📋 Leilões Criados
+                </button>
+                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
+                  🏪 Cartas na Vitrine
                 </button>
               </div>
             )}
@@ -4854,28 +4860,7 @@ const App = () => {
             </div>
           )}
 
-          {/* Minhas cartas na vitrine */}
-          {canPost && myCards.length > 0 && !showForm && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center justify-between">
-                <p className="text-xs font-black text-gray-500 uppercase tracking-wide">Minhas cartas na vitrine</p>
-                <span className="text-xs text-gray-400">{myCards.length}</span>
-              </div>
-              {myCards.map(c => (
-                <div key={c.id} className="flex items-center gap-3 p-3 border-b last:border-0">
-                  {c.img_url
-                    ? <img src={c.img_url} className="w-10 h-12 object-contain rounded flex-shrink-0" />
-                    : <div className="w-10 h-12 bg-gray-100 rounded flex items-center justify-center text-lg flex-shrink-0">🎴</div>}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-gray-800 truncate">{c.name}</p>
-                    <p className="text-xs text-gray-400">{c.set_name} {c.number && `· ${c.number}`}</p>
-                  </div>
-                  <p className="font-black text-green-600 text-sm flex-shrink-0">R$ {Number(c.price).toFixed(2)}</p>
-                  <button onClick={()=>handleDelete(c.id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-400 flex-shrink-0">🗑️</button>
-                </div>
-              ))}
-            </div>
-          )}
+
 
           {/* Feed de cartas */}
           {loading ? (
@@ -4964,6 +4949,122 @@ const App = () => {
     );
   };
 
+
+  /* ════════════════════════════════════════
+     TELA MINHA VITRINE
+  ════════════════════════════════════════ */
+  const MinhaVitrineScreen = () => {
+    const [myCards,   setMyCards]   = React.useState([]);
+    const [loading,   setLoading]   = React.useState(true);
+    const [expanded,  setExpanded]  = React.useState(null);
+
+    React.useEffect(() => { loadMyCards(); }, []);
+
+    const loadMyCards = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('vitrine')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('ativo', true)
+          .order('created_at', { ascending: false });
+        if (!error && data) setMyCards(data);
+      } catch(e) {}
+      setLoading(false);
+    };
+
+    const handleDelete = async (id) => {
+      if (!confirm('Remover esta carta da vitrine?')) return;
+      const { error } = await supabase.from('vitrine').update({ ativo: false }).eq('id', id).eq('user_id', user.id);
+      if (!error) setMyCards(p => p.filter(c => c.id !== id));
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-400 to-yellow-500 text-white p-5 pb-8 relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">🏪</div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <button onClick={()=>setScreen('profile')} className="text-white/70 text-xs mb-2 flex items-center gap-1 hover:text-white">← Perfil</button>
+              <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Minha Vitrine</h1>
+              <p className="text-orange-100 text-sm mt-0.5">{myCards.length} carta{myCards.length !== 1 ? 's' : ''} à venda</p>
+            </div>
+            <ProfileBtn />
+          </div>
+        </div>
+
+        <div className="px-4 -mt-4 space-y-3 pt-2">
+          {/* Botão ir para vitrine postar */}
+          <button onClick={()=>setScreen('vitrine')}
+            className="w-full py-3 bg-gray-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-700 transition-all shadow-md">
+            ＋ Postar Nova Carta
+          </button>
+
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3 animate-bounce">🏪</div>
+              <p className="text-gray-400">Carregando...</p>
+            </div>
+          ) : myCards.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+              <p className="text-5xl mb-3">🎴</p>
+              <p className="font-bold text-gray-700 mb-1">Nenhuma carta na vitrine</p>
+              <p className="text-sm text-gray-400 mb-4">Publique cartas para vender!</p>
+              <button onClick={()=>setScreen('vitrine')} className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold text-sm">
+                Ir para a Vitrine
+              </button>
+            </div>
+          ) : myCards.map(c => (
+            <div key={c.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+              {/* Row colapsada */}
+              <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={()=>setExpanded(expanded===c.id?null:c.id)}>
+                {c.img_url
+                  ? <img src={c.img_url} className="h-14 w-auto object-contain rounded-lg border border-gray-100 flex-shrink-0" />
+                  : <div className="w-10 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-gray-800 text-sm truncate">{c.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{c.set_name}{c.number ? ' · ' + c.number : ''}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                    <span className="font-black text-green-600 text-sm">R$ {Number(c.price).toFixed(2)}</span>
+                  </div>
+                </div>
+                <span className={`text-gray-300 transition-transform ${expanded===c.id?'rotate-90':''}`}>›</span>
+              </div>
+
+              {/* Expandido */}
+              {expanded === c.id && (
+                <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-2">
+                  {c.img_url && (
+                    <div className="flex justify-center">
+                      <img src={c.img_url} className="h-48 w-auto object-contain rounded-2xl shadow-md" />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {c.set_name && <div><span className="text-gray-400">Edição</span><p className="font-bold text-gray-700">{c.set_name}</p></div>}
+                    {c.number  && <div><span className="text-gray-400">Número</span><p className="font-bold text-gray-700">{c.number}</p></div>}
+                    {c.language&& <div><span className="text-gray-400">Idioma</span><p className="font-bold text-gray-700">{c.language}</p></div>}
+                    {c.comment && <div className="col-span-2"><span className="text-gray-400">Obs</span><p className="font-bold text-gray-700">{c.comment}</p></div>}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={()=>handleDelete(c.id)}
+                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-sm transition-all">
+                      🗑️ Remover da Vitrine
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <BottomNav current="profile" />
+      </div>
+    );
+  };
+
   /* ─── ROTEAMENTO ─── */
   if (loading) {
     return (
@@ -4995,6 +5096,7 @@ const App = () => {
       {screen==='admin'      && <AdminScreen />}
       {screen==='profile'    && <ProfileScreen />}
       {screen==='vitrine'    && <VitrineScreen />}
+      {screen==='minhaVitrine' && <MinhaVitrineScreen />}
     </div>
   );
 };
