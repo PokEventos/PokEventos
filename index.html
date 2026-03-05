@@ -1629,6 +1629,7 @@ const App = () => {
     const [accountType, setAccountType] = React.useState('collector');
     const [formData, setFormData] = React.useState({
       displayName: '',
+      apelido: '',
       email: '',
       whatsapp: '',
       password: '',
@@ -1644,7 +1645,7 @@ const App = () => {
       setError('');
       
       // Validações
-      if (!formData.displayName || !formData.email || !formData.password) {
+      if (!formData.displayName || !formData.apelido || !formData.email || !formData.password) {
         setError('Preencha todos os campos obrigatórios');
         return;
       }
@@ -1695,7 +1696,7 @@ const App = () => {
           const { data: result, error: rpcError } = await supabase.rpc('create_user_profile', {
             user_id: data.user.id,
             user_email: formData.email,
-            user_name: formData.displayName,
+            user_name: formData.apelido,
             user_tipo: isAuc ? 'leiloeiro' : 'participante',
             user_whatsapp: formData.whatsapp || null
           });
@@ -1776,6 +1777,17 @@ const App = () => {
             disabled={loading}
             className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
           />
+          <div>
+            <input 
+              type="text" 
+              placeholder="Apelido / Nome público *" 
+              value={formData.apelido}
+              onChange={(e) => setFormData({...formData, apelido: e.target.value})}
+              disabled={loading}
+              className="w-full px-4 py-2.5 border-2 border-yellow-300 focus:border-yellow-500 rounded-xl outline-none text-sm disabled:bg-gray-50" 
+            />
+            <p className="text-[10px] text-gray-400 mt-1 ml-1">🏪 Este nome aparece na vitrine e nos leilões</p>
+          </div>
           <input 
             type="email" 
             placeholder="E-mail *" 
@@ -4326,6 +4338,21 @@ const App = () => {
 
   const ProfileScreen = () => {
     const [photoUploading, setPhotoUploading] = useState(false);
+    const [editingNome,   setEditingNome]   = useState(false);
+    const [novoNome,      setNovoNome]      = useState('');
+    const [savingNome,    setSavingNome]    = useState(false);
+
+    const handleSaveNome = async () => {
+      if (!novoNome.trim()) return;
+      setSavingNome(true);
+      const { error } = await supabase.from('profiles').update({ nome: novoNome.trim() }).eq('id', user.id);
+      if (error) { alert('Erro ao salvar: ' + error.message); }
+      else {
+        setUserProfile(p => ({ ...p, nome: novoNome.trim() }));
+        setEditingNome(false);
+      }
+      setSavingNome(false);
+    };
 
     const handleProfilePhoto = async (e) => {
       const file = e.target.files?.[0];
@@ -4391,9 +4418,33 @@ const App = () => {
                 </div>
                 <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhoto} disabled={photoUploading} />
               </label>
-            <div>
-              <p className="text-xl font-black text-gray-800">{userName}</p>
-              <p className="text-gray-500 text-sm">{userEmail}</p>
+            <div className="flex-1 min-w-0">
+              {/* Nome editável */}
+              {editingNome ? (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <input autoFocus value={novoNome} onChange={e=>setNovoNome(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter') handleSaveNome(); if(e.key==='Escape') setEditingNome(false); }}
+                    className="flex-1 min-w-0 px-2 py-1 border-2 border-yellow-400 rounded-lg text-sm font-black text-gray-800 outline-none" />
+                  <button onClick={handleSaveNome} disabled={savingNome}
+                    className="w-7 h-7 bg-yellow-400 hover:bg-yellow-500 rounded-lg flex items-center justify-center text-xs font-black disabled:opacity-50">
+                    {savingNome ? '…' : '✓'}
+                  </button>
+                  <button onClick={()=>setEditingNome(false)}
+                    className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xl font-black text-gray-800 truncate">{userName}</p>
+                  <button onClick={()=>{ setNovoNome(userName); setEditingNome(true); }}
+                    className="flex-shrink-0 w-6 h-6 bg-gray-100 hover:bg-yellow-100 rounded-md flex items-center justify-center text-xs text-gray-400 hover:text-yellow-600 transition-all"
+                    title="Editar apelido">
+                    ✏️
+                  </button>
+                </div>
+              )}
+              <p className="text-gray-500 text-sm truncate">{userEmail}</p>
               {userWhatsapp && (
                 <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
               )}
