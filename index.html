@@ -2648,87 +2648,7 @@ const App = () => {
     const [savedGroups,  setSavedGroups]  = useState([]);
     const [auctionCards, setAuctionCards] = useState([]);
     const [editingAuctionId, setEditingAuctionId] = useState(null);
-    const [importing,     setImporting]     = useState(false);
-    const importRef = React.useRef();
 
-    const handleImportPhoto = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = '';
-      setImporting(true);
-      try {
-        // Convert to base64
-        const base64 = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result.split(',')[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-
-        // OCR via Tesseract CDN
-        await new Promise((res, rej) => {
-          if (window.Tesseract) { res(); return; }
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js';
-          s.onload = res; s.onerror = rej;
-          document.head.appendChild(s);
-        });
-
-        // Run OCR
-        const { data: { text: ocrText } } = await Tesseract.recognize(file, 'por+eng', {});
-
-        // Parse com regex
-        const lines = ocrText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const fullText = ocrText;
-
-        // Data: DD/MM, DD/MM/YYYY ou por extenso
-        let dateVal = '';
-        const dateMatch = fullText.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
-        if (dateMatch) {
-          const d = dateMatch[1].padStart(2,'0');
-          const m = dateMatch[2].padStart(2,'0');
-          const y = dateMatch[3] ? (dateMatch[3].length===2?'20'+dateMatch[3]:dateMatch[3]) : new Date().getFullYear();
-          dateVal = `${y}-${m}-${d}`;
-        }
-
-        // Hora: HH:MM
-        let timeVal = '';
-        const timeMatch = fullText.match(/\b(\d{1,2})[:h](\d{2})\b/);
-        if (timeMatch) timeVal = `${timeMatch[1].padStart(2,'0')}:${timeMatch[2]}`;
-
-        // WhatsApp link
-        let waLink = '';
-        const waMatch = fullText.match(/https?:\/\/(?:chat\.)?whatsapp\.com\/\S+/i);
-        if (waMatch) waLink = waMatch[0].replace(/[)\].,;]+$/, '');
-
-        // Nome: pega linha com nome do grupo/leilão (linha com mais de 4 chars sem ser link)
-        let nameVal = '';
-        // Tenta achar linha que menciona leilão, hub, tcg ou similar
-        const nameLine = lines.find(l =>
-          /leil[aã]o|hub|tcg|pokemon|pokémon/i.test(l) && l.length > 4 && !l.startsWith('http')
-        ) || lines.find(l => l.length > 4 && !l.startsWith('http') && /[A-Z]{2,}/.test(l));
-        if (nameLine) nameVal = nameLine.replace(/[🎴⭐🌟✨🔥💫👋]/g, '').trim();
-
-        if (!nameVal && !dateVal && !timeVal) {
-          alert('Não foi possível extrair os dados automaticamente.\nPreencha manualmente.');
-          setImporting(false);
-          return;
-        }
-
-        setForm(p => ({
-          ...p,
-          name:         nameVal   || p.name,
-          date:         dateVal   || p.date,
-          time:         timeVal   || p.time,
-          whatsappLink: waLink    || p.whatsappLink,
-        }));
-
-        alert(`✅ Dados extraídos!${nameVal?'\nNome: '+nameVal:''}${dateVal?'\nData: '+dateVal:''}${timeVal?'\nHora: '+timeVal:''}\n\nRevise e ajuste se necessário.`);
-      } catch(err) {
-        alert('Não foi possível extrair os dados. Tente uma foto mais nítida.');
-      }
-      setImporting(false);
-    };
 
     // Carregar dados de leilão para edição
     React.useEffect(() => {
@@ -3108,15 +3028,6 @@ const App = () => {
 
               return (
               <div className="p-4 space-y-5">
-
-                {/* ── Importar do WhatsApp ── */}
-                <label className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${importing ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-300 bg-gray-50 hover:border-yellow-400 hover:bg-yellow-50 text-gray-500 hover:text-yellow-700'}`}>
-                  {importing
-                    ? <><span className="animate-spin text-lg">⏳</span><span className="font-bold text-sm">Analisando imagem…</span></>
-                    : <><span className="text-lg">📲</span><span className="font-bold text-sm">Importar anúncio do WhatsApp</span><span className="text-xs text-gray-400">(foto ou print)</span></>
-                  }
-                  <input ref={importRef} type="file" accept="image/*" className="hidden" onChange={handleImportPhoto} disabled={importing} />
-                </label>
 
                 {/* ── Nome / Grupo do leilão ── */}
                 <div>
