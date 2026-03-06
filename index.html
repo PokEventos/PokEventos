@@ -2648,6 +2648,71 @@ const App = () => {
     const [savedGroups,  setSavedGroups]  = useState([]);
     const [auctionCards, setAuctionCards] = useState([]);
     const [editingAuctionId, setEditingAuctionId] = useState(null);
+    const [importing,     setImporting]     = useState(false);
+    const importRef = React.useRef();
+
+    const handleImportPhoto = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = '';
+      setImporting(true);
+      try {
+        // Convert to base64
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(',')[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 500,
+            messages: [{
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }
+                },
+                {
+                  type: 'text',
+                  text: 'Analise este anúncio de leilão Pokémon e extraia os dados. Responda APENAS com JSON válido, sem markdown, no formato: {"name":"nome do leilão ou organizador","date":"DD/MM/YYYY","time":"HH:MM","whatsapp":"link ou número do whatsapp se houver"}. Se algum campo não estiver claro use string vazia. Para date use formato DD/MM/YYYY. Para time use HH:MM.'
+                }
+              ]
+            }]
+          })
+        });
+
+        const data = await resp.json();
+        const text = data.content?.[0]?.text || '';
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+
+        // Convert date DD/MM/YYYY → YYYY-MM-DD for input[type=date]
+        let dateVal = '';
+        if (parsed.date) {
+          const parts = parsed.date.split('/');
+          if (parts.length === 3) dateVal = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        }
+
+        setForm(p => ({
+          ...p,
+          name:         parsed.name        || p.name,
+          date:         dateVal             || p.date,
+          time:         parsed.time         || p.time,
+          whatsappLink: parsed.whatsapp     || p.whatsappLink,
+        }));
+
+        alert('✅ Dados importados! Revise e ajuste se necessário.');
+      } catch(err) {
+        alert('Não foi possível extrair os dados. Tente uma foto mais nítida.');
+      }
+      setImporting(false);
+    };
 
     // Carregar dados de leilão para edição
     React.useEffect(() => {
@@ -3027,6 +3092,15 @@ const App = () => {
 
               return (
               <div className="p-4 space-y-5">
+
+                {/* ── Importar do WhatsApp ── */}
+                <label className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${importing ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-300 bg-gray-50 hover:border-yellow-400 hover:bg-yellow-50 text-gray-500 hover:text-yellow-700'}`}>
+                  {importing
+                    ? <><span className="animate-spin text-lg">⏳</span><span className="font-bold text-sm">Analisando imagem…</span></>
+                    : <><span className="text-lg">📲</span><span className="font-bold text-sm">Importar anúncio do WhatsApp</span><span className="text-xs text-gray-400">(foto ou print)</span></>
+                  }
+                  <input ref={importRef} type="file" accept="image/*" className="hidden" onChange={handleImportPhoto} disabled={importing} />
+                </label>
 
                 {/* ── Nome / Grupo do leilão ── */}
                 <div>
