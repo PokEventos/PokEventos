@@ -2665,49 +2665,65 @@ const App = () => {
           r.readAsDataURL(file);
         });
 
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 500,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }
-                },
-                {
-                  type: 'text',
-                  text: 'Analise este anúncio de leilão Pokémon e extraia os dados. Responda APENAS com JSON válido, sem markdown, no formato: {"name":"nome do leilão ou organizador","date":"DD/MM/YYYY","time":"HH:MM","whatsapp":"link ou número do whatsapp se houver"}. Se algum campo não estiver claro use string vazia. Para date use formato DD/MM/YYYY. Para time use HH:MM.'
-                }
-              ]
-            }]
-          })
+        // OCR via Tesseract CDN
+        await new Promise((res, rej) => {
+          if (window.Tesseract) { res(); return; }
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
         });
 
-        const data = await resp.json();
-        const text = data.content?.[0]?.text || '';
-        const clean = text.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(clean);
+        // Run OCR
+        const { data: { text: ocrText } } = await Tesseract.recognize(file, 'por+eng', {});
 
-        // Convert date DD/MM/YYYY → YYYY-MM-DD for input[type=date]
+        // Parse com regex
+        const lines = ocrText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const fullText = ocrText;
+
+        // Data: DD/MM, DD/MM/YYYY ou por extenso
         let dateVal = '';
-        if (parsed.date) {
-          const parts = parsed.date.split('/');
-          if (parts.length === 3) dateVal = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        const dateMatch = fullText.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+        if (dateMatch) {
+          const d = dateMatch[1].padStart(2,'0');
+          const m = dateMatch[2].padStart(2,'0');
+          const y = dateMatch[3] ? (dateMatch[3].length===2?'20'+dateMatch[3]:dateMatch[3]) : new Date().getFullYear();
+          dateVal = `${y}-${m}-${d}`;
+        }
+
+        // Hora: HH:MM
+        let timeVal = '';
+        const timeMatch = fullText.match(/\b(\d{1,2})[:h](\d{2})\b/);
+        if (timeMatch) timeVal = `${timeMatch[1].padStart(2,'0')}:${timeMatch[2]}`;
+
+        // WhatsApp link
+        let waLink = '';
+        const waMatch = fullText.match(/https?:\/\/(?:chat\.)?whatsapp\.com\/\S+/i);
+        if (waMatch) waLink = waMatch[0].replace(/[)\].,;]+$/, '');
+
+        // Nome: pega linha com nome do grupo/leilão (linha com mais de 4 chars sem ser link)
+        let nameVal = '';
+        // Tenta achar linha que menciona leilão, hub, tcg ou similar
+        const nameLine = lines.find(l =>
+          /leil[aã]o|hub|tcg|pokemon|pokémon/i.test(l) && l.length > 4 && !l.startsWith('http')
+        ) || lines.find(l => l.length > 4 && !l.startsWith('http') && /[A-Z]{2,}/.test(l));
+        if (nameLine) nameVal = nameLine.replace(/[🎴⭐🌟✨🔥💫👋]/g, '').trim();
+
+        if (!nameVal && !dateVal && !timeVal) {
+          alert('Não foi possível extrair os dados automaticamente.\nPreencha manualmente.');
+          setImporting(false);
+          return;
         }
 
         setForm(p => ({
           ...p,
-          name:         parsed.name        || p.name,
-          date:         dateVal             || p.date,
-          time:         parsed.time         || p.time,
-          whatsappLink: parsed.whatsapp     || p.whatsappLink,
+          name:         nameVal   || p.name,
+          date:         dateVal   || p.date,
+          time:         timeVal   || p.time,
+          whatsappLink: waLink    || p.whatsappLink,
         }));
 
-        alert('✅ Dados importados! Revise e ajuste se necessário.');
+        alert(`✅ Dados extraídos!${nameVal?'\nNome: '+nameVal:''}${dateVal?'\nData: '+dateVal:''}${timeVal?'\nHora: '+timeVal:''}\n\nRevise e ajuste se necessário.`);
       } catch(err) {
         alert('Não foi possível extrair os dados. Tente uma foto mais nítida.');
       }
