@@ -3282,6 +3282,10 @@ const App = () => {
                   className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold disabled:opacity-40 hover:bg-gray-900 transition-all">
                   Próximo: Adicionar Cartas →
                 </button>
+                <button onClick={saveAuction} disabled={!form.date||!form.time||(!form.groupId&&!form.name)}
+                  className="w-full bg-white border-2 border-gray-300 text-gray-600 py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition-all">
+                  ✓ Publicar sem cartas
+                </button>
               </div>
               );
             })()}
