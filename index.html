@@ -3278,6 +3278,11 @@ const App = () => {
                 </div>
 
 
+                {(!form.date||!form.time||(!form.groupId&&!form.name)) && (
+                  <p className="text-xs text-red-400 text-center -mb-1">
+                    {!form.name&&!form.groupId ? '⚠️ Preencha o nome do leilão' : (!form.date||!form.time) ? '⚠️ Preencha data e hora' : ''}
+                  </p>
+                )}
                 <button onClick={()=>setStep(2)} disabled={!form.date||!form.time||(!form.groupId&&!form.name)}
                   className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold disabled:opacity-40 hover:bg-gray-900 transition-all">
                   Próximo: Adicionar Cartas →
