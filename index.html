@@ -2002,71 +2002,76 @@ const App = () => {
                   return (
                     <div key={event.id}
                       onClick={() => setModalEvent(event)}
-                      className={`bg-white rounded-2xl shadow-md cursor-pointer overflow-hidden transition-all hover:shadow-xl active:scale-[0.99] border-l-4 ${
-                        event.featured ? 'border-l-yellow-400' :
-                        hasWanted      ? 'border-l-yellow-300' :
-                        isChecked      ? 'border-l-green-400' :
-                        isPast         ? 'border-l-gray-200'  :
-                        'border-l-purple-400'
+                      className={`cursor-pointer overflow-hidden transition-all active:scale-[0.98] rounded-2xl shadow-md hover:shadow-xl ${
+                        isPast ? 'opacity-60' : ''
+                      } ${
+                        event.featured ? 'ring-2 ring-yellow-400' :
+                        hasWanted      ? 'ring-2 ring-yellow-300' :
+                        isChecked      ? 'ring-2 ring-green-400'  : ''
                       }`}>
 
-
-                      {hasWanted && !event.featured && (
-                        <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-1 flex items-center gap-1.5">
-                          <span className="text-yellow-700 text-[10px] font-bold">⭐ Carta da sua Wanted List aqui!</span>
-                        </div>
-                      )}
-
-                      <div className="p-4">
-                        {/* Avatar + identidade do leiloeiro */}
-                        <div className="flex items-center gap-3 mb-3">
-                          {/* Avatar grande */}
-                          <div className="flex-shrink-0">
-                            {event.announcementPhoto ? (
-                              <img src={event.announcementPhoto} alt={event.organizer}
-                                className="w-14 h-14 rounded-2xl object-cover border-2 border-gray-100 shadow-sm" />
-                            ) : grupo ? (
-                              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grupo.color} flex items-center justify-center text-3xl shadow-sm`}>
-                                {grupo.emoji}
+                      {/* Topo colorido com data + título */}
+                      {(() => {
+                        const rel = dataRelativa(event.date);
+                        const isHoje = rel.label === 'Hoje';
+                        const isAmanha = rel.label === 'Amanhã';
+                        const topBg = isHoje   ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
+                                      isAmanha ? 'bg-gradient-to-r from-blue-500 to-indigo-600' :
+                                      isPast   ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
+                                                 'bg-gradient-to-r from-purple-600 to-indigo-700';
+                        return (
+                          <div className={`${topBg} px-4 py-3 flex items-center justify-between`}>
+                            <div className="flex items-center gap-3">
+                              {/* Avatar */}
+                              <div className="flex-shrink-0">
+                                {event.announcementPhoto ? (
+                                  <img src={event.announcementPhoto} alt={event.organizer}
+                                    className="w-10 h-10 rounded-xl object-cover border-2 border-white/40 shadow" />
+                                ) : grupo ? (
+                                  <div className={`w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-2xl border-2 border-white/30`}>
+                                    {grupo.emoji}
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-2xl border-2 border-white/30">
+                                    🎴
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-3xl shadow-sm">
-                                🎴
+                              <div>
+                                <p className="text-white font-black text-base leading-tight">{rel.label}</p>
+                                <p className="text-white/80 text-xs font-semibold">⏰ {event.time}</p>
                               </div>
+                            </div>
+                            {/* Badge urgência */}
+                            {isHoje && !isPast && (
+                              <span className="bg-white text-green-600 text-[10px] font-black px-2 py-1 rounded-full animate-pulse shadow">
+                                AO VIVO HOJE
+                              </span>
+                            )}
+                            {isAmanha && (
+                              <span className="bg-white/20 text-white text-[10px] font-black px-2 py-1 rounded-full border border-white/30">
+                                AMANHÃ
+                              </span>
+                            )}
+                            {isChecked && (
+                              <span className="bg-green-300 text-green-900 text-[10px] font-black px-2 py-1 rounded-full">✓ Check-in</span>
                             )}
                           </div>
+                        );
+                      })()}
 
-                          {/* Nome + info */}
-                          <div className="flex-1 min-w-0">
-                            {/* Data em destaque */}
-                            {(() => {
-                              const rel = dataRelativa(event.date);
-                              return (
-                                <div className="flex items-baseline gap-2 mb-1.5">
-                                  <p className={`text-xl font-black leading-none ${rel.color}`}>
-                                    {rel.label}
-                                  </p>
-                                  <p className="text-sm font-bold text-gray-500 leading-none">
-                                    {event.time}
-                                  </p>
-                                </div>
-                              );
-                            })()}
-                            <p className="font-bold text-gray-800 text-sm leading-tight truncate">{event.title || event.organizer}</p>
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                              {isChecked && (
-                                <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">✓ Check-in</span>
-                              )}
-                              {isPast && (
-                                <span className="bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full text-[10px] font-bold">Encerrado</span>
-                              )}
-                            </div>
+                      {/* Corpo branco */}
+                      <div className="bg-white px-4 pt-3 pb-0">
+                        {hasWanted && !event.featured && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-1.5 mb-2 flex items-center gap-1.5">
+                            <span className="text-yellow-600 text-[11px] font-bold">⭐ Você tem carta desta lista!</span>
                           </div>
-                        </div>
+                        )}
+                        <p className="font-black text-gray-900 text-base leading-tight mb-2">{event.title || event.organizer}</p>
 
-                        {/* Prévia das cartas — scroll horizontal */}
+                        {/* Prévia das cartas */}
                         {(event.cards || []).length > 0 && (
-                          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                          <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
                             {(event.cards || []).slice(0, 8).map((card, i) => {
                               const isCardWanted = wantedList.some(w => matchWanted(w, card));
                               return (
@@ -2074,30 +2079,39 @@ const App = () => {
                                   <img src={card.img} alt={card.name}
                                     className="h-16 w-auto object-contain"
                                     onError={e => e.target.style.display='none'} />
-                                  {isCardWanted && (
-                                    <span className="absolute top-0 right-0 text-[8px]">⭐</span>
-                                  )}
+                                  {isCardWanted && <span className="absolute top-0 right-0 text-[8px]">⭐</span>}
                                 </div>
                               );
                             })}
                             {(event.cards || []).length > 8 && (
                               <div className="flex-shrink-0 w-10 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <span className="text-[9px] text-gray-500 font-bold text-center leading-tight">+{(event.cards || []).length-8}<br/>mais</span>
+                                <span className="text-[9px] text-gray-500 font-bold text-center leading-tight">+{(event.cards||[]).length-8}<br/>mais</span>
                               </div>
                             )}
                           </div>
                         )}
-
-                        {/* Rodapé — número de cartas + CTA */}
-                        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
-                          <span className="text-[11px] text-gray-400 font-medium">
-                            {(event.cards||[]).length > 0 && <>🎴 {(event.cards||[]).length} carta{(event.cards||[]).length!==1?'s':''}</>}
-                          </span>
-                          <span className="text-[11px] text-purple-600 font-black flex items-center gap-1">
-                            Ver leilão ›
-                          </span>
-                        </div>
                       </div>
+
+                      {/* Rodapé CTA — sempre visível */}
+                      {(() => {
+                        const rel = dataRelativa(event.date);
+                        const isHoje = rel.label === 'Hoje';
+                        const ctaBg = isHoje && !isPast ? 'bg-green-500 hover:bg-green-600' :
+                                      isPast            ? 'bg-gray-200'                      :
+                                                          'bg-gray-800 hover:bg-gray-900';
+                        const ctaText = isHoje && !isPast ? 'text-white' : isPast ? 'text-gray-500' : 'text-white';
+                        const cardCount = (event.cards||[]).length;
+                        const label = isPast
+                          ? 'Ver leilão encerrado'
+                          : cardCount > 0
+                            ? `🎴 Ver ${cardCount} carta${cardCount!==1?'s':''} →`
+                            : '👆 Toque para ver o leilão →';
+                        return (
+                          <div className={`${ctaBg} px-4 py-2.5 flex items-center justify-center transition-all`}>
+                            <span className={`${ctaText} text-xs font-black tracking-wide`}>{label}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
