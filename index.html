@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokEventos</title>
+  <title>Agenda Pokémon</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; -webkit-font-smoothing:antialiased; }
@@ -1385,7 +1385,7 @@ const App = () => {
         ? prev.map(x=>x.query.toLowerCase()===query.toLowerCase()?{...x,count:x.count+1,last:new Date()}:x)
         : [...prev,{query:query.trim(),count:1,last:new Date()}];
       const sorted = [...updated].sort((a,b)=>b.count-a.count);
-      console.group('%c📊 PokEventos — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
+      console.group('%c📊 Agenda Pokémon — Backlog de Buscas','color:#8B5CF6;font-weight:bold;font-size:14px');
       console.table(sorted.map((s,i)=>({'#':i+1,'Carta':s.query,'Buscas':s.count,'Última':new Date(s.last).toLocaleString('pt-BR')})));
       console.groupEnd();
       return updated;
@@ -1626,7 +1626,7 @@ const App = () => {
             <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-60"></div>
             <img src={POKE.pikachu} className="w-20 h-20 relative z-10" />
           </div>
-          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>PokEventos</h1>
+          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Agenda Pokémon</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Todos os leilões em um só lugar</p>
           <div className="flex justify-center items-end gap-3 mt-5">
             {[
@@ -1814,7 +1814,7 @@ const App = () => {
             <img src={POKE.jolteon} className="w-16 h-16 relative z-10 drop-shadow-lg" />
           </div>
           <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent" style={{fontFamily:'Arial Black,sans-serif'}}>Criar Conta</h1>
-          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade PokEventos</p>
+          <p className="text-gray-400 text-xs mt-0.5">Junte-se à comunidade Agenda Pokémon</p>
         </div>
 
         {error && (
@@ -1957,7 +1957,7 @@ const App = () => {
         <div className="bg-gradient-to-r from-red-500 via-red-600 to-red-700 text-white p-6 pb-8 relative overflow-hidden">
           <img src={POKE.charizard} className="absolute -right-8 -top-4 w-36 opacity-20" />
           <div className="flex justify-between items-center relative z-10">
-            <div><h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>PokEventos</h1><p className="text-red-100 text-sm">⚡ Meus Leilões</p></div>
+            <div><h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Agenda Pokémon</h1><p className="text-red-100 text-sm">⚡ Meus Leilões</p></div>
             <ProfileBtn />
           </div>
         </div>
@@ -2033,7 +2033,7 @@ const App = () => {
           <img src={POKE.mewtwo} className="absolute -right-6 -top-2 w-32 opacity-10" />
           <div className="flex justify-between items-start relative z-10">
             <div>
-              <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-0.5">PokEventos</p>
+              <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-0.5">Agenda Pokémon</p>
               <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Calendário</h1>
               <p className="text-gray-400 text-xs mt-0.5">Clique no dia ou no leilão para ver detalhes</p>
             </div>
@@ -2372,7 +2372,7 @@ const App = () => {
           <img src={POKE.umbreon} className="absolute -right-4 -bottom-2 w-36 opacity-10" />
           <div className="flex justify-between items-start mb-1 relative z-10">
             <div>
-              <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-1">PokEventos</p>
+              <p className="text-yellow-400 text-[10px] font-black tracking-widest uppercase mb-1">Agenda Pokémon</p>
               <h1 className="text-2xl font-black mb-0.5" style={{fontFamily:'Arial Black,sans-serif'}}>Buscar Carta</h1>
               <p className="text-gray-400 text-xs">Nome · número (215/203) · só número (215) · ID (swsh7-215)</p>
             </div>
@@ -4966,7 +4966,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">🏪</div>
           <div className="flex justify-between items-start relative z-10">
             <div>
-              <p className="text-yellow-900/60 text-[10px] font-black tracking-widest uppercase mb-0.5">PokEventos</p>
+              <p className="text-yellow-900/60 text-[10px] font-black tracking-widest uppercase mb-0.5">Agenda Pokémon</p>
               <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Vitrine</h1>
               <p className="text-yellow-900/60 text-xs mt-0.5">Cartas à venda por preço fixo</p>
             </div>
