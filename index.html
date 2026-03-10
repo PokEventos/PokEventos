@@ -1432,7 +1432,7 @@ const App = () => {
     const slides = [
       {
         emoji: '🎴',
-        title: 'Bem-vindo ao PokéEventos!',
+        title: 'Bem-vindo ao Agenda Pokémon!',
         description: 'Seu app para acompanhar todos os leilões de Pokémon TCG em um só lugar!',
         color: 'from-red-500 to-yellow-400'
       },
@@ -1557,9 +1557,9 @@ const App = () => {
 
     // Carregar credenciais salvas ao montar
     React.useEffect(() => {
-      const savedEmail = localStorage.getItem('pokeventos_email');
-      const savedPassword = localStorage.getItem('pokeventos_password');
-      const savedRemember = localStorage.getItem('pokeventos_remember') === 'true';
+      const savedEmail = localStorage.getItem('agenda-pokemon_email');
+      const savedPassword = localStorage.getItem('agenda-pokemon_password');
+      const savedRemember = localStorage.getItem('agenda-pokemon_remember') === 'true';
       
       if (savedRemember && savedEmail && savedPassword) {
         setEmail(savedEmail);
@@ -1588,14 +1588,14 @@ const App = () => {
         
         // Salvar ou limpar credenciais baseado em rememberMe
         if (rememberMe) {
-          localStorage.setItem('pokeventos_email', email);
-          localStorage.setItem('pokeventos_password', password);
-          localStorage.setItem('pokeventos_remember', 'true');
+          localStorage.setItem('agenda-pokemon_email', email);
+          localStorage.setItem('agenda-pokemon_password', password);
+          localStorage.setItem('agenda-pokemon_remember', 'true');
           console.log('💾 Credenciais salvas no localStorage');
         } else {
-          localStorage.removeItem('pokeventos_email');
-          localStorage.removeItem('pokeventos_password');
-          localStorage.removeItem('pokeventos_remember');
+          localStorage.removeItem('agenda-pokemon_email');
+          localStorage.removeItem('agenda-pokemon_password');
+          localStorage.removeItem('agenda-pokemon_remember');
           console.log('🗑️ Credenciais removidas do localStorage');
         }
         
@@ -1782,7 +1782,7 @@ const App = () => {
           console.log('✅ Perfil criado!', result);
           
           if (isAuc) {
-            alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe PokéEventos.');
+            alert('✅ Conta de leiloeiro criada! Aguarde aprovação da equipe Agenda Pokémon.');
           }
           
           setUser(data.user);
@@ -4639,7 +4639,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           {needsApproval && (
             <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl">
               <p className="text-sm text-orange-800 font-bold mb-1">🔨 Conta de Leiloeiro em Análise</p>
-              <p className="text-xs text-orange-600">Sua conta está sendo analisada pela equipe PokéEventos. Você será notificado quando for aprovada!</p>
+              <p className="text-xs text-orange-600">Sua conta está sendo analisada pela equipe Agenda Pokémon. Você será notificado quando for aprovada!</p>
             </div>
           )}
 
@@ -5546,7 +5546,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500">
         <div className="text-center">
           <img src={POKE.pikachu} className="w-24 h-24 mx-auto mb-4 animate-bounce" />
-          <p className="text-white text-xl font-black">Carregando PokéEventos...</p>
+          <p className="text-white text-xl font-black">Carregando Agenda Pokémon...</p>
         </div>
       </div>
     );
