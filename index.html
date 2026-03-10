@@ -270,6 +270,19 @@ const searchLocalCards = (query) => {
 };
 
 /* ─── CONSTANTES GLOBAIS ─── */
+const dataRelativa = (dateStr) => {
+  const hoje  = new Date(); hoje.setHours(0,0,0,0);
+  const amanha = new Date(hoje); amanha.setDate(hoje.getDate()+1);
+  const d = new Date(dateStr + 'T00:00:00'); d.setHours(0,0,0,0);
+  const diff = Math.round((d - hoje) / 86400000);
+  if (diff === 0) return { label: 'Hoje',    color: 'text-green-600' };
+  if (diff === 1) return { label: 'Amanhã',  color: 'text-blue-600'  };
+  if (diff === -1) return { label: 'Ontem',  color: 'text-gray-400'  };
+  if (diff < 0)   return { label: d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}), color: 'text-gray-400' };
+  if (diff <= 6)  return { label: d.toLocaleDateString('pt-BR',{weekday:'long'}), color: 'text-purple-600' };
+  return { label: d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}), color: 'text-gray-700' };
+};
+
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
   const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
@@ -2026,14 +2039,19 @@ const App = () => {
                           {/* Nome + info */}
                           <div className="flex-1 min-w-0">
                             {/* Data em destaque */}
-                            <div className="flex items-baseline gap-2 mb-1.5">
-                              <p className="text-xl font-black text-gray-900 leading-none tabular-nums">
-                                {evDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
-                              </p>
-                              <p className="text-sm font-bold text-purple-600 leading-none">
-                                {event.time}
-                              </p>
-                            </div>
+                            {(() => {
+                              const rel = dataRelativa(event.date);
+                              return (
+                                <div className="flex items-baseline gap-2 mb-1.5">
+                                  <p className={`text-xl font-black leading-none ${rel.color}`}>
+                                    {rel.label}
+                                  </p>
+                                  <p className="text-sm font-bold text-gray-500 leading-none">
+                                    {event.time}
+                                  </p>
+                                </div>
+                              );
+                            })()}
                             <p className="font-bold text-gray-800 text-sm leading-tight truncate">{event.organizer || event.title}</p>
                             <p className="text-[11px] text-gray-400 truncate mt-0.5">{event.title}</p>
                             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -3683,7 +3701,20 @@ const App = () => {
       const isFree = atype === 'free';
       const isPoll = atype === 'poll';
   
-      const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
+      const dataRelativa = (dateStr) => {
+  const hoje  = new Date(); hoje.setHours(0,0,0,0);
+  const amanha = new Date(hoje); amanha.setDate(hoje.getDate()+1);
+  const d = new Date(dateStr + 'T00:00:00'); d.setHours(0,0,0,0);
+  const diff = Math.round((d - hoje) / 86400000);
+  if (diff === 0) return { label: 'Hoje',    color: 'text-green-600' };
+  if (diff === 1) return { label: 'Amanhã',  color: 'text-blue-600'  };
+  if (diff === -1) return { label: 'Ontem',  color: 'text-gray-400'  };
+  if (diff < 0)   return { label: d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}), color: 'text-gray-400' };
+  if (diff <= 6)  return { label: d.toLocaleDateString('pt-BR',{weekday:'long'}), color: 'text-purple-600' };
+  return { label: d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}), color: 'text-gray-700' };
+};
+
+const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
   const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
