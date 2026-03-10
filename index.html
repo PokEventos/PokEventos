@@ -2052,8 +2052,7 @@ const App = () => {
                                 </div>
                               );
                             })()}
-                            <p className="font-bold text-gray-800 text-sm leading-tight truncate">{event.organizer || event.title}</p>
-                            <p className="text-[11px] text-gray-400 truncate mt-0.5">{event.title}</p>
+                            <p className="font-bold text-gray-800 text-sm leading-tight truncate">{event.title || event.organizer}</p>
                             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                               {isChecked && (
                                 <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">✓ Check-in</span>
@@ -2092,7 +2091,7 @@ const App = () => {
                         {/* Rodapé — número de cartas + CTA */}
                         <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
                           <span className="text-[11px] text-gray-400 font-medium">
-                            🎴 {(event.cards || []).length} carta{(event.cards || []).length !== 1 ? 's' : ''}
+                            {(event.cards||[]).length > 0 && <>🎴 {(event.cards||[]).length} carta{(event.cards||[]).length!==1?'s':''}</>}
                           </span>
                           <span className="text-[11px] text-purple-600 font-black flex items-center gap-1">
                             Ver leilão ›
