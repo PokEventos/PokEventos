@@ -1020,7 +1020,8 @@ const App = () => {
         if (data?.user) {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
-          
+          setScreen('home');
+
           // Carregar perfil usando RPC (contorna erro 406)
           try {
             console.log('📡 Chamando get_my_profile...');
