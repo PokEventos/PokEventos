@@ -1758,7 +1758,12 @@ const App = () => {
       );
       
       if (signUpError) {
-        setError(signUpError.message || 'Erro ao criar conta');
+        const msg = signUpError.message || '';
+        if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('email') ) {
+          setError('Este e-mail já está cadastrado. Faça login ou use outro e-mail.');
+        } else {
+          setError(msg || 'Erro ao criar conta. Tente novamente.');
+        }
         setLoading(false);
         return;
       }
