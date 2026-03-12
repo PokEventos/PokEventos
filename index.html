@@ -1020,9 +1020,7 @@ const App = () => {
         if (data?.user) {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
-          const savedScreen = localStorage.getItem('agenda-pokemon-screen');
-          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine'];
-          setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
+          setScreen('calendar');
 
           // Carregar perfil usando RPC (contorna erro 406)
           try {
@@ -1833,9 +1831,7 @@ const App = () => {
           }
           
           setUser(data.user);
-          const savedScreen = localStorage.getItem('agenda-pokemon-screen');
-          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine'];
-          setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
+          setScreen('calendar');
         } catch (err) {
           console.error('❌ Exception ao criar perfil:', err);
           setError('Erro inesperado ao criar perfil. Tente novamente.');
