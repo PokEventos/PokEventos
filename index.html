@@ -1799,7 +1799,11 @@ const App = () => {
           
           if (rpcError) {
             console.error('❌ Erro ao criar perfil:', rpcError);
-            setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
+            if (rpcError.message?.includes('duplicate') || rpcError.message?.includes('unique') || rpcError.code === '23505') {
+              setError('Este e-mail já está cadastrado. Faça login ou use outro e-mail.');
+            } else {
+              setError('Conta criada, mas erro ao salvar perfil. Entre em contato com suporte.');
+            }
             setLoading(false);
             return;
           }
