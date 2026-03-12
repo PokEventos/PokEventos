@@ -43,7 +43,7 @@
   const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
   let supabase=null;
-  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY);console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
+  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'agenda-pokemon-auth',storage:window.localStorage}});console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
   const sbDB={
