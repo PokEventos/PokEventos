@@ -1005,8 +1005,18 @@ const App = () => {
     // Verificar se já está logado ao carregar
     React.useEffect(() => {
       const checkUser = async () => {
+        // Espera Supabase inicializar
+        let attempts = 0;
+        while (!supabase && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
+        if (!supabase) { setLoading(false); return; }
+
         console.log('🔍 Verificando sessão...');
-        const { data } = await sbAuth.getUser();
+        // Tenta sessão local primeiro (sem chamada à API)
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionUser = sessionData?.session?.user;
+        const { data } = sessionUser
+          ? { data: { user: sessionUser } }
+          : await supabase.auth.getUser();
         if (data?.user) {
           console.log('✅ Usuário logado:', data.user.email);
           setUser(data.user);
