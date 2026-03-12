@@ -1749,6 +1749,19 @@ const App = () => {
       }
       
       setLoading(true);
+
+      // 0. Verificar se e-mail já existe (tenta login silencioso para checar)
+      const { data: existCheck } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', formData.email.trim().toLowerCase())
+        .limit(1);
+
+      if (existCheck && existCheck.length > 0) {
+        setError('Este e-mail já está cadastrado. Faça login ou use outro e-mail.');
+        setLoading(false);
+        return;
+      }
       
       // 1. Criar usuário no Supabase Auth
       const { data, error: signUpError } = await sbAuth.signUp(
