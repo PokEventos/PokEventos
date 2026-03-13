@@ -1022,6 +1022,10 @@ const App = () => {
           setUser(data.user);
           const savedScreen = localStorage.getItem('agenda-pokemon-screen');
           const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile'];
+          if (savedScreen === 'publicProfile') {
+            const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
+            if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
+          }
           setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
 
           // Carregar perfil usando RPC (contorna erro 406)
@@ -1065,6 +1069,7 @@ const App = () => {
 
     const openPublicProfile = (profileData) => {
       setViewingProfile(profileData);
+      localStorage.setItem('agenda-pokemon-viewing-profile', JSON.stringify(profileData));
       setScreen('publicProfile');
     };
     // Salva tela atual no localStorage sempre que mudar
@@ -1842,6 +1847,10 @@ const App = () => {
           setUser(data.user);
           const savedScreen = localStorage.getItem('agenda-pokemon-screen');
           const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile'];
+          if (savedScreen === 'publicProfile') {
+            const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
+            if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
+          }
           setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
         } catch (err) {
           console.error('❌ Exception ao criar perfil:', err);
