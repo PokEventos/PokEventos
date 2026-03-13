@@ -2797,7 +2797,7 @@ const App = () => {
 
     const [step,         setStep]         = useState(1);
     const [form,         setForm]         = useState({
-      name:'', date:'', time:'', whatsappLink:'', auctionType:'free', categories:[], photos:[], groupId:'',
+      name:'', date:'', time:'', whatsappLink: userProfile?.whatsapp_grupo || '', auctionType:'free', categories:[], photos:[], groupId:'',
       announcementPhoto: null,
       eventPhotos: [],
     });
@@ -3244,7 +3244,7 @@ const App = () => {
                           {filteredGroups.length > 0 ? filteredGroups.map(g => (
                             <button key={g.id}
                               onClick={() => {
-                                setForm(p => ({...p, groupId: g.id, name: g.short, announcementPhoto: g.avatarUrl || p.announcementPhoto}));
+                                setForm(p => ({...p, groupId: g.id, name: g.short, announcementPhoto: g.avatarUrl || p.announcementPhoto, whatsappLink: g.whatsappLink || p.whatsappLink}));
                                 if (g.avatarUrl) setPhotoPreviewUrls(p => ({...p, announcement: g.avatarUrl}));
                                 setGroupSearch('');
                                 // Salva grupo para uso futuro se ainda não estiver salvo
@@ -3273,6 +3273,7 @@ const App = () => {
                                   name: groupSearch, short: groupSearch,
                                   emoji: '🎴', color: 'from-gray-600 to-gray-800',
                                   avatarUrl: null,
+                                  whatsappLink: form.whatsappLink || null,
                                 };
                                 const updatedGroups = [newGroup, ...savedGroups];
                                 setSavedGroups(updatedGroups);
@@ -3414,8 +3415,27 @@ const App = () => {
                 <div>
                   <label className="text-xs font-bold text-gray-600 block mb-1">📲 Link do Grupo <span className="text-gray-400 font-normal">(opcional)</span></label>
                   <input value={form.whatsappLink} onChange={e=>setForm(p=>({...p,whatsappLink:e.target.value}))}
+                    onBlur={async e => {
+                      const link = e.target.value.trim();
+                      if (!link || !form.groupId) return;
+                      const g = savedGroups.find(s => s.id === form.groupId);
+                      if (g && g.whatsappLink !== link) {
+                        const updated = savedGroups.map(s => s.id === form.groupId ? {...s, whatsappLink: link} : s);
+                        setSavedGroups(updated);
+                        if (g.dbId) await supabase.from('grupos').update({ link_whatsapp: link }).eq('id', g.dbId);
+                      }
+                    }}
                     placeholder="https://chat.whatsapp.com/…"
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 outline-none" />
+                  {userProfile?.whatsapp_grupo && form.whatsappLink === userProfile.whatsapp_grupo && (
+                    <p className="text-[10px] text-green-600 mt-1">✅ Usando o link do seu perfil</p>
+                  )}
+                  {userProfile?.whatsapp_grupo && form.whatsappLink !== userProfile.whatsapp_grupo && (
+                    <button onClick={()=>setForm(p=>({...p,whatsappLink:userProfile.whatsapp_grupo}))}
+                      className="text-[10px] text-green-600 mt-1 hover:underline">
+                      ↩ Usar link do meu perfil
+                    </button>
+                  )}
                 </div>
 
                 {/* ── Tipo de Leilão ── */}
@@ -4628,6 +4648,21 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       setPhotoUploading(false);
     };
 
+    const [editingGrupo,  setEditingGrupo]  = useState(false);
+    const [novoGrupo,     setNovoGrupo]     = useState('');
+    const [savingGrupo,   setSavingGrupo]   = useState(false);
+
+    const handleSaveGrupo = async () => {
+      setSavingGrupo(true);
+      const { error } = await supabase.from('profiles').update({ whatsapp_grupo: novoGrupo.trim() || null }).eq('id', user.id);
+      if (error) { alert('Erro ao salvar: ' + error.message); }
+      else {
+        setUserProfile(p => ({ ...p, whatsapp_grupo: novoGrupo.trim() || null }));
+        setEditingGrupo(false);
+      }
+      setSavingGrupo(false);
+    };
+
     const handleLogout = async () => {
       const { error } = await sbAuth.signOut();
       if (!error) {
@@ -4693,6 +4728,35 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               {userWhatsapp && (
                 <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
               )}
+              {/* Link do grupo WhatsApp */}
+              <div className="mt-2">
+                {editingGrupo ? (
+                  <div className="flex items-center gap-1.5">
+                    <input autoFocus value={novoGrupo}
+                      onChange={e=>setNovoGrupo(e.target.value)}
+                      onKeyDown={e=>{ if(e.key==='Enter') handleSaveGrupo(); if(e.key==='Escape') setEditingGrupo(false); }}
+                      placeholder="https://chat.whatsapp.com/…"
+                      className="flex-1 min-w-0 px-2 py-1 border-2 border-green-400 rounded-lg text-xs outline-none" />
+                    <button onClick={handleSaveGrupo} disabled={savingGrupo}
+                      className="w-7 h-7 bg-green-500 hover:bg-green-600 rounded-lg flex items-center justify-center text-xs font-black text-white disabled:opacity-50">
+                      {savingGrupo ? '…' : '✓'}
+                    </button>
+                    <button onClick={()=>setEditingGrupo(false)}
+                      className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={()=>{ setNovoGrupo(userProfile?.whatsapp_grupo||''); setEditingGrupo(true); }}
+                    className="flex items-center gap-1.5 hover:opacity-70 transition-all">
+                    <span className="text-xs">{userProfile?.whatsapp_grupo ? '💬' : '➕'}</span>
+                    <span className={`text-xs truncate max-w-[180px] ${userProfile?.whatsapp_grupo ? 'text-green-600 font-semibold' : 'text-gray-400'}`}>
+                      {userProfile?.whatsapp_grupo ? 'Grupo: ' + userProfile.whatsapp_grupo.replace('https://chat.whatsapp.com/','chat.whatsapp.com/') : 'Adicionar link do grupo WhatsApp'}
+                    </span>
+                    <span className="text-[10px] text-gray-300">✏️</span>
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
                 {isAuctioneer && !needsApproval && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
