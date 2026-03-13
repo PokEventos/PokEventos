@@ -4975,12 +4975,17 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
   ════════════════════════════════════════ */
   const VitrineScreen = () => {
     const QUALITIES_V = ['M','NM','SP','MP','HP','D'];
+    const PAGE_SIZE = 24;
     const [cards,        setCards]        = React.useState([]);
     const [loading,      setLoading]      = React.useState(true);
+    const [loadingMore,  setLoadingMore]  = React.useState(false);
+    const [hasMore,      setHasMore]      = React.useState(true);
+    const [page,         setPage]         = React.useState(0);
     const [selCard,      setSelCard]      = React.useState(null);
     const [selVendedor,  setSelVendedor]  = React.useState(null);
     const [sortBy,       setSortBy]       = React.useState('recente'); // recente | menor | maior | az | za
     const [searchQ,      setSearchQ]      = React.useState('');
+    const [searching,    setSearching]    = React.useState(false);
     const [myCards,      setMyCards]      = React.useState([]);
     const [showForm,     setShowForm]     = React.useState(false);
     const [publishing,   setPublishing]   = React.useState(false);
@@ -4991,19 +4996,67 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     const [vCardResults, setVCardResults] = React.useState([]);
     const [vCardLoading, setVCardLoading] = React.useState(false);
     const vDebounceRef = React.useRef(null);
+    const searchDebounceRef = React.useRef(null);
 
     const canPost = isAuctioneer && isApproved;
 
-    React.useEffect(() => { loadCards(); }, []);
+    React.useEffect(() => { loadCards(0, true); }, [sortBy]);
     React.useEffect(() => { if (canPost && user) setMyCards(cards.filter(c => c.user_id === user.id)); }, [cards]);
 
-    const loadCards = async () => {
-      setLoading(true);
+    // Debounce search: se tem query busca tudo de uma vez, senão volta paginado
+    React.useEffect(() => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (!searchQ.trim() && !selVendedor) {
+        loadCards(0, true);
+        return;
+      }
+      searchDebounceRef.current = setTimeout(() => { searchCards(); }, 400);
+    }, [searchQ, selVendedor]);
+
+    const buildQuery = () => {
+      let q = supabase.from('vitrine').select('*').eq('ativo', true);
+      if (selVendedor) q = q.eq('user_id', selVendedor);
+      return q;
+    };
+
+    const applySort = (q) => {
+      if (sortBy === 'menor') return q.order('price', { ascending: true });
+      if (sortBy === 'maior') return q.order('price', { ascending: false });
+      if (sortBy === 'az')    return q.order('name',  { ascending: true });
+      if (sortBy === 'za')    return q.order('name',  { ascending: false });
+      return q.order('created_at', { ascending: false });
+    };
+
+    const loadCards = async (pageNum = 0, reset = false) => {
+      if (pageNum === 0) setLoading(true); else setLoadingMore(true);
       try {
-        const { data, error } = await supabase.from('vitrine').select('*').eq('ativo', true).order('created_at', { ascending: false });
-        if (!error && data) setCards(data);
+        const from = pageNum * PAGE_SIZE;
+        const to   = from + PAGE_SIZE - 1;
+        let q = applySort(buildQuery()).range(from, to);
+        const { data, error } = await q;
+        if (!error && data) {
+          setCards(prev => reset || pageNum === 0 ? data : [...prev, ...data]);
+          setHasMore(data.length === PAGE_SIZE);
+          setPage(pageNum);
+        }
       } catch(e) {}
       setLoading(false);
+      setLoadingMore(false);
+    };
+
+    const searchCards = async () => {
+      setSearching(true);
+      try {
+        const q = searchQ.trim().toLowerCase();
+        // Supabase ilike search — busca no servidor
+        let query = supabase.from('vitrine').select('*').eq('ativo', true);
+        if (selVendedor) query = query.eq('user_id', selVendedor);
+        query = query.or(`name.ilike.%${q}%,set_name.ilike.%${q}%,vendedor.ilike.%${q}%,number.ilike.%${q}%,comment.ilike.%${q}%`);
+        query = applySort(query).limit(200);
+        const { data } = await query;
+        if (data) { setCards(data); setHasMore(false); }
+      } catch(e) {}
+      setSearching(false);
     };
 
     const searchVitrineCards = (q) => {
@@ -5056,7 +5109,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         }
         setVitrineCards([]);
         setShowForm(false);
-        loadCards();
+        loadCards(0, true);
       } catch(e) { alert('Erro: ' + e.message); }
       setPublishing(false);
     };
@@ -5065,27 +5118,11 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       if (!confirm('Remover esta carta da vitrine?')) return;
       await supabase.from('vitrine').update({ ativo: false }).eq('id', id).eq('user_id', user.id);
       setCards(p => p.filter(c => c.id !== id));
+      setMyCards(p => p.filter(c => c.id !== id));
     };
 
     const vendedores = [...new Map(cards.map(c => [c.user_id, { user_id: c.user_id, vendedor: c.vendedor, avatar_url: c.avatar_url }])).values()];
-    const searchedCards = searchQ.trim()
-      ? cards.filter(c => {
-          const q = searchQ.toLowerCase();
-          return (c.name||'').toLowerCase().includes(q) ||
-                 (c.set_name||'').toLowerCase().includes(q) ||
-                 (c.vendedor||'').toLowerCase().includes(q) ||
-                 (c.number||'').toLowerCase().includes(q) ||
-                 (c.comment||'').toLowerCase().includes(q);
-        })
-      : cards;
-    const filteredCards = selVendedor ? searchedCards.filter(c => c.user_id === selVendedor) : searchedCards;
-    const displayCards = [...filteredCards].sort((a, b) => {
-      if (sortBy === 'menor') return a.price - b.price;
-      if (sortBy === 'maior') return b.price - a.price;
-      if (sortBy === 'az')    return (a.name||'').localeCompare(b.name||'');
-      if (sortBy === 'za')    return (b.name||'').localeCompare(a.name||'');
-      return 0; // recente — ordem original do Supabase (created_at desc)
-    });
+    const displayCards = cards; // ordenação e filtro feitos no servidor
 
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
@@ -5109,7 +5146,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
             <input
               value={searchQ}
-              onChange={e=>{ setSearchQ(e.target.value); setSelVendedor(null); }}
+              onChange={e=>{ setSearchQ(e.target.value); if(selVendedor) setSelVendedor(null); }}
               placeholder="Buscar carta ou vendedor…"
               className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 rounded-2xl text-sm outline-none focus:border-yellow-400 bg-white" />
             {searchQ && (
@@ -5327,10 +5364,10 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
 
           {/* Feed de cartas */}
-          {loading ? (
+          {(loading || searching) ? (
             <div className="text-center py-16">
               <div className="text-4xl mb-3 animate-bounce">🏪</div>
-              <p className="text-gray-400 font-semibold">Carregando vitrine...</p>
+              <p className="text-gray-400 font-semibold">{searching ? 'Buscando...' : 'Carregando vitrine...'}</p>
             </div>
           ) : displayCards.length === 0 ? (
             <div className="text-center py-16">
@@ -5339,6 +5376,8 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               {canPost && <p className="text-gray-400 text-sm mt-1">Seja o primeiro a postar!</p>}
             </div>
           ) : (
+            <>
+            <p className="text-xs text-gray-400 mb-3">{cards.length} carta{cards.length!==1?'s':''}{(searchQ||selVendedor) ? ' encontrada'+(cards.length!==1?'s':'') : ' carregada'+(cards.length!==1?'s':'')}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {displayCards.map(c => {
                 const vWanted = wantedList.find(w => (c.card_id && w.id === c.card_id) || (w.name && c.name && w.name === c.name && w.number === c.number));
@@ -5382,6 +5421,19 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                 );
               })}
             </div>
+
+            {/* Carregar mais */}
+            {hasMore && !searchQ && !selVendedor && (
+              <button onClick={()=>loadCards(page+1)}
+                disabled={loadingMore}
+                className="w-full mt-5 py-3.5 bg-white border-2 border-gray-200 hover:border-yellow-400 text-gray-600 hover:text-yellow-600 font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                {loadingMore ? <><span className="animate-spin">⏳</span> Carregando...</> : '⬇️ Carregar mais cartas'}
+              </button>
+            )}
+            {!hasMore && cards.length > 0 && (
+              <p className="text-center text-xs text-gray-300 mt-5 pb-2">✓ Todas as cartas carregadas</p>
+            )}
+            </>
           )}
         </div>
 
