@@ -5414,7 +5414,23 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
     React.useEffect(() => { loadData(); }, [p?.user_id]);
 
-    if (!p) return null;
+    // Tenta recuperar do localStorage se viewingProfile for null
+    React.useEffect(() => {
+      if (!viewingProfile) {
+        const saved = localStorage.getItem('agenda-pokemon-viewing-profile');
+        if (saved) {
+          try { setViewingProfile(JSON.parse(saved)); } catch(e) {}
+        } else {
+          setScreen('vitrine');
+        }
+      }
+    }, []);
+
+    if (!p) return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-400 text-sm">Carregando perfil...</p>
+      </div>
+    );
 
     const initials    = (p.nome||'?').charAt(0).toUpperCase();
     const isSelf      = user?.id === p.user_id;
