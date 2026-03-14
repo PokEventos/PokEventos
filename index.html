@@ -433,45 +433,37 @@ const buscarNoBanco = async (q, langFiltro = null) => {
     }
 
   } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
-    // Busca pelo número E filtra sets que tenham o total correto de cartas
-    // Ex: "077/066" → número=077, total=66
-    // Estratégia: buscar pelo número e depois filtrar pelo set que bate com o total
-    const numBusca  = busca.numero.replace(/^0+/, ''); // remove zeros à esquerda: "077" → "77"
-    const totalBusca = typeof busca.total === 'number' ? busca.total : parseInt((busca.total||'0').replace(/\D/g,''), 10);
+    // Busca X/Y usando set_total salvo no banco
+    // Ex: "077/198" → number=77, set_total=198
+    const numBusca   = String(parseInt(busca.numero, 10)); // "077" → "77"
+    const totalBusca = typeof busca.total === 'number'
+      ? busca.total
+      : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
 
-    // Primeiro: todos os sets que podem ter esse número
-    const { data: candidatas } = await window.supabase
+    const { data } = await window.supabase
       .from('cards_db')
-      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
-      .or(`number.eq.${numBusca},number.eq.${busca.numero}`)
-      .in('lang', ['pt','en'])
-      .limit(200);
+      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
+      .eq('number', numBusca)
+      .eq('set_total', totalBusca)
+      .in('lang', langs)
+      .limit(20);
 
-    rows = candidatas || [];
+    rows = data || [];
 
-    // Filtrar pelo total: verificar quais sets têm exatamente o total de cartas pedido
-    if (rows.length > 0 && totalBusca > 0) {
-      // Contar cartas por set_id no resultado para estimar o total
-      // Alternativa mais precisa: filtrar sets cujo ID sugere o total
-      // Buscar todos os números do mesmo set para confirmar o total
-      const setIds = [...new Set(rows.map(r => r.set_id))];
-      const setsFiltrados = [];
-      for (const sid of setIds) {
-        const { count } = await window.supabase
-          .from('cards_db')
-          .select('*', { count: 'exact', head: true })
-          .eq('set_id', sid)
-          .eq('lang', 'en');
-        // Aceitar sets cujo total de cartas está próximo do total buscado (±10%)
-        if (count && Math.abs(count - totalBusca) <= Math.max(5, totalBusca * 0.15)) {
-          setsFiltrados.push(sid);
-        }
-      }
-      if (setsFiltrados.length > 0) {
-        rows = rows.filter(r => setsFiltrados.includes(r.set_id));
-      }
+    // Se não achou com número exato, tenta com zeros à esquerda (ex: "077")
+    if (rows.length === 0) {
+      const numPadded = busca.numero.padStart(3, '0');
+      const { data: data2 } = await window.supabase
+        .from('cards_db')
+        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
+        .eq('number', numPadded)
+        .eq('set_total', totalBusca)
+        .in('lang', langs)
+        .limit(20);
+      rows = data2 || [];
     }
 
+    // Deduplicar preferindo PT
     const mapa = {};
     rows.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
     rows = Object.values(mapa);
