@@ -433,35 +433,25 @@ const buscarNoBanco = async (q, langFiltro = null) => {
     }
 
   } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
-    // Busca X/Y usando set_total salvo no banco
-    // Ex: "077/198" → number=77, set_total=198
-    const numBusca   = String(parseInt(busca.numero, 10)); // "077" → "77"
+    const numBusca   = String(parseInt(busca.numero, 10));
+    const numPadded  = busca.numero.padStart(3, '0');
     const totalBusca = typeof busca.total === 'number'
       ? busca.total
       : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
 
-    const { data } = await window.supabase
+    console.log('🔍 numtotal busca:', { numBusca, numPadded, totalBusca, langs });
+
+    // Tenta número sem zeros E com zeros, numa query só com OR
+    const { data, error } = await window.supabase
       .from('cards_db')
       .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
-      .eq('number', numBusca)
+      .or(`number.eq.${numBusca},number.eq.${numPadded}`)
       .eq('set_total', totalBusca)
       .in('lang', langs)
       .limit(20);
 
+    console.log('🔍 resultado:', data, 'erro:', error);
     rows = data || [];
-
-    // Se não achou com número exato, tenta com zeros à esquerda (ex: "077")
-    if (rows.length === 0) {
-      const numPadded = busca.numero.padStart(3, '0');
-      const { data: data2 } = await window.supabase
-        .from('cards_db')
-        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
-        .eq('number', numPadded)
-        .eq('set_total', totalBusca)
-        .in('lang', langs)
-        .limit(20);
-      rows = data2 || [];
-    }
 
     // Deduplicar preferindo PT
     const mapa = {};
