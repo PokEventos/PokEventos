@@ -372,7 +372,7 @@ const buscarNoBanco = async (q, langFiltro = null) => {
   // Determinar idiomas a buscar
   // langFiltro: 'pt', 'en', 'ja-jp', ou null (busca PT+EN por padrão)
   const isJP   = langFiltro === 'ja-jp' || langFiltro === 'jp';
-  const langs  = isJP ? ['ja-jp'] : (langFiltro ? [langFiltro] : ['pt', 'en']);
+  const langs  = isJP ? ['ja-jp'] : ['pt', 'en'];
   const prefPT = langs.includes('pt');
 
   const deduplicar = (lista) => {
@@ -391,7 +391,7 @@ const buscarNoBanco = async (q, langFiltro = null) => {
       .limit(80);
     rows = deduplicar(data || []);
 
-    // Se não achou em PT/EN, tenta japonês como fallback
+    // Se buscando PT/EN e não achou, tenta japonês
     if (rows.length === 0 && !isJP) {
       const { data: dataJP } = await window.supabase
         .from('cards_db')
@@ -401,6 +401,7 @@ const buscarNoBanco = async (q, langFiltro = null) => {
         .limit(40);
       rows = dataJP || [];
     }
+    // Se buscando JP, não mistura com PT/EN
 
   } else if (busca.tipo === 'id') {
     const { data } = await window.supabase
@@ -2497,7 +2498,7 @@ const App = () => {
       try {
         const lang = langOverride || langBusca;
         let found = [];
-        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja-jp' : null); } catch(e) {}
+        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja-jp' : 'pt-en'); } catch(e) {}
         if (found.length === 0) found = await tcgdexBuscar(q);
         setResults(found);
         if (found.length === 0) setApiError('Nenhuma carta encontrada para "' + q + '"');
@@ -2517,7 +2518,7 @@ const App = () => {
         return;
       }
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => { doSearch(val); }, 600);
+      debounceRef.current = setTimeout(() => { doSearch(val, langBusca); }, 600);
     };
 
     const [wantedModal, setWantedModal] = useState(null);
