@@ -475,48 +475,93 @@ const buscarNoBanco = async (q, langFiltro = null) => {
   }));
 };
 
+// ── Busca completa na API TCGDex para japonês ────────────────────
+const buscarJapones = async (q) => {
+  const API_JP = 'https://api.tcgdex.net/v2/ja';
+  const busca = detectarTipoBusca(q);
+
+  // Busca por nome
+  if (busca.tipo === 'nome') {
+    const res = await fetch(API_JP + '/cards?name=' + encodeURIComponent(busca.valor));
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).filter(c => c.image && c.id).slice(0,40).map(c => normalizeTcgdex(c, null));
+  }
+
+  // Busca por ID direto (ex: S6a-001)
+  if (busca.tipo === 'id') {
+    const res = await fetch(API_JP + '/cards/' + encodeURIComponent(busca.valor));
+    if (!res.ok) return [];
+    const c = await res.json();
+    return c?.id ? [normalizeTcgdex(c, null)] : [];
+  }
+
+  // Busca por número simples (ex: 077) — busca em todos os sets JP
+  if (busca.tipo === 'numero' || busca.tipo === 'alfanumero') {
+    const res = await fetch(API_JP + '/cards?localId=' + encodeURIComponent(busca.valor));
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).filter(c => c.image && c.id).slice(0,40).map(c => normalizeTcgdex(c, null));
+  }
+
+  // Busca por X/Y — usa set_total para filtrar o set certo
+  if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
+    const totalBusca = typeof busca.total === 'number'
+      ? busca.total
+      : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
+    const numBusca = String(parseInt(busca.numero, 10));
+
+    // Carrega lista de sets JP e filtra pelo total
+    const setsRes = await fetch(API_JP + '/sets');
+    if (!setsRes.ok) return [];
+    const sets = await setsRes.json();
+    const setsMatch = (Array.isArray(sets) ? sets : []).filter(s =>
+      parseInt(s.cardCount?.official || s.cardCount?.total || 0, 10) === totalBusca
+    );
+
+    // Tenta cada set que bate com o total
+    for (const set of setsMatch) {
+      const numFmts = [numBusca, numBusca.padStart(3,'0'), numBusca.padStart(4,'0')];
+      for (const nf of numFmts) {
+        try {
+          const r = await fetch(API_JP + '/cards/' + set.id + '-' + nf);
+          if (r.ok) {
+            const c = await r.json();
+            if (c?.id) return [normalizeTcgdex(c, null)];
+          }
+        } catch(e) {}
+      }
+    }
+    return [];
+  }
+
+  return [];
+};
+
 // Executa a busca — banco local primeiro, API externa como fallback
 const tcgdexBuscar = async (q, langHint) => {
-  // 1. Tentar banco local
+  const isJP = langHint === 'ja' || langHint === 'ja-jp';
+
+  // 1. Se japonês — vai direto na busca JP (banco + API)
+  if (isJP) {
+    try {
+      const doBanco = await buscarNoBanco(q, 'ja');
+      if (doBanco.length > 0) return doBanco;
+    } catch(e) {}
+    // Banco JP incompleto — usa API diretamente
+    try {
+      const daApi = await buscarJapones(q);
+      if (daApi.length > 0) return daApi;
+    } catch(e) { console.warn('API JP falhou:', e.message); }
+    return [];
+  }
+
+  // 2. PT/EN — banco local primeiro
   try {
-    const resultados = await buscarNoBanco(q, langHint || null);
+    const resultados = await buscarNoBanco(q, null);
     if (resultados.length > 0) return resultados;
   } catch(e) {
     console.warn('Banco local falhou, usando API:', e.message);
-  }
-
-  // 1b. Se buscando japonês e não achou no banco, tenta API JP direto
-  if (langHint === 'ja') {
-    try {
-      const busca = detectarTipoBusca(q);
-      const API_JP = 'https://api.tcgdex.net/v2/ja';
-      if (busca.tipo === 'nome') {
-        const res = await fetch(API_JP + '/cards?name=' + encodeURIComponent(busca.valor));
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            return data.filter(c => c.image && c.id).slice(0, 40).map(c => normalizeTcgdex(c, null));
-          }
-        }
-      } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
-        // Busca por X/Y no japonês via API
-        const setsRes = await fetch(API_JP + '/sets');
-        if (setsRes.ok) {
-          const sets = await setsRes.json();
-          const totalNorm = String(parseInt(busca.total, 10));
-          const setsMatch = (Array.isArray(sets) ? sets : []).filter(s =>
-            String(s.cardCount?.official || '').replace(/^0+/,'') === totalNorm
-          );
-          for (const set of setsMatch) {
-            const numFmts = [busca.numero, busca.numero.padStart(3,'0')];
-            for (const nf of numFmts) {
-              const r = await fetch(API_JP + '/cards/' + set.id + '-' + nf);
-              if (r.ok) { const c = await r.json(); if (c?.id) return [normalizeTcgdex(c, null)]; }
-            }
-          }
-        }
-      }
-    } catch(e) { console.warn('API JP fallback falhou:', e.message); }
   }
 
   // 2. Fallback: API TCGDex original
@@ -2514,8 +2559,8 @@ const App = () => {
       try {
         const lang = langOverride || langBusca;
         let found = [];
-        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja' : null); } catch(e) { console.warn('buscarNoBanco erro:', e); }
-        if (found.length === 0) found = await tcgdexBuscar(q, lang === 'ja-jp' ? 'ja' : null);
+        // Para JP vai tudo pelo tcgdexBuscar que já tem banco+API integrado
+        found = await tcgdexBuscar(q, lang === 'ja-jp' ? 'ja' : null);
         setResults(found);
         if (found.length === 0) setApiError('Nenhuma carta encontrada para "' + q + '"');
       } catch (e) {
