@@ -372,7 +372,7 @@ const buscarNoBanco = async (q, langFiltro = null) => {
   // Determinar idiomas a buscar
   // langFiltro: 'pt', 'en', 'ja-jp', ou null (busca PT+EN por padrão)
   const isJP   = langFiltro === 'ja-jp' || langFiltro === 'jp';
-  const langs  = isJP ? ['ja-jp'] : ['pt', 'en'];
+  const langs  = isJP ? ['ja-jp'] : ['pt', 'en']; // 'pt-en' ou null → ['pt','en']
   const prefPT = langs.includes('pt');
 
   const deduplicar = (lista) => {
@@ -2490,7 +2490,7 @@ const App = () => {
       try {
         const lang = langOverride || langBusca;
         let found = [];
-        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja-jp' : 'pt-en'); } catch(e) {}
+        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja-jp' : null); } catch(e) { console.warn('buscarNoBanco erro:', e); }
         if (found.length === 0) found = await tcgdexBuscar(q);
         setResults(found);
         if (found.length === 0) setApiError('Nenhuma carta encontrada para "' + q + '"');
@@ -5180,7 +5180,12 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       if (vDebounceRef.current) clearTimeout(vDebounceRef.current);
       vDebounceRef.current = setTimeout(async () => {
         setVCardLoading(true);
-        try { const found = await tcgdexBuscar(q.trim()); setVCardResults(found); } catch(e) {}
+        try {
+          let found = [];
+          try { found = await buscarNoBanco(q.trim()); } catch(e) {}
+          if (found.length === 0) found = await tcgdexBuscar(q.trim());
+          setVCardResults(found);
+        } catch(e) {}
         setVCardLoading(false);
       }, 500);
     };
