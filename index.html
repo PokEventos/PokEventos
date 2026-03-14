@@ -365,35 +365,49 @@ const buscarNomesPt = async (cartas) => {
 };
 
 // ── Busca no banco local (cards_db) ─────────────────────────────────
-const buscarNoBanco = async (q) => {
+const buscarNoBanco = async (q, langFiltro = null) => {
   const busca = detectarTipoBusca(q);
   let rows = [];
 
+  // Determinar idiomas a buscar
+  // langFiltro: 'pt', 'en', 'ja-jp', ou null (busca PT+EN por padrão)
+  const isJP   = langFiltro === 'ja-jp' || langFiltro === 'jp';
+  const langs  = isJP ? ['ja-jp'] : (langFiltro ? [langFiltro] : ['pt', 'en']);
+  const prefPT = langs.includes('pt');
+
+  const deduplicar = (lista) => {
+    const mapa = {};
+    lista.forEach(r => { if (!mapa[r.card_id] || (prefPT && r.lang === 'pt')) mapa[r.card_id] = r; });
+    return Object.values(mapa);
+  };
+
   if (busca.tipo === 'nome') {
-    // Busca por nome em PT e EN simultaneamente
     const { data } = await window.supabase
       .from('cards_db')
       .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
       .ilike('name', '%' + busca.valor + '%')
-      .in('lang', ['pt','en'])
-      .order('lang', { ascending: true }) // pt antes de en
+      .in('lang', langs)
+      .order('lang', { ascending: true })
       .limit(80);
-    rows = data || [];
+    rows = deduplicar(data || []);
 
-    // Deduplicar: preferir PT quando existe o mesmo card_id
-    const mapaCards = {};
-    rows.forEach(r => {
-      const key = r.card_id;
-      if (!mapaCards[key] || r.lang === 'pt') mapaCards[key] = r;
-    });
-    rows = Object.values(mapaCards);
+    // Se não achou em PT/EN, tenta japonês como fallback
+    if (rows.length === 0 && !isJP) {
+      const { data: dataJP } = await window.supabase
+        .from('cards_db')
+        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+        .ilike('name', '%' + busca.valor + '%')
+        .eq('lang', 'ja-jp')
+        .limit(40);
+      rows = dataJP || [];
+    }
 
   } else if (busca.tipo === 'id') {
     const { data } = await window.supabase
       .from('cards_db')
       .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
       .eq('card_id', busca.valor)
-      .in('lang', ['pt','en'])
+      .in('lang', langs)
       .limit(5);
     rows = data || [];
 
@@ -402,13 +416,20 @@ const buscarNoBanco = async (q) => {
       .from('cards_db')
       .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
       .ilike('number', busca.valor)
-      .in('lang', ['pt','en'])
+      .in('lang', langs)
       .limit(60);
-    rows = data || [];
-    // Deduplicar preferindo PT
-    const mapa = {};
-    rows.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
-    rows = Object.values(mapa);
+    rows = deduplicar(data || []);
+
+    // Fallback japonês se não achou
+    if (rows.length === 0 && !isJP) {
+      const { data: dataJP } = await window.supabase
+        .from('cards_db')
+        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+        .ilike('number', busca.valor)
+        .eq('lang', 'ja-jp')
+        .limit(40);
+      rows = dataJP || [];
+    }
 
   } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
     // Busca pelo número E filtra sets que tenham o total correto de cartas
@@ -2462,10 +2483,11 @@ const App = () => {
     const [apiError,    setApiError]   = useState('');
     const [modalCard,   setModalCard]  = useState(null);
     const [excluirComuns, setExcluirComuns] = useState(false);
+    const [langBusca,   setLangBusca]  = useState('pt-en');
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
-    const doSearch = async (override) => {
+    const doSearch = async (override, langOverride) => {
       const q = (override !== undefined ? override : query).trim();
       if (!q) return;
       setLoading(true);
@@ -2473,7 +2495,10 @@ const App = () => {
       setResults([]);
       setSearched(q);
       try {
-        const found = await tcgdexBuscar(q);
+        const lang = langOverride || langBusca;
+        let found = [];
+        try { found = await buscarNoBanco(q, lang === 'ja-jp' ? 'ja-jp' : null); } catch(e) {}
+        if (found.length === 0) found = await tcgdexBuscar(q);
         setResults(found);
         if (found.length === 0) setApiError('Nenhuma carta encontrada para "' + q + '"');
       } catch (e) {
@@ -2615,13 +2640,23 @@ const App = () => {
             </label>
           </div>
 
+          <div className="flex gap-2 mb-2">
+            <button onClick={()=>{ setLangBusca('pt-en'); if(query.trim()) doSearch(undefined,'pt-en'); }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all ${langBusca==='pt-en' ? 'bg-yellow-400 text-gray-900 shadow-md' : 'bg-white/15 text-white border border-white/30'}`}>
+              🇧🇷 PT / 🇺🇸 EN
+            </button>
+            <button onClick={()=>{ setLangBusca('ja-jp'); if(query.trim()) doSearch(undefined,'ja-jp'); }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all ${langBusca==='ja-jp' ? 'bg-yellow-400 text-gray-900 shadow-md' : 'bg-white/15 text-white border border-white/30'}`}>
+              🇯🇵 Japonês
+            </button>
+          </div>
           <div className="flex gap-2">
             <input
               type="text"
               value={query}
               onChange={e => handleChange(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
-              placeholder="Charizard · 215/172 · GG10/GG70 · TG22…"
+              placeholder={langBusca==='ja-jp' ? 'Nome em japonês · número do set…' : 'Charizard · 215/172 · GG10/GG70 · TG22…'}
               className="flex-1 px-4 py-3 rounded-xl text-gray-900 text-sm font-medium outline-none bg-white shadow-lg"
               autoComplete="off"
             />
