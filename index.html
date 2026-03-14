@@ -43,7 +43,7 @@
   const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
   const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik';
   let supabase=null;
-  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'agenda-pokemon-auth',storage:window.localStorage}});console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
+  const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'agenda-pokemon-auth',storage:window.localStorage}});window.supabase=supabase;console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
   const sbDB={
@@ -364,42 +364,108 @@ const buscarNomesPt = async (cartas) => {
   return mapaIds;
 };
 
-// Executa a busca TCGdex completa com suporte bilíngue
+// ── Busca no banco local (cards_db) ─────────────────────────────────
+const buscarNoBanco = async (q) => {
+  const busca = detectarTipoBusca(q);
+  let rows = [];
+
+  if (busca.tipo === 'nome') {
+    // Busca por nome em PT e EN simultaneamente
+    const { data } = await window.supabase
+      .from('cards_db')
+      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+      .ilike('name', '%' + busca.valor + '%')
+      .in('lang', ['pt','en'])
+      .order('lang', { ascending: true }) // pt antes de en
+      .limit(80);
+    rows = data || [];
+
+    // Deduplicar: preferir PT quando existe o mesmo card_id
+    const mapaCards = {};
+    rows.forEach(r => {
+      const key = r.card_id;
+      if (!mapaCards[key] || r.lang === 'pt') mapaCards[key] = r;
+    });
+    rows = Object.values(mapaCards);
+
+  } else if (busca.tipo === 'id') {
+    const { data } = await window.supabase
+      .from('cards_db')
+      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+      .eq('card_id', busca.valor)
+      .in('lang', ['pt','en'])
+      .limit(5);
+    rows = data || [];
+
+  } else if (busca.tipo === 'numero' || busca.tipo === 'alfanumero') {
+    const { data } = await window.supabase
+      .from('cards_db')
+      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+      .ilike('number', busca.valor)
+      .in('lang', ['pt','en'])
+      .limit(60);
+    rows = data || [];
+    // Deduplicar preferindo PT
+    const mapa = {};
+    rows.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
+    rows = Object.values(mapa);
+
+  } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
+    const { data } = await window.supabase
+      .from('cards_db')
+      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
+      .ilike('number', busca.numero)
+      .in('lang', ['pt','en'])
+      .limit(40);
+    rows = data || [];
+    const mapa = {};
+    rows.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
+    rows = Object.values(mapa);
+  }
+
+  // Normalizar para o formato que o app espera
+  return rows.slice(0, 40).map(r => ({
+    id:     r.card_id,
+    name:   r.name,
+    nameEn: r.name,
+    namePt: r.lang === 'pt' ? r.name : null,
+    number: r.number || '',
+    rarity: r.rarity || '',
+    set:    { name: r.set_name || r.set_id || '' },
+    images: {
+      small: r.img_small || r.img_url || '',
+      large: r.img_url   || r.img_small || '',
+    },
+  }));
+};
+
+// Executa a busca — banco local primeiro, API externa como fallback
 const tcgdexBuscar = async (q) => {
+  // 1. Tentar banco local
+  try {
+    const resultados = await buscarNoBanco(q);
+    if (resultados.length > 0) return resultados;
+  } catch(e) {
+    console.warn('Banco local falhou, usando API:', e.message);
+  }
+
+  // 2. Fallback: API TCGDex original
   const busca = detectarTipoBusca(q);
 
-  // ── Busca por nome: dispara EN + PT-BR em paralelo e mescla ──────
   if (busca.tipo === 'nome') {
     const [resEn, resPt] = await Promise.allSettled([
       fetch(TCGDEX_API    + '?name=' + encodeURIComponent(busca.valor)),
       fetch(TCGDEX_API_PT + '?name=' + encodeURIComponent(busca.valor)),
     ]);
-
-    const cartasEn  = resEn.status === 'fulfilled' && resEn.value.ok
-      ? (await resEn.value.json()).filter(c => c.image && c.id)
-      : [];
-    const cartasPt  = resPt.status === 'fulfilled' && resPt.value.ok
-      ? (await resPt.value.json()).filter(c => c.image && c.id)
-      : [];
-
-    // Mapa PT: id → nome PT
+    const cartasEn = resEn.status === 'fulfilled' && resEn.value.ok ? (await resEn.value.json()).filter(c => c.image && c.id) : [];
+    const cartasPt = resPt.status === 'fulfilled' && resPt.value.ok ? (await resPt.value.json()).filter(c => c.image && c.id) : [];
     const mapaId2pt = {};
     cartasPt.forEach(c => { mapaId2pt[c.id] = c.name; });
-
-    // Cartas PT que não estão em EN (raridade de pt-br ter card extra)
     const idsEn = new Set(cartasEn.map(c => c.id));
     const soPt  = cartasPt.filter(c => !idsEn.has(c.id));
-
-    // Mescla: todas as EN (com nome PT se disponível) + exclusivas PT
-    const todas = [
-      ...cartasEn.map(c => normalizeTcgdex(c, mapaId2pt[c.id] || null)),
-      ...soPt.map(c => normalizeTcgdex(c, c.name)),
-    ];
-
-    return todas.slice(0, 40);
+    return [...cartasEn.map(c => normalizeTcgdex(c, mapaId2pt[c.id] || null)), ...soPt.map(c => normalizeTcgdex(c, c.name))].slice(0, 40);
   }
 
-  // ── Busca por ID direto: tenta pegar nome PT também ──────────────
   if (busca.tipo === 'id') {
     const [resEn, resPt] = await Promise.allSettled([
       fetch(TCGDEX_API    + '/' + encodeURIComponent(busca.valor)),
@@ -407,15 +473,11 @@ const tcgdexBuscar = async (q) => {
     ]);
     if (resEn.status !== 'fulfilled' || !resEn.value.ok) return [];
     const data   = await resEn.value.json();
-    const namePt = resPt.status === 'fulfilled' && resPt.value.ok
-      ? (await resPt.value.json()).name : null;
+    const namePt = resPt.status === 'fulfilled' && resPt.value.ok ? (await resPt.value.json()).name : null;
     return data && data.id ? [normalizeTcgdex(data, namePt)] : [];
   }
 
-  // ── Número/total, alfatotal, alfanumero, numero: só EN (o número ──
-  // é universal — busca PT-BR depois para enriquecer os nomes)     ──
   let cartasEn = [];
-
   if (busca.tipo === 'numtotal') {
     const numSemZero = String(parseInt(busca.numero, 10));
     const res = await fetch(TCGDEX_API + '?localId=' + encodeURIComponent(numSemZero));
@@ -424,9 +486,7 @@ const tcgdexBuscar = async (q) => {
     if (!Array.isArray(lista) || lista.length === 0) return [];
     const candidatas = lista.filter(c => c.image && c.id);
     const detalhes = await Promise.all(candidatas.map(c => fetchDetalhes(c.id)));
-    cartasEn = detalhes.filter(d =>
-      d && d.set?.cardCount?.official === busca.total && parseInt(d.localId, 10) === parseInt(busca.numero, 10)
-    );
+    cartasEn = detalhes.filter(d => d && d.set?.cardCount?.official === busca.total && parseInt(d.localId, 10) === parseInt(busca.numero, 10));
   } else if (busca.tipo === 'alfatotal') {
     const res = await fetch(TCGDEX_API + '?localId=' + encodeURIComponent(busca.numero));
     if (!res.ok) return [];
@@ -435,9 +495,7 @@ const tcgdexBuscar = async (q) => {
     const candidatas = lista.filter(c => c.image && c.id);
     const detalhes = await Promise.all(candidatas.map(c => fetchDetalhes(c.id)));
     const totalNum = parseInt(busca.total.replace(/^[A-Za-z]+/, ''), 10);
-    cartasEn = detalhes.filter(d =>
-      d && (d.localId||'').toUpperCase() === busca.numero && d.set?.cardCount?.official === totalNum
-    );
+    cartasEn = detalhes.filter(d => d && (d.localId||'').toUpperCase() === busca.numero && d.set?.cardCount?.official === totalNum);
   } else if (busca.tipo === 'alfanumero') {
     const res = await fetch(TCGDEX_API + '?localId=' + encodeURIComponent(busca.valor));
     if (!res.ok) return [];
@@ -450,10 +508,7 @@ const tcgdexBuscar = async (q) => {
     const data = await res.json();
     cartasEn = Array.isArray(data) ? data.filter(c => c.image && c.id) : [];
   }
-
   if (cartasEn.length === 0) return [];
-
-  // Enriquecer com nomes PT em paralelo
   const mapaId2pt = await buscarNomesPt(cartasEn);
   return cartasEn.map(c => normalizeTcgdex(c, mapaId2pt[c.id] || null));
 };
