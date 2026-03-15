@@ -1286,17 +1286,33 @@ const ModalLembrete = ({ event, onClose, toggleLembrete }) => {
     ? new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short'})
     : '';
 
+  const fotos = event.eventPhotos && event.eventPhotos.length > 0 ? event.eventPhotos : [];
+
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center">
-          <div className="text-4xl mb-1">🔔</div>
-          <h2 className="font-black text-gray-900 text-lg">Ativar lembrete</h2>
+    <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden max-h-[92vh] flex flex-col">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-4 text-center flex-shrink-0">
+          <div className="text-3xl mb-0.5">🔔</div>
+          <h2 className="font-black text-gray-900 text-base">Ativar lembrete</h2>
           <p className="text-yellow-900/70 text-xs mt-0.5">
             {event.title || event.organizer} · {dataFmt} às {event.time}
           </p>
         </div>
-        <div className="p-5 space-y-4">
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+
+          {/* Fotos do bloco com zoom */}
+          {fotos.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1.5">📦 Fotos do bloco — veja e dê zoom para lembrar das cartas</p>
+              <BlocoCarrossel fotos={fotos} dark={false} />
+            </div>
+          )}
+
+          {/* Campo de comentário */}
           <div>
             <label className="text-xs font-bold text-gray-600 block mb-1.5">
               📝 O que você quer neste leilão? <span className="text-gray-400 font-normal">(opcional)</span>
@@ -1308,23 +1324,25 @@ const ModalLembrete = ({ event, onClose, toggleLembrete }) => {
               className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-sm resize-none focus:border-yellow-400 outline-none"
               rows={3}
               maxLength={120}
-              autoFocus
             />
-            <p className="text-[10px] text-gray-400 text-right mt-1">{comentario.length}/120</p>
+            <p className="text-[10px] text-gray-400 text-right mt-0.5">{comentario.length}/120</p>
           </div>
+
           <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-3">
             🔔 Você receberá uma notificação <strong>5 minutos antes</strong> do leilão começar{comentario ? ' com seu lembrete' : ''}.
           </p>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl text-sm transition-all">
-              Agora não
-            </button>
-            <button onClick={confirmar} disabled={salvando}
-              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black rounded-2xl text-sm transition-all disabled:opacity-50 shadow-md">
-              {salvando ? '⏳...' : '🔔 Ativar'}
-            </button>
-          </div>
+        </div>
+
+        {/* Botões fixos no rodapé */}
+        <div className="flex gap-2 p-4 border-t border-gray-100 flex-shrink-0">
+          <button onClick={onClose}
+            className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl text-sm transition-all">
+            Agora não
+          </button>
+          <button onClick={confirmar} disabled={salvando}
+            className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black rounded-2xl text-sm transition-all disabled:opacity-50 shadow-md">
+            {salvando ? '⏳...' : '🔔 Ativar'}
+          </button>
         </div>
       </div>
     </div>
