@@ -712,11 +712,20 @@ const buscarCartaIdioma = async (numero, nome, idioma = 'EN', setIdOverride = ''
 
 /* ─── BlocoCarrossel — componente reutilizável para fotos dos blocos ─── */
 const BlocoCarrossel = ({ fotos, dark = true }) => {
-  const [ativo, setAtivo] = React.useState(0);
-  const [zoom, setZoom]   = React.useState(false);
+  const [ativo,  setAtivo]  = React.useState(0);
+  const [zoom,   setZoom]   = React.useState(false);
+  const [scale,  setScale]  = React.useState(1);
+  const [offset, setOffset] = React.useState({x:0, y:0});
 
-  // swipe support
-  const touchStart = React.useRef(null);
+  const touchStart  = React.useRef(null);
+  const lastDist    = React.useRef(null);
+  const dragStart   = React.useRef(null);
+  const isDragging  = React.useRef(false);
+
+  const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
+  const resetZoom = () => { setScale(1); setOffset({x:0,y:0}); };
+
+  // Swipe para trocar foto (quando zoom=1)
   const onTouchStart = e => { touchStart.current = e.touches[0].clientX; };
   const onTouchEnd   = e => {
     if (touchStart.current === null) return;
@@ -728,139 +737,116 @@ const BlocoCarrossel = ({ fotos, dark = true }) => {
     touchStart.current = null;
   };
 
+  // Scroll do mouse para zoom
+  const onWheel = e => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
+    setScale(s => { const ns = clamp(s + delta, 1, 5); if (ns <= 1) setOffset({x:0,y:0}); return ns; });
+  };
+
+  // Touch: pinch para zoom, drag para mover
+  const onTouchStartLB = e => {
+    if (e.touches.length === 2) {
+      lastDist.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    } else if (e.touches.length === 1 && scale > 1) {
+      dragStart.current = { x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y };
+      isDragging.current = true;
+    } else {
+      onTouchStart(e);
+    }
+  };
+
+  const onTouchMoveLB = e => {
+    if (e.touches.length === 2 && lastDist.current) {
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const ratio = dist / lastDist.current;
+      setScale(s => clamp(s * ratio, 1, 5));
+      lastDist.current = dist;
+    } else if (e.touches.length === 1 && isDragging.current && scale > 1) {
+      e.preventDefault();
+      setOffset({ x: e.touches[0].clientX - dragStart.current.x, y: e.touches[0].clientY - dragStart.current.y });
+    }
+  };
+
+  const onTouchEndLB = e => {
+    lastDist.current = null;
+    isDragging.current = false;
+    if (scale <= 1) { onTouchEnd(e); setOffset({x:0,y:0}); }
+  };
+
   if (!fotos || fotos.length === 0) return null;
 
   return (
     <>
-      {/* ── Lightbox zoom com pinch/scroll ── */}
-      {zoom && (() => {
-        const [scale,    setScale]    = React.useState(1);
-        const [offset,   setOffset]   = React.useState({x:0, y:0});
-        const lastDist   = React.useRef(null);
-        const lastOffset = React.useRef({x:0,y:0});
-        const dragStart  = React.useRef(null);
-        const isDragging = React.useRef(false);
+      {/* ── Lightbox zoom ── */}
+      {zoom && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+          onClick={() => { if(scale <= 1) { setZoom(false); } else { resetZoom(); } }}>
 
-        const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
+          {fotos.length > 1 && scale <= 1 && (
+            <>
+              <button onClick={e=>{e.stopPropagation();setAtivo(a=>Math.max(0,a-1));resetZoom();}} disabled={ativo===0}
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white w-10 h-10 rounded-full flex items-center justify-center text-3xl disabled:opacity-20 z-10">‹</button>
+              <button onClick={e=>{e.stopPropagation();setAtivo(a=>Math.min(fotos.length-1,a+1));resetZoom();}} disabled={ativo===fotos.length-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white w-10 h-10 rounded-full flex items-center justify-center text-3xl disabled:opacity-20 z-10">›</button>
+            </>
+          )}
 
-        const resetZoom = () => { setScale(1); setOffset({x:0,y:0}); };
-
-        // Scroll do mouse para zoom
-        const onWheel = e => {
-          e.preventDefault();
-          const delta = e.deltaY > 0 ? -0.15 : 0.15;
-          setScale(s => clamp(s + delta, 1, 5));
-          if (scale <= 1) setOffset({x:0,y:0});
-        };
-
-        // Touch: pinch para zoom, drag para mover
-        const onTouchStartLB = e => {
-          if (e.touches.length === 2) {
-            lastDist.current = Math.hypot(
-              e.touches[0].clientX - e.touches[1].clientX,
-              e.touches[0].clientY - e.touches[1].clientY
-            );
-            lastOffset.current = {...offset};
-          } else if (e.touches.length === 1 && scale > 1) {
-            dragStart.current = { x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y };
-            isDragging.current = true;
-          } else {
-            onTouchStart(e); // swipe para trocar foto
-          }
-        };
-
-        const onTouchMoveLB = e => {
-          if (e.touches.length === 2 && lastDist.current) {
-            e.preventDefault();
-            const dist = Math.hypot(
-              e.touches[0].clientX - e.touches[1].clientX,
-              e.touches[0].clientY - e.touches[1].clientY
-            );
-            const ratio = dist / lastDist.current;
-            setScale(s => clamp(s * ratio, 1, 5));
-            lastDist.current = dist;
-          } else if (e.touches.length === 1 && isDragging.current && scale > 1) {
-            e.preventDefault();
-            setOffset({
-              x: e.touches[0].clientX - dragStart.current.x,
-              y: e.touches[0].clientY - dragStart.current.y,
-            });
-          }
-        };
-
-        const onTouchEndLB = e => {
-          lastDist.current = null;
-          isDragging.current = false;
-          if (scale <= 1) { onTouchEnd(e); setOffset({x:0,y:0}); }
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
-            onClick={() => { if(scale <= 1) setZoom(false); else resetZoom(); }}>
-
-            {/* Navegação */}
-            {fotos.length > 1 && scale <= 1 && (
-              <>
-                <button onClick={e=>{e.stopPropagation();setAtivo(a=>Math.max(0,a-1));resetZoom();}} disabled={ativo===0}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white w-10 h-10 rounded-full flex items-center justify-center text-3xl disabled:opacity-20 z-10">‹</button>
-                <button onClick={e=>{e.stopPropagation();setAtivo(a=>Math.min(fotos.length-1,a+1));resetZoom();}} disabled={ativo===fotos.length-1}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white w-10 h-10 rounded-full flex items-center justify-center text-3xl disabled:opacity-20 z-10">›</button>
-              </>
-            )}
-
-            {/* Imagem com zoom */}
-            <div className="relative overflow-hidden" style={{width:'100vw', height:'85vh', display:'flex', alignItems:'center', justifyContent:'center'}}
-              onWheel={onWheel}
-              onTouchStart={onTouchStartLB}
-              onTouchMove={onTouchMoveLB}
-              onTouchEnd={onTouchEndLB}>
-              <img src={fotos[ativo]} alt={`Bloco ${ativo+1}`}
-                onClick={e=>e.stopPropagation()}
-                style={{
-                  transform: `scale(${scale}) translate(${offset.x/scale}px, ${offset.y/scale}px)`,
-                  transition: isDragging.current ? 'none' : 'transform 0.1s ease',
-                  maxWidth:'100%', maxHeight:'85vh', objectFit:'contain',
-                  cursor: scale > 1 ? 'grab' : 'zoom-in',
-                  userSelect:'none', touchAction:'none'
-                }}
-                draggable={false}
-              />
-            </div>
-
-            {/* Controles */}
-            <div className="flex items-center gap-3 mt-2">
-              {scale > 1 && (
-                <button onClick={e=>{e.stopPropagation();resetZoom();}}
-                  className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                  🔎 {Math.round(scale*100)}% — Resetar
-                </button>
-              )}
-              <span className="text-white/60 text-xs">{ativo+1} / {fotos.length}</span>
-              <button onClick={()=>{setZoom(false);resetZoom();}}
-                className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-full">
-                ✕ Fechar
-              </button>
-            </div>
-
-            {/* Hint */}
-            <p className="text-white/40 text-[10px] mt-1">
-              {scale <= 1 ? 'Scroll ou pinch para zoom · Toque para fechar' : 'Arraste para mover · Toque para resetar'}
-            </p>
-
-            {/* Thumbnails */}
-            {fotos.length > 1 && scale <= 1 && (
-              <div className="flex gap-2 mt-2 px-4 overflow-x-auto">
-                {fotos.map((url,i) => (
-                  <button key={i} onClick={e=>{e.stopPropagation();setAtivo(i);resetZoom();}}
-                    className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${ativo===i?'border-yellow-400 opacity-100':'border-white/20 opacity-50 hover:opacity-80'}`}>
-                    <img src={url} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
+          <div style={{width:'100vw',height:'85vh',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
+            onWheel={onWheel}
+            onTouchStart={onTouchStartLB}
+            onTouchMove={onTouchMoveLB}
+            onTouchEnd={onTouchEndLB}>
+            <img src={fotos[ativo]} alt={`Bloco ${ativo+1}`}
+              onClick={e=>e.stopPropagation()}
+              style={{
+                transform: `scale(${scale}) translate(${offset.x/scale}px, ${offset.y/scale}px)`,
+                transition: isDragging.current ? 'none' : 'transform 0.15s ease',
+                maxWidth:'100%', maxHeight:'85vh', objectFit:'contain',
+                cursor: scale > 1 ? 'grab' : 'zoom-in',
+                userSelect:'none', touchAction:'none'
+              }}
+              draggable={false}
+            />
           </div>
-        );
-      })()}
+
+          <div className="flex items-center gap-3 mt-2">
+            {scale > 1 && (
+              <button onClick={e=>{e.stopPropagation();resetZoom();}}
+                className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                🔎 {Math.round(scale*100)}% — Resetar
+              </button>
+            )}
+            <span className="text-white/60 text-xs">{ativo+1} / {fotos.length}</span>
+            <button onClick={()=>{setZoom(false);resetZoom();}}
+              className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-full">
+              ✕ Fechar
+            </button>
+          </div>
+
+          <p className="text-white/40 text-[10px] mt-1">
+            {scale <= 1 ? 'Scroll ou pinch para zoom · Toque para fechar' : 'Arraste para mover · Toque para resetar'}
+          </p>
+
+          {fotos.length > 1 && scale <= 1 && (
+            <div className="flex gap-2 mt-2 px-4 overflow-x-auto">
+              {fotos.map((url,i) => (
+                <button key={i} onClick={e=>{e.stopPropagation();setAtivo(i);resetZoom();}}
+                  className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${ativo===i?'border-yellow-400 opacity-100':'border-white/20 opacity-50 hover:opacity-80'}`}>
+                  <img src={url} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Carrossel normal ── */}
       <div className={`rounded-2xl overflow-hidden border-2 border-yellow-300 shadow-xl ${dark ? 'bg-gray-900' : 'bg-gray-100'}`}>
