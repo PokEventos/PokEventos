@@ -1868,6 +1868,25 @@ const App = () => {
     const [rememberMe, setRememberMe] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
+    const [mostraReset, setMostraReset] = React.useState(false);
+    const [resetEmail, setResetEmail] = React.useState('');
+    const [resetLoading, setResetLoading] = React.useState(false);
+    const [resetMsg, setResetMsg] = React.useState('');
+
+    const handleResetSenha = async () => {
+      if (!resetEmail.trim()) { setResetMsg('Digite seu e-mail'); return; }
+      setResetLoading(true);
+      setResetMsg('');
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: window.location.origin + window.location.pathname + '?resetSenha=1'
+      });
+      if (resetErr) {
+        setResetMsg('Erro: ' + resetErr.message);
+      } else {
+        setResetMsg('✅ E-mail enviado! Verifique sua caixa de entrada e siga as instruções.');
+      }
+      setResetLoading(false);
+    };
 
     // Carregar credenciais salvas ao montar
     React.useEffect(() => {
@@ -2002,7 +2021,50 @@ const App = () => {
             {loading ? '⏳ Entrando...' : '⚡ Entrar'}
           </button>
           <p className="text-center text-sm"><button onClick={()=>setScreen('register')} className="text-red-600 hover:underline font-semibold">Criar nova conta</button></p>
+          <p className="text-center text-sm"><button onClick={()=>{ setMostraReset(true); setResetEmail(email); setResetMsg(''); }} className="text-gray-400 hover:text-gray-600 hover:underline text-xs">Esqueci minha senha</button></p>
         </div>
+
+        {/* Modal de recuperação de senha */}
+        {mostraReset && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+              <div className="text-center mb-4">
+                <p className="text-3xl mb-1">🔑</p>
+                <h2 className="text-lg font-black text-gray-800">Recuperar senha</h2>
+                <p className="text-xs text-gray-500 mt-1">Enviaremos um link para redefinir sua senha</p>
+              </div>
+
+              {resetMsg ? (
+                <div className={`p-3 rounded-xl text-sm text-center mb-4 ${resetMsg.startsWith('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                  {resetMsg}
+                </div>
+              ) : null}
+
+              {!resetMsg.startsWith('✅') && (
+                <>
+                  <input
+                    type="email"
+                    placeholder="Seu e-mail cadastrado"
+                    value={resetEmail}
+                    onChange={e=>setResetEmail(e.target.value)}
+                    onKeyDown={e=>e.key==='Enter' && handleResetSenha()}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm mb-3"
+                    autoFocus
+                  />
+                  <button onClick={handleResetSenha} disabled={resetLoading}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-bold shadow-md disabled:opacity-50 mb-2">
+                    {resetLoading ? '⏳ Enviando...' : '📧 Enviar link de recuperação'}
+                  </button>
+                </>
+              )}
+
+              <button onClick={()=>{ setMostraReset(false); setResetMsg(''); }}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-sm transition-all">
+                {resetMsg.startsWith('✅') ? 'Fechar' : 'Cancelar'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
     );
