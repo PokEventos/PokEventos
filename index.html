@@ -2399,8 +2399,8 @@ const App = () => {
         return;
       }
       
-      if (isAuc && !formData.whatsapp) {
-        setError('WhatsApp é obrigatório para leiloeiros');
+      if (!formData.whatsapp || formData.whatsapp.replace(/[^0-9]/g, '').length < 12) {
+        setError('WhatsApp obrigatório — formato: 55 (DD) 9XXXX-XXXX');
         return;
       }
       
@@ -2586,21 +2586,39 @@ const App = () => {
             className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none text-sm disabled:bg-gray-50" 
           />
 
-          {/* WhatsApp — obrigatório para leiloeiro, opcional para colecionador */}
+          {/* WhatsApp — obrigatório para todos */}
           <div>
-            <input 
-              type="tel" 
-              placeholder={isAuc ? 'WhatsApp *' : 'WhatsApp (opcional)'}
-              value={formData.whatsapp}
-              onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-              disabled={loading}
-              className={`w-full px-4 py-2.5 border-2 rounded-xl outline-none text-sm disabled:bg-gray-50 ${isAuc?'border-yellow-300 focus:border-yellow-500':'border-gray-200 focus:border-purple-400'}`} 
-            />
-            {!isAuc && (
-              <p className="text-[10px] text-gray-400 mt-1 ml-1">
-                ⚡ Necessário para participar de leilões
-              </p>
-            )}
+            <label className="text-xs font-bold text-gray-600 block mb-1">📱 WhatsApp *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono select-none">+</span>
+              <input
+                type="tel"
+                placeholder="55 (21) 98765-4321"
+                value={formData.whatsapp}
+                onChange={(e) => {
+                  // Só permite números, espaços, parênteses e hífen
+                  let v = e.target.value.replace(/[^0-9 ()\-+]/g, '');
+                  // Máscara automática: 55 (XX) XXXXX-XXXX
+                  const nums = v.replace(/[^0-9]/g, '');
+                  if (nums.length <= 2) {
+                    v = nums;
+                  } else if (nums.length <= 4) {
+                    v = nums.slice(0,2) + ' (' + nums.slice(2);
+                  } else if (nums.length <= 9) {
+                    v = nums.slice(0,2) + ' (' + nums.slice(2,4) + ') ' + nums.slice(4);
+                  } else {
+                    v = nums.slice(0,2) + ' (' + nums.slice(2,4) + ') ' + nums.slice(4,9) + '-' + nums.slice(9,13);
+                  }
+                  setFormData({...formData, whatsapp: v});
+                }}
+                maxLength={20}
+                disabled={loading}
+                className="w-full pl-6 pr-4 py-2.5 border-2 border-yellow-300 focus:border-yellow-500 rounded-xl outline-none text-sm disabled:bg-gray-50 font-mono"
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1 ml-1">
+              Formato: 55 (DD) 9XXXX-XXXX · Ex: 55 (21) 98765-4321
+            </p>
           </div>
 
           <input 
