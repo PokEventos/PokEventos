@@ -1058,7 +1058,7 @@ const CardModal = ({ data, onClose, wantedList, checkins, toggleCheckin, setModa
 };
 
 
-const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted, verCartas, setVerCartas }) => {
+const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, checkins, toggleCheckin, addToWanted, removeWanted, verCartas, setVerCartas, lembretes, toggleLembrete }) => {
   // Debug: Ver se componente está sendo remontado
   React.useEffect(() => {
     console.log('🔄 EventModal montado - ID:', event.id, '- verCartas:', verCartas);
@@ -1237,6 +1237,19 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
+          {/* Botão de lembrete */}
+          {(() => {
+            const temLembrete = lembretes && lembretes.includes(String(event.id));
+            const dataLeilao = event.date ? new Date(event.date + 'T00:00:00') : null;
+            const passou = dataLeilao && dataLeilao < new Date(new Date().toDateString());
+            if (passou) return null;
+            return (
+              <button onClick={e=>{e.stopPropagation(); toggleLembrete && toggleLembrete(event);}}
+                className={`w-full py-3.5 rounded-xl font-bold shadow-md flex items-center justify-center gap-2 transition-all ${temLembrete ? 'bg-yellow-400 text-gray-900' : 'bg-gray-100 text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 border-2 border-gray-200 hover:border-yellow-300'}`}>
+                {temLembrete ? '🔔 Lembrete ativado' : '🔕 Me lembrar deste leilão'}
+              </button>
+            );
+          })()}
           {(event.whatsapp_link || event.whatsappLink) && (
             <a href={event.whatsapp_link || event.whatsappLink} target="_blank" rel="noopener noreferrer"
               className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
@@ -1354,6 +1367,8 @@ const App = () => {
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [vitrineAll,  setVitrineAll]  = useState([]); // Cartas da vitrine (global)
   const [checkins,    setCheckins]    = useState([]);
+  const [lembretes,   setLembretes]   = useState([]); // IDs de leilões com lembrete ativo
+  const [pushEnabled, setPushEnabled] = useState(false); // permissão de notificação
   const [modalEvent,  setModalEvent]  = useState(null);
   const [modalEventShowCards, setModalEventShowCards] = useState(false);
   const [searchLog,   setSearchLog]   = useState([]);
@@ -1490,6 +1505,8 @@ const App = () => {
     if (user && userProfile) {
       loadWantedListFromDB();
       loadCheckinsFromDB();
+      loadLembretes();
+      if ('Notification' in window) setPushEnabled(Notification.permission === 'granted');
     }
   }, [user, userProfile]);
   
@@ -1582,6 +1599,81 @@ const App = () => {
   }, [wantedList]);
 
   const unseenAlerts = alerts.filter(a => !a.seen).length;
+  // ── Lembretes de leilão ──────────────────────────────────────────
+  const loadLembretes = async () => {
+    if (!supabase || !user) return;
+    const { data } = await supabase.from('leilao_lembretes')
+      .select('auction_id').eq('user_id', user.id);
+    if (data) setLembretes(data.map(l => String(l.auction_id)));
+  };
+
+  const pedirPermissaoNotificacao = async () => {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') { setPushEnabled(true); return true; }
+    if (Notification.permission === 'denied') return false;
+    const perm = await Notification.requestPermission();
+    setPushEnabled(perm === 'granted');
+    return perm === 'granted';
+  };
+
+  const toggleLembrete = async (event) => {
+    if (!user) { alert('Faça login para ativar lembretes'); return; }
+    const auctionId = String(event.id);
+    const temLembrete = lembretes.includes(auctionId);
+
+    if (temLembrete) {
+      // Remover lembrete
+      await supabase.from('leilao_lembretes')
+        .delete().eq('user_id', user.id).eq('auction_id', auctionId);
+      setLembretes(prev => prev.filter(id => id !== auctionId));
+    } else {
+      // Pedir permissão de notificação antes de ativar
+      const temPermissao = await pedirPermissaoNotificacao();
+      if (!temPermissao) {
+        alert('Para receber lembretes, permita notificações nas configurações do navegador/celular.');
+        return;
+      }
+      // Salvar lembrete
+      await supabase.from('leilao_lembretes').upsert({
+        user_id:       user.id,
+        auction_id:    auctionId,
+        auction_title: event.title || event.organizer || '',
+        auction_date:  event.date,
+        auction_time:  event.time || '',
+      }, { onConflict: 'user_id,auction_id' });
+      setLembretes(prev => [...prev, auctionId]);
+
+      // Agendar notificação local
+      agendarNotificacaoLocal(event);
+    }
+  };
+
+  const agendarNotificacaoLocal = (event) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!event.date || !event.time) return;
+
+    // Calcular quando enviar: 30 minutos antes do leilão
+    const [hora, min] = (event.time || '00:00').split(':').map(Number);
+    const dataLeilao = new Date(event.date + 'T' + event.time + ':00');
+    const dataNotif  = new Date(dataLeilao.getTime() - 30 * 60 * 1000); // 30min antes
+    const agora = new Date();
+    const delay = dataNotif.getTime() - agora.getTime();
+
+    if (delay <= 0) return; // leilão já passou ou é agora
+
+    setTimeout(() => {
+      if (Notification.permission === 'granted') {
+        const notif = new Notification('🎴 Leilão em 30 minutos!', {
+          body: (event.title || event.organizer || 'Leilão') + ' começa às ' + event.time,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: 'leilao-' + event.id,
+        });
+        notif.onclick = () => { window.focus(); };
+      }
+    }, delay);
+  };
+
   const toggleCheckin = async (id) => {
     const isCheckedIn = checkins.includes(id);
     
@@ -2528,7 +2620,7 @@ const App = () => {
             </div>
           ))}
         </div>
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} />}
         <BottomNav current="home" />
       </div>
     );
@@ -2838,7 +2930,7 @@ const App = () => {
           </div>
         )}
 
-        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} />}
+        {modalEvent && <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} />}
       <BottomNav current="calendar" />
       </div>
     );
@@ -3266,7 +3358,7 @@ const App = () => {
 
         </div>
 
-        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} /> : null}
+        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
