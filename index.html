@@ -5348,20 +5348,53 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
   const ProfileScreen = () => {
     const [photoUploading, setPhotoUploading] = useState(false);
-    const [editingNome,   setEditingNome]   = useState(false);
-    const [novoNome,      setNovoNome]      = useState('');
-    const [savingNome,    setSavingNome]    = useState(false);
+    const [editando,       setEditando]       = useState(false);
+    const [saving,         setSaving]         = useState(false);
+    const [form,           setForm]           = useState({
+      nome:     '',
+      email:    '',
+      whatsapp: '',
+    });
 
-    const handleSaveNome = async () => {
-      if (!novoNome.trim()) return;
-      setSavingNome(true);
-      const { error } = await supabase.from('profiles').update({ nome: novoNome.trim() }).eq('id', user.id);
-      if (error) { alert('Erro ao salvar: ' + error.message); }
-      else {
-        setUserProfile(p => ({ ...p, nome: novoNome.trim() }));
-        setEditingNome(false);
+    const userEmail   = user?.email || userProfile?.email || '';
+    const userName    = userProfile?.nome || user?.user_metadata?.display_name || 'Usuário';
+    const userInitial = userName.charAt(0).toUpperCase();
+    const userType    = userProfile?.tipo;
+    const needsApproval = userType === 'leiloeiro' && userProfile?.approved === false;
+
+    const abrirEdicao = () => {
+      setForm({
+        nome:     userProfile?.nome || '',
+        email:    userEmail,
+        whatsapp: userProfile?.whatsapp || '',
+      });
+      setEditando(true);
+    };
+
+    const handleSalvar = async () => {
+      setSaving(true);
+      try {
+        // Atualizar nome e whatsapp no profiles
+        const { error: pErr } = await supabase.from('profiles')
+          .update({ nome: form.nome.trim(), whatsapp: form.whatsapp.trim() })
+          .eq('id', user.id);
+        if (pErr) throw new Error(pErr.message);
+
+        // Atualizar email no auth se mudou
+        if (form.email.trim() !== userEmail) {
+          const { error: eErr } = await supabase.auth.updateUser({ email: form.email.trim() });
+          if (eErr) throw new Error(eErr.message);
+          alert('✅ Perfil salvo! Verifique seu novo e-mail para confirmar a troca.');
+        } else {
+          alert('✅ Perfil atualizado!');
+        }
+
+        setUserProfile(p => ({ ...p, nome: form.nome.trim(), whatsapp: form.whatsapp.trim() }));
+        setEditando(false);
+      } catch(e) {
+        alert('Erro: ' + e.message);
       }
-      setSavingNome(false);
+      setSaving(false);
     };
 
     const handleProfilePhoto = async (e) => {
@@ -5371,232 +5404,221 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       try {
         const ext = file.name.split('.').pop();
         const fileName = `profile-${user.id}-${Date.now()}.${ext}`;
-
-        // 1. Upload para Storage
-        const { data: upData, error: upErr } = await supabase.storage.from('Avatars').upload(fileName, file, { upsert: true });
-        if (upErr) { alert('Erro no upload: ' + upErr.message); setPhotoUploading(false); return; }
-
-        // 2. Pegar URL pública
+        const { error: upErr } = await supabase.storage.from('Avatars').upload(fileName, file, { upsert: true });
+        if (upErr) throw new Error(upErr.message);
         const { data: urlData } = supabase.storage.from('Avatars').getPublicUrl(fileName);
         const photoUrl = urlData.publicUrl;
-
-        // 3. Salvar na tabela profiles
         const { error: dbErr } = await supabase.from('profiles').update({ avatar_url: photoUrl }).eq('id', user.id);
-        if (dbErr) { alert('Erro ao salvar no perfil: ' + dbErr.message + '\nSQL: ' + JSON.stringify(dbErr)); setPhotoUploading(false); return; }
-
-        // 4. Atualizar estado local
+        if (dbErr) throw new Error(dbErr.message);
         setUserProfile(p => ({ ...p, avatar_url: photoUrl }));
-        alert('✅ Foto salva com sucesso!');
       } catch(err) {
-        alert('Erro inesperado: ' + err.message);
+        alert('Erro no upload: ' + err.message);
       }
       setPhotoUploading(false);
     };
 
-    const [editingGrupo,  setEditingGrupo]  = useState(false);
-    const [novoGrupo,     setNovoGrupo]     = useState('');
-    const [savingGrupo,   setSavingGrupo]   = useState(false);
-
-    const handleSaveGrupo = async () => {
-      setSavingGrupo(true);
-      const { error } = await supabase.from('profiles').update({ whatsapp_grupo: novoGrupo.trim() || null }).eq('id', user.id);
-      if (error) { alert('Erro ao salvar: ' + error.message); }
-      else {
-        setUserProfile(p => ({ ...p, whatsapp_grupo: novoGrupo.trim() || null }));
-        setEditingGrupo(false);
-      }
-      setSavingGrupo(false);
-    };
-
     const handleLogout = async () => {
       const { error } = await sbAuth.signOut();
-      if (!error) {
-        setUser(null);
-        setUserProfile(null);
-        setScreen('login');
-      }
+      if (!error) { setUser(null); setUserProfile(null); setScreen('login'); }
     };
 
-    const userEmail = user?.email || userProfile?.email || 'email@example.com';
-    const userName = userProfile?.nome || user?.user_metadata?.display_name || 'Usuário';
-    const userInitial = userName.charAt(0).toUpperCase();
-    const userWhatsapp = userProfile?.whatsapp;
-    const userType = userProfile?.tipo;
-    const needsApproval = userType === 'leiloeiro' && userProfile?.approved === false;
+    const maskWhatsapp = (v) => {
+      const nums = v.replace(/[^0-9]/g, '');
+      if (nums.length <= 2) return nums;
+      if (nums.length <= 4) return nums.slice(0,2) + ' (' + nums.slice(2);
+      if (nums.length <= 9) return nums.slice(0,2) + ' (' + nums.slice(2,4) + ') ' + nums.slice(4);
+      return nums.slice(0,2) + ' (' + nums.slice(2,4) + ') ' + nums.slice(4,9) + '-' + nums.slice(9,13);
+    };
 
     return (
-    <div className="min-h-screen bg-gray-50 pokeball-bg pb-24">
-      <div className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-6 pb-20 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 pb-24">
+
+      {/* Header */}
+      <div className="sticky top-0 z-20 bg-gradient-to-r from-indigo-500 to-pink-500 text-white p-5 relative overflow-hidden">
         <img src={POKE.dragonite} className="absolute -right-8 top-0 w-40 opacity-20" />
         <h1 className="text-2xl font-black relative z-10" style={{fontFamily:'Arial Black,sans-serif'}}>Meu Perfil</h1>
       </div>
-      <div className="px-4 -mt-6 space-y-4">
-        <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-yellow-400">
-          <div className="flex items-center gap-4 mb-4">
-            <label className="relative cursor-pointer group flex-shrink-0">
-                {userProfile?.avatar_url
-                  ? <img src={userProfile.avatar_url} className="w-16 h-16 rounded-full object-cover shadow-lg border-4 border-white" />
-                  : <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg border-4 border-white">{userInitial}</div>
-                }
-                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {photoUploading ? <span className="text-white text-xs">...</span> : <span className="text-white text-lg">📷</span>}
-                </div>
-                <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhoto} disabled={photoUploading} />
-              </label>
-            <div className="flex-1 min-w-0">
-              {/* Nome editável */}
-              {editingNome ? (
-                <div className="flex items-center gap-1.5 mb-1">
-                  <input autoFocus value={novoNome} onChange={e=>setNovoNome(e.target.value)}
-                    onKeyDown={e=>{ if(e.key==='Enter') handleSaveNome(); if(e.key==='Escape') setEditingNome(false); }}
-                    className="flex-1 min-w-0 px-2 py-1 border-2 border-yellow-400 rounded-lg text-sm font-black text-gray-800 outline-none" />
-                  <button onClick={handleSaveNome} disabled={savingNome}
-                    className="w-7 h-7 bg-yellow-400 hover:bg-yellow-500 rounded-lg flex items-center justify-center text-xs font-black disabled:opacity-50">
-                    {savingNome ? '…' : '✓'}
-                  </button>
-                  <button onClick={()=>setEditingNome(false)}
-                    className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xl font-black text-gray-800 truncate">{userName}</p>
-                  <button onClick={()=>{ setNovoNome(userName); setEditingNome(true); }}
-                    className="flex-shrink-0 w-6 h-6 bg-gray-100 hover:bg-yellow-100 rounded-md flex items-center justify-center text-xs text-gray-400 hover:text-yellow-600 transition-all"
-                    title="Editar apelido">
-                    ✏️
-                  </button>
-                </div>
-              )}
-              <p className="text-gray-500 text-sm truncate">{userEmail}</p>
-              {userWhatsapp && (
-                <p className="text-gray-500 text-xs mt-1">📱 {userWhatsapp}</p>
-              )}
-              {/* Link do grupo WhatsApp */}
-              <div className="mt-2">
-                {editingGrupo ? (
-                  <div className="flex items-center gap-1.5">
-                    <input autoFocus value={novoGrupo}
-                      onChange={e=>setNovoGrupo(e.target.value)}
-                      onKeyDown={e=>{ if(e.key==='Enter') handleSaveGrupo(); if(e.key==='Escape') setEditingGrupo(false); }}
-                      placeholder="https://chat.whatsapp.com/…"
-                      className="flex-1 min-w-0 px-2 py-1 border-2 border-green-400 rounded-lg text-xs outline-none" />
-                    <button onClick={handleSaveGrupo} disabled={savingGrupo}
-                      className="w-7 h-7 bg-green-500 hover:bg-green-600 rounded-lg flex items-center justify-center text-xs font-black text-white disabled:opacity-50">
-                      {savingGrupo ? '…' : '✓'}
-                    </button>
-                    <button onClick={()=>setEditingGrupo(false)}
-                      className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={()=>{ setNovoGrupo(userProfile?.whatsapp_grupo||''); setEditingGrupo(true); }}
-                    className="flex items-center gap-1.5 hover:opacity-70 transition-all">
-                    <span className="text-xs">{userProfile?.whatsapp_grupo ? '💬' : '➕'}</span>
-                    <span className={`text-xs truncate max-w-[180px] ${userProfile?.whatsapp_grupo ? 'text-green-600 font-semibold' : 'text-gray-400'}`}>
-                      {userProfile?.whatsapp_grupo ? 'Grupo: ' + userProfile.whatsapp_grupo.replace('https://chat.whatsapp.com/','chat.whatsapp.com/') : 'Adicionar link do grupo WhatsApp'}
-                    </span>
-                    <span className="text-[10px] text-gray-300">✏️</span>
-                  </button>
-                )}
+
+      <div className="px-4 pt-4 space-y-4">
+
+        {/* Card principal */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Banner + avatar */}
+          <div className="bg-gradient-to-r from-indigo-400 to-pink-400 h-20 relative">
+            <label className="absolute -bottom-8 left-5 cursor-pointer group">
+              {userProfile?.avatar_url
+                ? <img src={userProfile.avatar_url} className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg" />
+                : <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-400 rounded-full flex items-center justify-center text-white text-2xl font-black border-4 border-white shadow-lg">{userInitial}</div>
+              }
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {photoUploading ? <span className="text-white text-[10px]">...</span> : <span className="text-white text-sm">📷</span>}
               </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">⚡ Membro Ativo</span>
-                {isAuctioneer && !needsApproval && <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded-full font-bold">🔨 Leiloeiro</span>}
-                {needsApproval && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">⏳ Aguardando Aprovação</span>}
-              </div>
-            </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhoto} disabled={photoUploading} />
+            </label>
           </div>
 
-          {needsApproval && (
-            <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl">
-              <p className="text-sm text-orange-800 font-bold mb-1">🔨 Conta de Leiloeiro em Análise</p>
-              <p className="text-xs text-orange-600">Sua conta está sendo analisada pela equipe Agenda Pokémon. Você será notificado quando for aprovada!</p>
+          <div className="pt-12 px-5 pb-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xl font-black text-gray-800">{userName}</p>
+                <p className="text-sm text-gray-500">{userEmail}</p>
+                {userProfile?.whatsapp && <p className="text-xs text-gray-400 mt-0.5">📱 {userProfile.whatsapp}</p>}
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">⚡ Membro Ativo</span>
+                  {isAuctioneer && !needsApproval && <span className="text-xs bg-gray-800 text-white px-2 py-0.5 rounded-full font-bold">🔨 Leiloeiro</span>}
+                  {needsApproval && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">⏳ Aguardando Aprovação</span>}
+                </div>
+              </div>
+              <button onClick={abrirEdicao}
+                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold px-3 py-2 rounded-xl text-sm transition-all">
+                ✏️ Editar
+              </button>
             </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-100"><p className="text-2xl font-black text-blue-600">{checkins.length}</p><p className="text-xs text-gray-500 font-semibold">Check-ins</p></div>
-            <div className="bg-yellow-50 rounded-xl p-3 text-center border-2 border-yellow-100"><p className="text-2xl font-black text-yellow-600">{wantedList.length}</p><p className="text-xs text-gray-500 font-semibold">Wanted</p></div>
-            <div className="bg-purple-50 rounded-xl p-3 text-center border-2 border-purple-100"><p className="text-2xl font-black text-purple-600">{EVENTS.length}</p><p className="text-xs text-gray-500 font-semibold">Leilões</p></div>
-          </div>
-
-          {/* Histórico de buscas */}
-          {searchLog.length>0 && (
-            <div className="mb-5 bg-white rounded-2xl border-2 border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b flex items-center justify-between">
-                <div className="flex items-center gap-2"><span className="text-lg">🔍</span><p className="font-bold text-gray-700 text-sm">Minhas buscas recentes</p></div>
-                <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded-full border">{Math.min(searchLog.length,15)}</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {[...searchLog].sort((a,b)=>new Date(b.last)-new Date(a.last)).slice(0,15).map((item,i)=>(
-                  <button key={i} onClick={()=>setScreen('search')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 bg-gray-100 group-hover:bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm">🎴</span></div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700">{item.query}</p>
-                        <p className="text-[10px] text-gray-400">{new Date(item.last).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}{item.count>1&&<span className="ml-2 bg-gray-100 text-gray-500 px-1.5 rounded-full">{item.count}x</span>}</p>
-                      </div>
-                    </div>
-                    <span className="text-gray-300 group-hover:text-blue-400">→</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <button onClick={()=>setScreen('home')}     className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">🏠 Meus Leilões</button>
-            <button onClick={()=>setScreen('calendar')} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl font-semibold border text-sm hover:bg-gray-100">📅 Calendário</button>
-            <button onClick={()=>setScreen('wanted')}   className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl font-semibold border border-yellow-200 text-sm hover:bg-yellow-100">⭐ Wanted List {wantedList.length>0&&`(${wantedList.length})`}</button>
-
-            {/* Área Admin */}
-            {userProfile?.is_admin && (
-              <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Administração</p>
-                <button onClick={()=>setScreen('admin')} className="w-full text-left px-4 py-3 bg-purple-600 text-white rounded-xl font-bold text-sm hover:bg-purple-700 flex items-center gap-2">
-                  🔐 Painel Admin
-                </button>
-                {/* Admin pode criar leilões também */}
-                <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
-                  🔨 Criar Novo Leilão
-                </button>
-                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
-                  📋 Leilões Criados
-                </button>
-                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
-                  🏪 Cartas na Vitrine
-                </button>
-              </div>
-            )}
-
-            {/* Área exclusiva leiloeiro APROVADO (que não seja admin) */}
-            {isAuctioneer && isApproved && !userProfile?.is_admin && (
-              <div className="border-t-2 border-dashed border-gray-200 pt-2 mt-2 space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1">Área do Leiloeiro</p>
-                <button onClick={()=>setScreen('auctioneer')} className="w-full text-left px-4 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm hover:bg-gray-900 flex items-center gap-2">
-                  🔨 Criar Novo Leilão
-                </button>
-                <button onClick={()=>setScreen('meusLeiloes')} className="w-full text-left px-4 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 flex items-center gap-2">
-                  📋 Leilões Criados
-                </button>
-                <button onClick={()=>setScreen('minhaVitrine')} className="w-full text-left px-4 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 flex items-center gap-2">
-                  🏪 Cartas na Vitrine
-                </button>
-              </div>
-            )}
-
-            <button onClick={handleLogout} className="w-full text-left px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-100 text-sm hover:bg-red-100">🚪 Sair</button>
           </div>
         </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+            <p className="text-2xl font-black text-blue-600">{checkins.length}</p>
+            <p className="text-xs text-gray-500 font-semibold">Check-ins</p>
+          </div>
+          <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+            <p className="text-2xl font-black text-yellow-600">{wantedList.length}</p>
+            <p className="text-xs text-gray-500 font-semibold">Wanted</p>
+          </div>
+          <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+            <p className="text-2xl font-black text-purple-600">{lembretes.length}</p>
+            <p className="text-xs text-gray-500 font-semibold">Lembretes</p>
+          </div>
+        </div>
+
+        {needsApproval && (
+          <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl">
+            <p className="text-sm text-orange-800 font-bold mb-1">🔨 Conta de Leiloeiro em Análise</p>
+            <p className="text-xs text-orange-600">Sua conta está sendo analisada. Você será notificado quando for aprovada!</p>
+          </div>
+        )}
+
+        {/* Menu */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button onClick={()=>setScreen('calendar')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 border-b border-gray-100 text-sm font-semibold text-gray-700">
+            📅 <span>Calendário de Leilões</span>
+          </button>
+          <button onClick={()=>setScreen('wanted')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-yellow-50 border-b border-gray-100 text-sm font-semibold text-yellow-700">
+            ⭐ <span>Wanted List {wantedList.length > 0 && `(${wantedList.length})`}</span>
+          </button>
+
+          {(userProfile?.is_admin || (isAuctioneer && isApproved)) && (
+            <>
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                  {userProfile?.is_admin ? 'Administração' : 'Área do Leiloeiro'}
+                </p>
+              </div>
+              {userProfile?.is_admin && (
+                <button onClick={()=>setScreen('admin')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-purple-50 border-b border-gray-100 text-sm font-bold text-purple-700">
+                  🔐 <span>Painel Admin</span>
+                </button>
+              )}
+              <button onClick={()=>setScreen('auctioneer')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-800 hover:text-white border-b border-gray-100 text-sm font-bold text-gray-800 transition-colors">
+                🔨 <span>Criar Novo Leilão</span>
+              </button>
+              <button onClick={()=>setScreen('meusLeiloes')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-green-50 border-b border-gray-100 text-sm font-bold text-green-700">
+                📋 <span>Leilões Criados</span>
+              </button>
+              <button onClick={()=>setScreen('minhaVitrine')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-orange-50 border-b border-gray-100 text-sm font-bold text-orange-600">
+                🏪 <span>Cartas na Vitrine</span>
+              </button>
+            </>
+          )}
+
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 text-sm font-bold text-red-600 transition-colors">
+            🚪 <span>Sair</span>
+          </button>
+        </div>
       </div>
+
+      {/* Modal de edição */}
+      {editando && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-500 to-pink-500 p-5 flex items-center justify-between">
+              <h2 className="text-white font-black text-lg">✏️ Editar Perfil</h2>
+              <button onClick={()=>setEditando(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30">✕</button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Foto */}
+              <div className="flex items-center gap-4">
+                <label className="relative cursor-pointer group flex-shrink-0">
+                  {userProfile?.avatar_url
+                    ? <img src={userProfile.avatar_url} className="w-16 h-16 rounded-full object-cover border-4 border-indigo-200" />
+                    : <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-pink-400 rounded-full flex items-center justify-center text-white text-2xl font-black border-4 border-indigo-200">{userInitial}</div>
+                  }
+                  <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-white text-sm">📷</span>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => { await handleProfilePhoto(e); }} disabled={photoUploading} />
+                </label>
+                <div>
+                  <p className="text-sm font-bold text-gray-700">Foto de perfil</p>
+                  <p className="text-xs text-gray-400">Toque na foto para alterar</p>
+                  {photoUploading && <p className="text-xs text-indigo-500 mt-1">⏳ Enviando...</p>}
+                </div>
+              </div>
+
+              {/* Nome */}
+              <div>
+                <label className="text-xs font-bold text-gray-600 block mb-1">👤 Apelido / Nome</label>
+                <input value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value}))}
+                  placeholder="Seu apelido"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none text-sm" />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-xs font-bold text-gray-600 block mb-1">📧 E-mail</label>
+                <input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}
+                  placeholder="seu@email.com"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none text-sm" />
+                {form.email !== userEmail && (
+                  <p className="text-[10px] text-orange-500 mt-1">⚠️ Você receberá um e-mail para confirmar a troca</p>
+                )}
+              </div>
+
+              {/* WhatsApp */}
+              <div>
+                <label className="text-xs font-bold text-gray-600 block mb-1">📱 WhatsApp</label>
+                <input type="tel" value={form.whatsapp}
+                  onChange={e=>setForm(f=>({...f,whatsapp:maskWhatsapp(e.target.value)}))}
+                  placeholder="55 (21) 98765-4321"
+                  maxLength={20}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none text-sm font-mono" />
+                <p className="text-[10px] text-gray-400 mt-1">Formato: 55 (DD) 9XXXX-XXXX</p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 flex gap-2">
+              <button onClick={()=>setEditando(false)}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleSalvar} disabled={saving}
+                className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-black rounded-2xl text-sm disabled:opacity-50 shadow-md">
+                {saving ? '⏳ Salvando...' : '✅ Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNav current="profile" />
     </div>
     );
   };
 
+  /* ─── TELA: MEUS LEILÕES ─── */
   /* ─── TELA: MEUS LEILÕES ─── */
   const MeusLeloesScreen = () => {
     const meusLeiloes = events.filter(e => e.created_by === user?.id);
