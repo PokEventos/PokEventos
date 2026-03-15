@@ -1288,6 +1288,12 @@ const App = () => {
           if (leilaoId) {
             localStorage.setItem('agenda-pokemon-deep-link', leilaoId);
           }
+          // Detectar retorno do link de reset de senha (hash #access_token + type=recovery)
+          const hashParams = new URLSearchParams(window.location.hash.replace('#',''));
+          if (hashParams.get('type') === 'recovery') {
+            setScreen('redefinirSenha');
+            return;
+          }
           const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes'];
           if (savedScreen === 'publicProfile') {
             const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
@@ -1862,6 +1868,125 @@ const App = () => {
   /* ════════════════════════════════════════
      TELA LOGIN
   ════════════════════════════════════════ */
+  /* ════════════════════════════════════════
+     TELA REDEFINIR SENHA
+  ════════════════════════════════════════ */
+  const RedefinirSenhaScreen = () => {
+    const [novaSenha,     setNovaSenha]     = React.useState('');
+    const [confirmarSenha,setConfirmarSenha]= React.useState('');
+    const [loading,       setLoading]       = React.useState(false);
+    const [erro,          setErro]          = React.useState('');
+    const [sucesso,       setSucesso]       = React.useState(false);
+    const [mostrarNova,   setMostrarNova]   = React.useState(false);
+    const [mostrarConf,   setMostrarConf]   = React.useState(false);
+
+    const handleRedefinir = async () => {
+      if (!novaSenha || !confirmarSenha) { setErro('Preencha os dois campos'); return; }
+      if (novaSenha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres'); return; }
+      if (novaSenha !== confirmarSenha) { setErro('As senhas não coincidem'); return; }
+      setLoading(true);
+      setErro('');
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) {
+        setErro('Erro: ' + error.message);
+      } else {
+        setSucesso(true);
+        setTimeout(() => setScreen('login'), 3000);
+      }
+      setLoading(false);
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-3">🔑</div>
+            <h1 className="text-2xl font-black text-gray-800">Nova senha</h1>
+            <p className="text-gray-500 text-sm mt-1">Escolha uma senha segura para sua conta</p>
+          </div>
+
+          {sucesso ? (
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">✅</div>
+              <p className="text-green-700 font-bold text-lg">Senha redefinida!</p>
+              <p className="text-gray-500 text-sm mt-2">Redirecionando para o login...</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {erro && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                  ⚠️ {erro}
+                </div>
+              )}
+
+              {/* Nova senha */}
+              <div className="relative">
+                <input
+                  type={mostrarNova ? 'text' : 'password'}
+                  placeholder="Nova senha"
+                  value={novaSenha}
+                  onChange={e=>setNovaSenha(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&handleRedefinir()}
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm"
+                />
+                <button onClick={()=>setMostrarNova(v=>!v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg">
+                  {mostrarNova ? '🙈' : '👁️'}
+                </button>
+              </div>
+
+              {/* Confirmar senha */}
+              <div className="relative">
+                <input
+                  type={mostrarConf ? 'text' : 'password'}
+                  placeholder="Confirmar nova senha"
+                  value={confirmarSenha}
+                  onChange={e=>setConfirmarSenha(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&handleRedefinir()}
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none text-sm"
+                />
+                <button onClick={()=>setMostrarConf(v=>!v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg">
+                  {mostrarConf ? '🙈' : '👁️'}
+                </button>
+              </div>
+
+              {/* Indicador de força */}
+              {novaSenha.length > 0 && (
+                <div className="space-y-1">
+                  <div className="flex gap-1">
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${
+                        novaSenha.length >= i*3
+                          ? i<=1 ? 'bg-red-400' : i<=2 ? 'bg-yellow-400' : i<=3 ? 'bg-blue-400' : 'bg-green-500'
+                          : 'bg-gray-200'
+                      }`} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {novaSenha.length < 6 ? 'Muito curta (mín. 6 caracteres)' :
+                     novaSenha.length < 9 ? 'Fraca' :
+                     novaSenha.length < 12 ? 'Média' : 'Forte 💪'}
+                  </p>
+                </div>
+              )}
+
+              <button onClick={handleRedefinir} disabled={loading}
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl font-bold shadow-lg disabled:opacity-50 mt-2">
+                {loading ? '⏳ Salvando...' : '🔑 Salvar nova senha'}
+              </button>
+
+              <button onClick={()=>setScreen('login')}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-600 text-sm transition-all">
+                ← Voltar ao login
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const LoginScreen = () => {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
@@ -2191,6 +2316,12 @@ const App = () => {
           const leilaoId = urlParams.get('leilao');
           if (leilaoId) {
             localStorage.setItem('agenda-pokemon-deep-link', leilaoId);
+          }
+          // Detectar retorno do link de reset de senha (hash #access_token + type=recovery)
+          const hashParams = new URLSearchParams(window.location.hash.replace('#',''));
+          if (hashParams.get('type') === 'recovery') {
+            setScreen('redefinirSenha');
+            return;
           }
           const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes'];
           if (savedScreen === 'publicProfile') {
@@ -6484,7 +6615,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
   }
 
   // Se não está logado, mostrar apenas login/register
-  if (!user && screen !== 'register') {
+  if (!user && screen !== 'register' && screen !== 'redefinirSenha') {
     return <LoginScreen />;
   }
 
@@ -6492,6 +6623,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     <div className="w-full min-h-screen">
       {showTutorial && <TutorialModal />}
       {screen==='login'      && <LoginScreen />}
+      {screen==='redefinirSenha' && <RedefinirSenhaScreen />}
       {screen==='register'   && <RegisterScreen />}
       {screen==='home'       && <HomeScreen />}
       {screen==='calendar'   && <CalendarScreen />}
