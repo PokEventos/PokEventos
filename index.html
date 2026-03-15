@@ -1237,19 +1237,16 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             className={`w-full py-3.5 rounded-xl font-bold shadow-md ${checkins.includes(event.id)?'bg-green-500 text-white':'bg-blue-600 text-white'}`}>
             {checkins.includes(event.id)?'✓ Check-in Confirmado':'🔔 Fazer Check-in'}
           </button>
-          {/* Botão de lembrete */}
-          {(() => {
-            const temLembrete = lembretes && lembretes.includes(String(event.id));
-            const dataLeilao = event.date ? new Date(event.date + 'T00:00:00') : null;
-            const passou = dataLeilao && dataLeilao < new Date(new Date().toDateString());
-            if (passou) return null;
-            return (
+          {/* Indicador de lembrete ativo (só leitura — ativado via check-in) */}
+          {lembretes && lembretes.includes(String(event.id)) && (
+            <div className="flex items-center justify-center gap-2 py-2 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-700 text-sm font-semibold">
+              🔔 Você será lembrado 5 min antes
               <button onClick={e=>{e.stopPropagation(); toggleLembrete && toggleLembrete(event);}}
-                className={`w-full py-3.5 rounded-xl font-bold shadow-md flex items-center justify-center gap-2 transition-all ${temLembrete ? 'bg-yellow-400 text-gray-900' : 'bg-gray-100 text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 border-2 border-gray-200 hover:border-yellow-300'}`}>
-                {temLembrete ? '🔔 Lembrete ativado' : '🔕 Me lembrar deste leilão'}
+                className="text-yellow-400 hover:text-yellow-600 text-xs underline ml-1">
+                cancelar
               </button>
-            );
-          })()}
+            </div>
+          )}
           {(event.whatsapp_link || event.whatsappLink) && (
             <a href={event.whatsapp_link || event.whatsappLink} target="_blank" rel="noopener noreferrer"
               className="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
@@ -1367,8 +1364,9 @@ const App = () => {
   const [events,      setEvents]      = useState([]); // Mudado de EVENTS para events (useState)
   const [vitrineAll,  setVitrineAll]  = useState([]); // Cartas da vitrine (global)
   const [checkins,    setCheckins]    = useState([]);
-  const [lembretes,   setLembretes]   = useState([]); // IDs de leilões com lembrete ativo
-  const [pushEnabled, setPushEnabled] = useState(false); // permissão de notificação
+  const [lembretes,      setLembretes]      = useState([]); // IDs de leilões com lembrete ativo
+  const [pushEnabled,    setPushEnabled]    = useState(false);
+  const [modalLembrete,  setModalLembrete]  = useState(null); // { event } — mini modal de lembrete
   const [modalEvent,  setModalEvent]  = useState(null);
   const [modalEventShowCards, setModalEventShowCards] = useState(false);
   const [searchLog,   setSearchLog]   = useState([]);
@@ -1616,58 +1614,55 @@ const App = () => {
     return perm === 'granted';
   };
 
-  const toggleLembrete = async (event) => {
+  const toggleLembrete = async (event, comentario = '') => {
     if (!user) { alert('Faça login para ativar lembretes'); return; }
     const auctionId = String(event.id);
     const temLembrete = lembretes.includes(auctionId);
 
     if (temLembrete) {
-      // Remover lembrete
       await supabase.from('leilao_lembretes')
         .delete().eq('user_id', user.id).eq('auction_id', auctionId);
       setLembretes(prev => prev.filter(id => id !== auctionId));
     } else {
-      // Pedir permissão de notificação antes de ativar
       const temPermissao = await pedirPermissaoNotificacao();
       if (!temPermissao) {
         alert('Para receber lembretes, permita notificações nas configurações do navegador/celular.');
         return;
       }
-      // Salvar lembrete
       await supabase.from('leilao_lembretes').upsert({
         user_id:       user.id,
         auction_id:    auctionId,
         auction_title: event.title || event.organizer || '',
         auction_date:  event.date,
         auction_time:  event.time || '',
+        comentario:    comentario || null,
       }, { onConflict: 'user_id,auction_id' });
       setLembretes(prev => [...prev, auctionId]);
-
-      // Agendar notificação local
-      agendarNotificacaoLocal(event);
+      agendarNotificacaoLocal(event, comentario);
     }
   };
 
-  const agendarNotificacaoLocal = (event) => {
+  const agendarNotificacaoLocal = (event, comentario = '') => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (!event.date || !event.time) return;
 
-    // Calcular quando enviar: 30 minutos antes do leilão
-    const [hora, min] = (event.time || '00:00').split(':').map(Number);
     const dataLeilao = new Date(event.date + 'T' + event.time + ':00');
-    const dataNotif  = new Date(dataLeilao.getTime() - 30 * 60 * 1000); // 30min antes
-    const agora = new Date();
-    const delay = dataNotif.getTime() - agora.getTime();
+    const dataNotif  = new Date(dataLeilao.getTime() - 5 * 60 * 1000); // 5min antes
+    const delay = dataNotif.getTime() - new Date().getTime();
+    if (delay <= 0) return;
 
-    if (delay <= 0) return; // leilão já passou ou é agora
+    const titulo = event.title || event.organizer || 'Leilão Pokémon';
+    const corpo  = comentario
+      ? 'Começa às ' + event.time + ' · Seu lembrete: ' + comentario
+      : 'Começa em 5 minutos! (' + event.time + ')';
 
     setTimeout(() => {
       if (Notification.permission === 'granted') {
-        const notif = new Notification('🎴 Leilão em 30 minutos!', {
-          body: (event.title || event.organizer || 'Leilão') + ' começa às ' + event.time,
-          icon: '/icon-192.png',
+        const notif = new Notification('🎴 ' + titulo, {
+          body:  corpo,
+          icon:  '/icon-192.png',
           badge: '/icon-192.png',
-          tag: 'leilao-' + event.id,
+          tag:   'leilao-' + event.id,
         });
         notif.onclick = () => { window.focus(); };
       }
@@ -1711,6 +1706,14 @@ const App = () => {
             console.error('❌ Erro ao adicionar check-in:', error);
           } else {
             console.log('✅ Check-in salvo');
+            // Abrir mini modal de lembrete se o leilão ainda não passou
+            const ev = events.find(e => String(e.id) === String(id));
+            if (ev && ev.date) {
+              const dataLeilao = new Date(ev.date + 'T' + (ev.time || '00:00') + ':00');
+              if (dataLeilao > new Date()) {
+                setModalLembrete({ event: ev });
+              }
+            }
           }
         }
       } catch (err) {
@@ -6714,6 +6717,68 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
   return (
     <div className="w-full min-h-screen">
       {showTutorial && <TutorialModal />}
+      {/* ── Modal de lembrete pós check-in ── */}
+      {modalLembrete && (() => {
+        const ev = modalLembrete.event;
+        const [comentario, setComentario] = React.useState('');
+        const [salvando,   setSalvando]   = React.useState(false);
+
+        const confirmar = async () => {
+          setSalvando(true);
+          await toggleLembrete(ev, comentario.trim());
+          setModalLembrete(null);
+          setSalvando(false);
+        };
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center">
+                <div className="text-4xl mb-1">🔔</div>
+                <h2 className="font-black text-gray-900 text-lg">Ativar lembrete</h2>
+                <p className="text-yellow-900/70 text-xs mt-0.5">
+                  {ev.title || ev.organizer} · {ev.date ? new Date(ev.date + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}) : ''} às {ev.time}
+                </p>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1.5">
+                    📝 O que você quer neste leilão? <span className="text-gray-400 font-normal">(opcional)</span>
+                  </label>
+                  <textarea
+                    value={comentario}
+                    onChange={e=>setComentario(e.target.value)}
+                    placeholder="Ex: Charizard ex, qualquer Pikachu, cartas do set SV..."
+                    className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-sm resize-none focus:border-yellow-400 outline-none"
+                    rows={3}
+                    maxLength={120}
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-gray-400 text-right mt-1">{comentario.length}/120</p>
+                </div>
+
+                <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-3">
+                  🔔 Você receberá uma notificação <strong>5 minutos antes</strong> do leilão começar{comentario ? ' com seu lembrete' : ''}.
+                </p>
+
+                <div className="flex gap-2">
+                  <button onClick={()=>setModalLembrete(null)}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl text-sm transition-all">
+                    Agora não
+                  </button>
+                  <button onClick={confirmar} disabled={salvando}
+                    className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black rounded-2xl text-sm transition-all disabled:opacity-50 shadow-md">
+                    {salvando ? '⏳...' : '🔔 Ativar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {screen==='login'      && <LoginScreen />}
       {screen==='redefinirSenha' && <RedefinirSenhaScreen />}
       {screen==='register'   && <RegisterScreen />}
