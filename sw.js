@@ -1,4 +1,4 @@
-const CACHE = 'agenda-pokemon-v2';
+const CACHE = 'agenda-pokemon-v3';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -19,30 +19,29 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Push notification recebida do servidor (futuro)
+// Push do servidor (futuro)
 self.addEventListener('push', e => {
   const data = e.data ? e.data.json() : {};
   e.waitUntil(
     self.registration.showNotification(data.title || '🎴 Agenda Pokémon', {
-      body:  data.body  || 'Você tem um leilão em breve!',
-      icon:  '/icon-192.png',
-      badge: '/icon-192.png',
-      tag:   data.tag   || 'agenda-pokemon',
-      data:  data.url   || '/',
+      body:             data.body || 'Você tem um leilão em breve!',
+      icon:             '/icon-192.png',
+      badge:            '/icon-192.png',
+      tag:              data.tag || 'agenda-pokemon',
+      requireInteraction: true,
+      data:             { url: data.url || '/' }
     })
   );
 });
 
-// Clique na notificação — abre o app
+// Clique na notificação
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      const url = e.notification.data || '/';
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
-        }
+        if ('focus' in client) return client.focus();
       }
       if (clients.openWindow) return clients.openWindow(url);
     })
