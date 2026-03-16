@@ -336,7 +336,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         background:'linear-gradient(145deg,#c8a84b,#f5e27a,#c8a84b,#8b6914)',
         boxShadow:'0 0 0 1px #8b6914, 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
       }}>
-        {/* Label topo: GRADED à esquerda, nota à direita */}
+        {/* Label topo */}
         <div style={{
           background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
           borderBottom:'1px solid #c8a84b',
@@ -344,12 +344,12 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           padding:'2px 3px',
           display:'flex',
           alignItems:'center',
-          justifyContent:'space-between',
+          justifyContent: sidebar ? 'space-between' : 'center',
         }}>
           <span style={{color:'#f5e27a',fontSize:topFontSize,fontWeight:900,letterSpacing:'0.5px',fontFamily:'Arial Black,sans-serif',lineHeight:1}}>
             GRADED
           </span>
-          {nota && (
+          {sidebar && nota && (
             <span style={{color:notaColor,fontSize:topFontSize,fontWeight:900,fontFamily:'Arial Black,sans-serif',lineHeight:1,textShadow:notaGlow}}>
               {nota}
             </span>
