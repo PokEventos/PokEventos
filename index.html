@@ -1096,7 +1096,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-4xl leading-tight truncate">{event.organizer || event.title}</p>
+            <p className="font-black text-xl leading-tight truncate">{event.title || event.organizer}</p>
             <p className="text-yellow-300 text-xs font-semibold mt-0.5">
               📅 {new Date(event.date).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})} · ⏰ {event.time}
             </p>
