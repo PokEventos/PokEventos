@@ -5501,40 +5501,46 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         )}
 
         {/* Menu */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <button onClick={()=>setScreen('calendar')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 border-b border-gray-100 text-sm font-semibold text-gray-700">
-            📅 <span>Calendário de Leilões</span>
+        <div className="space-y-2">
+          <button onClick={()=>setScreen('calendar')}
+            className="w-full flex items-center gap-3 px-4 py-4 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+            <span className="text-xl">📅</span><span>Calendário de Leilões</span>
           </button>
-          <button onClick={()=>setScreen('wanted')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-yellow-50 border-b border-gray-100 text-sm font-semibold text-yellow-700">
-            ⭐ <span>Wanted List {wantedList.length > 0 && `(${wantedList.length})`}</span>
+          <button onClick={()=>setScreen('wanted')}
+            className="w-full flex items-center gap-3 px-4 py-4 bg-yellow-400 hover:bg-yellow-500 active:scale-95 rounded-2xl text-gray-900 font-bold text-sm shadow-md transition-all">
+            <span className="text-xl">⭐</span>
+            <span>Wanted List {wantedList.length > 0 && <span className="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full ml-1">{wantedList.length}</span>}</span>
           </button>
 
           {(userProfile?.is_admin || (isAuctioneer && isApproved)) && (
             <>
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                  {userProfile?.is_admin ? 'Administração' : 'Área do Leiloeiro'}
-                </p>
-              </div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide px-1 pt-1">
+                {userProfile?.is_admin ? 'Administração' : 'Área do Leiloeiro'}
+              </p>
               {userProfile?.is_admin && (
-                <button onClick={()=>setScreen('admin')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-purple-50 border-b border-gray-100 text-sm font-bold text-purple-700">
-                  🔐 <span>Painel Admin</span>
+                <button onClick={()=>setScreen('admin')}
+                  className="w-full flex items-center gap-3 px-4 py-4 bg-purple-600 hover:bg-purple-700 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+                  <span className="text-xl">🔐</span><span>Painel Admin</span>
                 </button>
               )}
-              <button onClick={()=>setScreen('auctioneer')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-800 hover:text-white border-b border-gray-100 text-sm font-bold text-gray-800 transition-colors">
-                🔨 <span>Criar Novo Leilão</span>
+              <button onClick={()=>setScreen('auctioneer')}
+                className="w-full flex items-center gap-3 px-4 py-4 bg-gray-800 hover:bg-gray-900 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+                <span className="text-xl">🔨</span><span>Criar Novo Leilão</span>
               </button>
-              <button onClick={()=>setScreen('meusLeiloes')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-green-50 border-b border-gray-100 text-sm font-bold text-green-700">
-                📋 <span>Leilões Criados</span>
+              <button onClick={()=>setScreen('meusLeiloes')}
+                className="w-full flex items-center gap-3 px-4 py-4 bg-green-600 hover:bg-green-700 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+                <span className="text-xl">📋</span><span>Leilões Criados</span>
               </button>
-              <button onClick={()=>setScreen('minhaVitrine')} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-orange-50 border-b border-gray-100 text-sm font-bold text-orange-600">
-                🏪 <span>Cartas na Vitrine</span>
+              <button onClick={()=>setScreen('minhaVitrine')}
+                className="w-full flex items-center gap-3 px-4 py-4 bg-orange-500 hover:bg-orange-600 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+                <span className="text-xl">🏪</span><span>Cartas na Vitrine</span>
               </button>
             </>
           )}
 
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 text-sm font-bold text-red-600 transition-colors">
-            🚪 <span>Sair</span>
+          <button onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-4 bg-red-500 hover:bg-red-600 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
+            <span className="text-xl">🚪</span><span>Sair da conta</span>
           </button>
         </div>
       </div>
