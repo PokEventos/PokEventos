@@ -6112,11 +6112,18 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               <div className="p-4 space-y-3">
                 {/* Opção 1: Foto */}
                 <div>
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold rounded-lg cursor-pointer transition-all border border-gray-300 text-xs">
-                    🖼️ Enviar foto/mídia da carta
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
-                  </label>
+                  <div className="flex gap-2">
+                    <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold rounded-lg cursor-pointer border border-gray-300 text-xs">
+                      📷 Câmera
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
+                    </label>
+                    <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold rounded-lg cursor-pointer border border-gray-300 text-xs">
+                      🖼️ Galeria
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
+                    </label>
+                  </div>
                   <p className="text-[10px] text-gray-400 mt-1">Use para cartas JP 🇯🇵, CN 🇨🇳 ou sem cadastro na base</p>
                 </div>
 
@@ -7083,27 +7090,44 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                           {/* Foto */}
                           <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Foto da carta</label>
-                            <div className="flex items-center gap-2">
-                              <label className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border cursor-pointer text-xs font-bold transition-all ${editing.imgUploading ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-300'}`}>
-                                {editing.imgUploading ? '⏳ Enviando...' : editing.newImgUrl ? '✅ Nova foto' : '🖼️ Trocar foto'}
-                                <input type="file" accept="image/*" className="hidden" disabled={editing.imgUploading}
-                                  onChange={async e => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    setEditing(p=>({...p, imgUploading: true}));
-                                    try {
-                                      const ext = file.name.split('.').pop();
-                                      const fileName = 'vitrine-' + user.id + '-' + Date.now() + '.' + ext;
-                                      const { error: upErr } = await supabase.storage.from('vitrine').upload(fileName, file, { upsert: true });
-                                      if (upErr) throw new Error(upErr.message);
-                                      const { data: urlData } = supabase.storage.from('vitrine').getPublicUrl(fileName);
-                                      setEditing(p=>({...p, newImgUrl: urlData.publicUrl, imgUploading: false}));
-                                    } catch(err) {
-                                      alert('Erro: ' + err.message);
-                                      setEditing(p=>({...p, imgUploading: false}));
-                                    }
-                                  }} />
-                              </label>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {editing.imgUploading
+                                ? <span className="text-xs text-gray-400 font-bold">⏳ Enviando...</span>
+                                : <>
+                                    <label className="inline-flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 rounded-xl cursor-pointer text-xs font-bold">
+                                      📷 Câmera
+                                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                                        onChange={async e => {
+                                          const file = e.target.files?.[0]; if (!file) return;
+                                          setEditing(p=>({...p,imgUploading:true}));
+                                          try {
+                                            const ext = file.name.split('.').pop();
+                                            const fileName = 'vitrine-'+user.id+'-'+Date.now()+'.'+ext;
+                                            const {error:upErr} = await supabase.storage.from('vitrine').upload(fileName,file,{upsert:true});
+                                            if (upErr) throw new Error(upErr.message);
+                                            const {data:urlData} = supabase.storage.from('vitrine').getPublicUrl(fileName);
+                                            setEditing(p=>({...p,newImgUrl:urlData.publicUrl,imgUploading:false}));
+                                          } catch(err) { alert('Erro: '+err.message); setEditing(p=>({...p,imgUploading:false})); }
+                                        }} />
+                                    </label>
+                                    <label className="inline-flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 rounded-xl cursor-pointer text-xs font-bold">
+                                      🖼️ Galeria
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={async e => {
+                                          const file = e.target.files?.[0]; if (!file) return;
+                                          setEditing(p=>({...p,imgUploading:true}));
+                                          try {
+                                            const ext = file.name.split('.').pop();
+                                            const fileName = 'vitrine-'+user.id+'-'+Date.now()+'.'+ext;
+                                            const {error:upErr} = await supabase.storage.from('vitrine').upload(fileName,file,{upsert:true});
+                                            if (upErr) throw new Error(upErr.message);
+                                            const {data:urlData} = supabase.storage.from('vitrine').getPublicUrl(fileName);
+                                            setEditing(p=>({...p,newImgUrl:urlData.publicUrl,imgUploading:false}));
+                                          } catch(err) { alert('Erro: '+err.message); setEditing(p=>({...p,imgUploading:false})); }
+                                        }} />
+                                    </label>
+                                  </>
+                              }
                               {editing.newImgUrl && (
                                 <>
                                   <img src={editing.newImgUrl} className="h-10 w-auto rounded-lg border border-gray-200 object-contain" />
