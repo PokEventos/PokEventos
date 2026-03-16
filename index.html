@@ -1630,18 +1630,31 @@ const App = () => {
   
   // Carregar leilões do Supabase (público - todos veem)
   React.useEffect(() => {
-    // Aguardar Supabase estar pronto
-    const tryLoadAuctions = () => {
-      if (supabase) {
-        loadAuctionsFromDB();
-        loadVitrineAll();
+    let tentativas = 0;
+    const MAX = 20; // máx 4 segundos
 
-      } else {
-        console.log('⏳ Aguardando Supabase inicializar...');
-        setTimeout(tryLoadAuctions, 200);
+    const tryLoad = async () => {
+      if (!supabase) {
+        tentativas++;
+        if (tentativas < MAX) setTimeout(tryLoad, 200);
+        return;
       }
+      await loadAuctionsFromDB();
+      await loadVitrineAll();
+
+      // Se carregou vazio, pode ser que o Supabase ainda estava inicializando — tenta mais 1x
+      setTimeout(async () => {
+        if (events.length === 0) {
+          console.log('🔄 Retry: nenhum leilão na primeira carga, tentando novamente...');
+          await loadAuctionsFromDB();
+        }
+      }, 1500);
     };
-    tryLoadAuctions();
+
+    // Tentar imediatamente e também ao receber evento supabase-ready
+    tryLoad();
+    window.addEventListener('supabase-ready', tryLoad);
+    return () => window.removeEventListener('supabase-ready', tryLoad);
   }, []);
 
   // Ouvir clique em notificação — abrir leilão direto
