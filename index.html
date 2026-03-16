@@ -304,7 +304,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
 
   // Componente GradedSlab — envolve a imagem num slab estilo PSA/BGS
-  const GradedSlab = ({ c, children }) => {
+  const GradedSlab = ({ c, children, sidebar=false }) => {
     if (!c.graded) return <>{children}</>;
     const nota = c.grade_value || c.gradeValue || '';
     // Cor progressiva: 10=ouro puro, 9.5=ouro claro, 9=prata, 8.5=prata escuro, 8=bronze claro, resto=bronze
@@ -323,24 +323,24 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       nota==='9.5'  ? '0 0 5px rgba(255,194,0,0.6)' :
       nota==='9'    ? '0 0 4px rgba(192,192,192,0.6)' :
                       'none';
-    return (
+    const slabMain = (
       <div style={{
+        flex: sidebar ? 1 : undefined,
         position:'relative',
-        borderRadius:'6px',
+        borderRadius: sidebar ? '6px 0 0 6px' : '6px',
         padding:'0',
         background:'linear-gradient(145deg,#c8a84b,#f5e27a,#c8a84b,#8b6914)',
         boxShadow:'0 0 0 1px #8b6914, 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
       }}>
-        {/* Label topo — centralizado */}
+        {/* Label topo */}
         <div style={{
           background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
           borderBottom:'1px solid #c8a84b',
-          borderRadius:'5px 5px 0 0',
+          borderRadius: sidebar ? '5px 0 0 0' : '5px 5px 0 0',
           padding:'3px 4px',
           display:'flex',
           alignItems:'center',
           justifyContent:'center',
-          gap:'6px',
         }}>
           <span style={{color:'#f5e27a',fontSize:'8px',fontWeight:900,letterSpacing:'1px',fontFamily:'Arial Black,sans-serif'}}>
             GRADED
@@ -349,37 +349,22 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         {/* Carta */}
         <div style={{
           margin:'1.5px',
-          borderRadius:'0 0 4px 4px',
+          borderRadius: sidebar ? '0 0 0 4px' : '0 0 4px 4px',
           overflow:'hidden',
           background:'#111',
           position:'relative',
         }}>
           {children}
-          {/* Nota no canto superior esquerdo sobre a carta */}
-          {nota && (
+          {/* Nota no canto esquerdo — só quando NÃO sidebar */}
+          {!sidebar && nota && (
             <div style={{
-              position:'absolute',
-              top:'3px',
-              left:'3px',
-              background:'#000',
-              border:`1px solid ${notaColor}`,
-              borderRadius:'4px',
-              padding:'1px 4px',
-              lineHeight:1.1,
-              boxShadow: notaGlow,
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              minWidth:'18px',
+              position:'absolute', top:'3px', left:'3px',
+              background:'#000', border:`1px solid ${notaColor}`,
+              borderRadius:'4px', padding:'1px 4px', lineHeight:1.1,
+              boxShadow: notaGlow, display:'flex',
+              alignItems:'center', justifyContent:'center', minWidth:'18px',
             }}>
-              <span style={{
-                color: notaColor,
-                fontSize:'10px',
-                fontWeight:900,
-                fontFamily:'Arial Black,sans-serif',
-                textShadow: notaGlow,
-                textAlign:'center',
-              }}>{nota}</span>
+              <span style={{color:notaColor,fontSize:'10px',fontWeight:900,fontFamily:'Arial Black,sans-serif',textShadow:notaGlow,textAlign:'center'}}>{nota}</span>
             </div>
           )}
         </div>
@@ -387,13 +372,51 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         <div style={{
           background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
           borderTop:'1px solid #c8a84b',
-          borderRadius:'0 0 4px 4px',
-          padding:'2px 4px',
-          textAlign:'center',
+          borderRadius: sidebar ? '0 0 0 4px' : '0 0 4px 4px',
+          padding:'2px 2px', textAlign:'center', overflow:'hidden', lineHeight:1,
         }}>
-          <span style={{color:'#c8a84b',fontSize:'7px',fontWeight:700,letterSpacing:'1.5px'}}>
+          <span style={{color:'#c8a84b',fontSize:'7px',fontWeight:700,letterSpacing:'0.5px',whiteSpace:'nowrap',display:'block'}}>
             ★ CERTIFIED ★
           </span>
+        </div>
+      </div>
+    );
+
+    if (!sidebar) return slabMain;
+
+    // Modo sidebar — coluna direita com a nota
+    return (
+      <div style={{display:'flex', borderRadius:'6px', overflow:'hidden', boxShadow:'0 4px 12px rgba(0,0,0,0.5)'}}>
+        {slabMain}
+        {/* Coluna lateral direita com a nota */}
+        <div style={{
+          background:'linear-gradient(180deg,#0a0a1a,#1a1a3e,#0a0a1a)',
+          border:'1px solid #c8a84b',
+          borderLeft:'none',
+          borderRadius:'0 6px 6px 0',
+          display:'flex',
+          flexDirection:'column',
+          alignItems:'center',
+          justifyContent:'center',
+          padding:'2px 3px',
+          minWidth:'14px',
+          gap:'2px',
+        }}>
+          {nota && (
+            <span style={{
+              color: notaColor,
+              fontSize:'11px',
+              fontWeight:900,
+              fontFamily:'Arial Black,sans-serif',
+              textShadow: notaGlow,
+              writingMode:'vertical-rl',
+              textOrientation:'mixed',
+              transform:'rotate(180deg)',
+              letterSpacing:'1px',
+            }}>{nota}</span>
+          )}
+          <div style={{width:'1px',flex:1,background:`linear-gradient(180deg,transparent,${notaColor},transparent)`,margin:'2px 0'}} />
+          <span style={{color:'#c8a84b',fontSize:'5px',fontWeight:700,writingMode:'vertical-rl',transform:'rotate(180deg)',letterSpacing:'0.5px'}}>PSA</span>
         </div>
       </div>
     );
@@ -6924,7 +6947,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                     {pageCards.map(c => (
                       <div key={c.id} onClick={()=>setExpanded(expanded===c.id?null:c.id)}
                         className={`relative cursor-pointer transition-all active:scale-95 ${expanded===c.id?'opacity-100 scale-105':'opacity-90 hover:opacity-100'}`}>
-                        <GradedSlab c={c}>
+                        <GradedSlab c={c} sidebar={true}>
                           <div className="relative">
                             {c.img_url
                               ? <img src={c.img_url} className="w-full aspect-[63/88] object-contain bg-gray-50" />
