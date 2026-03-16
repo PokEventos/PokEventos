@@ -5921,7 +5921,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       const objectUrl = URL.createObjectURL(file);
       const tempCard = {
         id: tempId,
-        name: file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ') || 'Carta sem nome',
+        name: '',
         number: '',
         set: { name: '' },
         images: { small: objectUrl, large: objectUrl },
@@ -5951,6 +5951,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       if (!whatsapp) { alert('Informe seu WhatsApp'); return; }
       if (vitrineCards.length === 0) { alert('Adicione pelo menos uma carta'); return; }
       if (vitrineCards.some(c => !c.price)) { alert('Defina o preço de todas as cartas'); return; }
+      if (vitrineCards.some(c => !c.card.name.trim())) { alert('Digite o nome de todas as cartas'); return; }
       setPublishing(true);
       const vendedor = userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro';
       try {
@@ -6110,12 +6111,14 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               {/* Adicionar carta */}
               <div className="p-4 space-y-3">
                 {/* Opção 1: Foto */}
-                <label className="flex items-center justify-center gap-2 w-full py-3 bg-gray-900 hover:bg-gray-800 active:scale-95 text-white font-bold rounded-xl cursor-pointer transition-all border-2 border-gray-700">
-                  📷 Adicionar pela foto da carta
-                  <span className="text-gray-400 text-xs font-normal">(JPN / CN / sem cadastro)</span>
-                  <input type="file" accept="image/*" capture="environment" className="hidden"
-                    onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
-                </label>
+                <div>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold rounded-lg cursor-pointer transition-all border border-gray-300 text-xs">
+                    📷 Foto da carta
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
+                  </label>
+                  <p className="text-[10px] text-gray-400 mt-1">Use para cartas JP 🇯🇵, CN 🇨🇳 ou sem cadastro na base</p>
+                </div>
 
                 {/* Divisor */}
                 <div className="flex items-center gap-2">
@@ -6173,10 +6176,14 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                         }
                         <div className="flex-1 min-w-0">
                           {card._isPhotoCard
-                            ? <input value={card.name}
-                                onChange={e=>setVitrineCards(p=>p.map(x=>x.card.id===card.id?{...x,card:{...x.card,name:e.target.value}}:x))}
-                                placeholder="Nome da carta"
-                                className="w-full font-black text-sm text-gray-800 border-b-2 border-yellow-400 outline-none bg-transparent" />
+                            ? <div>
+                                <input value={card.name}
+                                  autoFocus
+                                  onChange={e=>setVitrineCards(p=>p.map(x=>x.card.id===card.id?{...x,card:{...x.card,name:e.target.value}}:x))}
+                                  placeholder="✏️ Digite o nome da carta"
+                                  className={`w-full font-black text-sm border-b-2 outline-none bg-transparent ${card.name ? 'text-gray-800 border-yellow-400' : 'text-red-400 border-red-300 placeholder-red-300'}`} />
+                                {!card.name && <p className="text-[9px] text-red-400 mt-0.5">Obrigatório</p>}
+                              </div>
                             : <p className="font-black text-sm text-gray-800">{card.name}</p>
                           }
                           {card.namePt && card.namePt !== card.nameEn && <p className="text-[10px] text-blue-500">🇧🇷 {card.namePt}</p>}
