@@ -1382,7 +1382,7 @@ const App = () => {
             setScreen('redefinirSenha');
             return;
           }
-          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes'];
+          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes', 'wishlist'];
           if (savedScreen === 'publicProfile') {
             const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
             if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
@@ -2636,7 +2636,7 @@ const App = () => {
             setScreen('redefinirSenha');
             return;
           }
-          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes'];
+          const validScreens = ['home', 'calendar', 'search', 'vitrine', 'profile', 'minhaVitrine', 'publicProfile', 'avaliacoes', 'wishlist'];
           if (savedScreen === 'publicProfile') {
             const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
             if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
@@ -3480,114 +3480,25 @@ const App = () => {
             </div>
           )}
 
-          {/* Estado inicial — Wanted List */}
+          {/* Estado inicial — dica de busca */}
           {!searched && !loading && (
             <div className="space-y-4">
-
-              {/* Popup carta da wanted list */}
-              {wantedModal && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={()=>setWantedModal(null)}>
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                  <div className="relative bg-white rounded-t-3xl w-full max-w-md shadow-2xl z-10 pb-8" onClick={e=>e.stopPropagation()}>
-                    <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4" />
-                    <div className="px-5 flex gap-4 items-start">
-                      {wantedModal.img && (
-                        <img src={wantedModal.img} alt={wantedModal.name} className="h-40 w-auto object-contain rounded-2xl shadow-xl flex-shrink-0 border-2 border-yellow-200" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-gray-900 text-lg leading-tight">{wantedModal.name}</p>
-                        {wantedModal.set && <p className="text-xs text-gray-400 mt-1">{typeof wantedModal.set === 'object' ? wantedModal.set?.name : wantedModal.set}{wantedModal.number ? ' · ' + wantedModal.number : ''}</p>}
-                        <div className="mt-3 space-y-1.5">
-                          {wantedModal.matches.length > 0 && (
-                            <div className="mb-2">
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Em leilão</p>
-                              {wantedModal.matches.map((ev,j) => (
-                                <button key={j} onClick={()=>{ setWantedModal(null); setModalEvent(ev); }}
-                                  className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-xl text-xs font-bold w-full text-left mb-1">
-                                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
-                                  {ev.title} · {ev.date} {ev.time}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {wantedModal.vitrineMatches && wantedModal.vitrineMatches.length > 0 && (
-                            <div className="mb-2">
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">À venda na vitrine</p>
-                              {wantedModal.vitrineMatches.map((vc,j) => (
-                                <button key={j} onClick={()=>{ setWantedModal(null); setScreen('vitrine'); }}
-                                  className="flex items-center gap-1.5 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold w-full text-left mb-1">
-                                  <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse flex-shrink-0" />
-                                  {vc.vendedor} · R$ {Number(vc.price).toFixed(2)} · {vc.quality}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {(!wantedModal.matches || wantedModal.matches.length === 0) && (!wantedModal.vitrineMatches || wantedModal.vitrineMatches.length === 0) && (
-                            <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em leilão ou vitrine ainda</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="px-5 mt-5">
-                      <button onClick={()=>{ removeWanted(wantedModal.id); setWantedModal(null); }}
-                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-sm transition-all">
-                        🗑️ Remover da Wanted List
-                      </button>
-                    </div>
-                  </div>
+              <div className="bg-white rounded-2xl shadow-md p-6 text-center">
+                <img src={POKE.eevee} className="w-20 mx-auto mb-3 opacity-50" />
+                <p className="font-black text-gray-700 mb-2">Como buscar</p>
+                <div className="text-sm text-gray-400 leading-relaxed space-y-1 text-left bg-gray-50 rounded-xl p-3">
+                  <p>🔤 <strong className="text-gray-600">Por nome</strong> — "Charizard" traz todas as versões</p>
+                  <p>🔢 <strong className="text-gray-600">Número/total</strong> — "215/172" ou "GG10/GG70" busca a carta exata</p>
+                  <p>🔢 <strong className="text-gray-600">Só o número</strong> — "215" ou "GG10" traz todas com esse número</p>
+                  <p>🆔 <strong className="text-gray-600">ID direto</strong> — "swsh7-215" ou "swsh12.5-GG44"</p>
+                  <p>🎴 <strong className="text-gray-600">Promo</strong> — "SVP 001" ou "MEP 012" busca direto no set</p>
+                  <p>⭐ Cartas desejadas ficam na sua <button onClick={()=>setScreen('wishlist')} className="text-yellow-600 font-black underline">Wishlist</button></p>
                 </div>
-              )}
-
-              {wantedList.length > 0 ? (
-                <div className="bg-white rounded-2xl shadow-md overflow-hidden border-t-4 border-yellow-400">
-                  <div className="px-4 py-3 bg-yellow-50 border-b border-yellow-100 flex items-center justify-between">
-                    <p className="font-bold text-gray-700 text-sm">Minha Wanted List</p>
-                    <span className="text-xs text-gray-400">{wantedList.length}/50</span>
-                  </div>
-                  <div className="divide-y divide-gray-50">
-                    {wantedWithMatches.map((wc, i) => (
-                      <div key={i} className="p-3 flex items-center gap-3 cursor-pointer active:bg-yellow-50" onClick={()=>setWantedModal(wc)}>
-                        {wc.img ? <img src={wc.img} alt={wc.name} className="h-16 w-auto object-contain rounded-lg shadow border border-yellow-100 flex-shrink-0" /> : null}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-black text-gray-800 text-sm">{wc.name}</p>
-                          {wc.set ? <p className="text-xs text-gray-400">{typeof wc.set === 'object' ? wc.set?.name : wc.set}{wc.number ? ' · ' + wc.number : ''}</p> : null}
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {wc.matches.length > 0 && (
-                              <span className="text-[10px] font-black text-green-600">✅ {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}</span>
-                            )}
-                            {wc.vitrineMatches && wc.vitrineMatches.length > 0 && (
-                              <span className="text-[10px] font-black text-orange-500">🏪 {wc.vitrineMatches.length} na vitrine</span>
-                            )}
-                            {wc.matches.length === 0 && (!wc.vitrineMatches || wc.vitrineMatches.length === 0) && (
-                              <span className="text-[10px] text-gray-400">⏳ Aguardando…</span>
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-gray-300 text-sm flex-shrink-0">›</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-                  <img src={POKE.eevee} className="w-20 mx-auto mb-3 opacity-50" />
-                  <p className="font-black text-gray-700 mb-2">Como buscar</p>
-                  <div className="text-sm text-gray-400 leading-relaxed space-y-1 text-left bg-gray-50 rounded-xl p-3">
-                    <p>🔤 <strong className="text-gray-600">Por nome</strong> — "Charizard" traz todas as versões</p>
-                    <p>🔢 <strong className="text-gray-600">Número/total</strong> — "215/172" ou "GG10/GG70" busca a carta exata</p>
-                    <p>🔢 <strong className="text-gray-600">Só o número</strong> — "215" ou "GG10" traz todas com esse número</p>
-                    <p>🆔 <strong className="text-gray-600">ID direto</strong> — "swsh7-215" ou "swsh12.5-GG44"</p>
-                    <p>🎴 <strong className="text-gray-600">Promo</strong> — "SVP 001" ou "MEP 012" busca direto no set</p>
-                    <p>⭐ Cartas não encontradas em leilão vão para a Wanted List</p>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
-        </div>
-
-        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} /> : null}
+                {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
@@ -3596,6 +3507,197 @@ const App = () => {
 
 
 
+
+  /* ════════════════════════════════════════
+     WISHLIST SCREEN
+  ════════════════════════════════════════ */
+  const WishlistScreen = () => {
+    const [wantedModal, setWantedModal] = React.useState(null);
+    const [filter, setFilter] = React.useState('all'); // 'all' | 'found' | 'missing'
+
+    const wantedWithMatches = wantedList.map(wc => {
+      const matches = EVENTS.filter(ev => matchWanted(wc, ev) &&
+        ev.date >= new Date().toISOString().split('T')[0]);
+      const vitrineMatches = vitrineAll.filter(vc => {
+        const vcAdapted = { id: vc.card_id || vc.id, name: vc.name, number: vc.number, set: { name: vc.set_name }, setId: vc.set_id };
+        return matchWanted(wc, vcAdapted);
+      });
+      return { ...wc, matches, vitrineMatches };
+    });
+
+    const filtered = wantedWithMatches.filter(wc => {
+      if (filter === 'found')   return wc.matches.length > 0 || wc.vitrineMatches.length > 0;
+      if (filter === 'missing') return wc.matches.length === 0 && wc.vitrineMatches.length === 0;
+      return true;
+    });
+
+    const countFound   = wantedWithMatches.filter(w => w.matches.length > 0 || w.vitrineMatches.length > 0).length;
+    const countMissing = wantedWithMatches.filter(w => w.matches.length === 0 && w.vitrineMatches.length === 0).length;
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+
+        {/* Header */}
+        <div className="sticky top-0 z-20 bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-900 p-5 pb-6 relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10">⭐</div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <button onClick={()=>setScreen('profile')} className="text-yellow-900/60 text-xs mb-2 flex items-center gap-1 hover:text-yellow-900">← Perfil</button>
+              <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Wishlist</h1>
+              <p className="text-yellow-900/60 text-xs mt-0.5">{wantedList.length} carta{wantedList.length!==1?'s':''} desejada{wantedList.length!==1?'s':''}</p>
+            </div>
+            <ProfileBtn />
+          </div>
+        </div>
+
+        <div className="px-4 pt-4 space-y-3">
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+              <p className="text-xl font-black text-gray-800">{wantedList.length}</p>
+              <p className="text-[10px] text-gray-500 font-semibold">Total</p>
+            </div>
+            <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-green-100">
+              <p className="text-xl font-black text-green-600">{countFound}</p>
+              <p className="text-[10px] text-gray-500 font-semibold">Encontradas</p>
+            </div>
+            <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+              <p className="text-xl font-black text-gray-400">{countMissing}</p>
+              <p className="text-[10px] text-gray-500 font-semibold">Aguardando</p>
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex gap-2">
+            {[
+              { key:'all',     label:'Todas',       count: wantedList.length },
+              { key:'found',   label:'✅ Encontradas', count: countFound },
+              { key:'missing', label:'⏳ Aguardando',  count: countMissing },
+            ].map(f => (
+              <button key={f.key} onClick={()=>setFilter(f.key)}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${filter===f.key?'bg-yellow-400 text-gray-900 shadow-md':'bg-white text-gray-500 border border-gray-200 hover:border-yellow-300'}`}>
+                {f.label} {f.count > 0 && <span className={`ml-0.5 ${filter===f.key?'opacity-70':'text-gray-400'}`}>({f.count})</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Lista */}
+          {wantedList.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-md p-10 text-center">
+              <p className="text-5xl mb-3">⭐</p>
+              <p className="font-black text-gray-700 mb-1">Wishlist vazia</p>
+              <p className="text-sm text-gray-400 mb-4">Busque cartas e adicione à sua wishlist para ser alertado quando aparecerem!</p>
+              <button onClick={()=>setScreen('search')}
+                className="bg-yellow-400 text-gray-900 px-6 py-2.5 rounded-xl font-black text-sm">
+                🔍 Buscar cartas
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+              <p className="text-3xl mb-2">🔍</p>
+              <p className="text-gray-400 text-sm">Nenhuma carta nesse filtro</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((wc, i) => {
+                const hasLeilao  = wc.matches.length > 0;
+                const hasVitrine = wc.vitrineMatches && wc.vitrineMatches.length > 0;
+                const found = hasLeilao || hasVitrine;
+                return (
+                  <div key={i} onClick={()=>setWantedModal(wc)}
+                    className={`bg-white rounded-2xl shadow-sm border-2 overflow-hidden cursor-pointer active:scale-98 transition-all ${found ? 'border-green-200' : 'border-gray-100'}`}>
+                    <div className="flex items-center gap-3 p-3">
+                      {wc.img
+                        ? <img src={wc.img} alt={wc.name} className="h-16 w-auto object-contain rounded-xl border border-gray-100 flex-shrink-0" />
+                        : <div className="w-12 h-16 bg-gray-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-gray-800">{wc.name}</p>
+                        {wc.set && <p className="text-xs text-gray-400">{typeof wc.set==='object'?wc.set?.name:wc.set}{wc.number?' · '+wc.number:''}</p>}
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {hasLeilao && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                              {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}
+                            </span>
+                          )}
+                          {hasVitrine && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                              🏪 {wc.vitrineMatches.length} na vitrine
+                            </span>
+                          )}
+                          {!found && (
+                            <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-200">⏳ Aguardando</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-gray-300 text-lg flex-shrink-0">›</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Modal detalhe da carta */}
+        {wantedModal && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={()=>setWantedModal(null)}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-t-3xl w-full max-w-md shadow-2xl z-10 pb-8" onClick={e=>e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4" />
+              <div className="px-5 flex gap-4 items-start">
+                {wantedModal.img && (
+                  <img src={wantedModal.img} alt={wantedModal.name} className="h-36 w-auto object-contain rounded-2xl shadow-xl flex-shrink-0 border-2 border-yellow-200" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-gray-900 text-lg leading-tight">{wantedModal.name}</p>
+                  {wantedModal.set && <p className="text-xs text-gray-400 mt-0.5">{typeof wantedModal.set==='object'?wantedModal.set?.name:wantedModal.set}{wantedModal.number?' · '+wantedModal.number:''}</p>}
+                  <div className="mt-3 space-y-1.5">
+                    {wantedModal.matches.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">Em leilão</p>
+                        {wantedModal.matches.map((ev,j) => (
+                          <button key={j} onClick={()=>{ setWantedModal(null); setModalEvent(ev); }}
+                            className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-xl text-xs font-bold w-full text-left mb-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
+                            {ev.title} · {ev.date} {ev.time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {wantedModal.vitrineMatches && wantedModal.vitrineMatches.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1">À venda na vitrine</p>
+                        {wantedModal.vitrineMatches.map((vc,j) => (
+                          <button key={j} onClick={()=>{ setWantedModal(null); setScreen('vitrine'); }}
+                            className="flex items-center gap-1.5 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-2 rounded-xl text-xs font-bold w-full text-left mb-1">
+                            🏪 {vc.vendedor} · R$ {Number(vc.price).toFixed(2)} · {vc.quality}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {(!wantedModal.matches || wantedModal.matches.length === 0) && (!wantedModal.vitrineMatches || wantedModal.vitrineMatches.length === 0) && (
+                      <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl">⏳ Não encontrada em leilão ou vitrine ainda</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 mt-5">
+                <button onClick={()=>{ removeWanted(wantedModal.id); setWantedModal(null); }}
+                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-sm">
+                  🗑️ Remover da Wishlist
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BottomNav current="search" />
+      </div>
+    );
+  };
 
   const AuctioneerScreen = ({ editingAuction = null }) => {
     const QUALITIES   = ['M','NM','SP','MP','HP','D'];
@@ -5573,10 +5675,10 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             className="w-full flex items-center gap-3 px-4 py-4 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
             <span className="text-xl">📅</span><span>Calendário de Leilões</span>
           </button>
-          <button onClick={()=>setScreen('wanted')}
+          <button onClick={()=>setScreen('wishlist')}
             className="w-full flex items-center gap-3 px-4 py-4 bg-yellow-400 hover:bg-yellow-500 active:scale-95 rounded-2xl text-gray-900 font-bold text-sm shadow-md transition-all">
             <span className="text-xl">⭐</span>
-            <span>Wanted List {wantedList.length > 0 && <span className="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full ml-1">{wantedList.length}</span>}</span>
+            <span>Wishlist {wantedList.length > 0 && <span className="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full ml-1">{wantedList.length}</span>}</span>
           </button>
 
           {(userProfile?.is_admin || (isAuctioneer && isApproved)) && (
@@ -7244,6 +7346,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       {screen==='home'       && <HomeScreen />}
       {screen==='calendar'   && <CalendarScreen />}
       {screen==='search'     && <SearchWantedScreen />}
+      {screen==='wishlist'    && <WishlistScreen />}
       {screen==='wanted'     && <SearchWantedScreen />}
       {screen==='auctioneer' && <AuctioneerScreen editingAuction={editingAuction} />}
       {screen==='meusLeiloes' && <MeusLeloesScreen />}
