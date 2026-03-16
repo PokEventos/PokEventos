@@ -1300,22 +1300,10 @@ const App = () => {
             const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
             if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
           }
-          // Deep link vitrine: buscar perfil do vendedor e abrir PublicProfileScreen
+          // Deep link vitrine é tratado pelo useEffect dedicado abaixo
+          // Não bloqueamos aqui — apenas definimos a tela inicial
           const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
-          if (deepVitrine) {
-            localStorage.removeItem('agenda-pokemon-deep-vitrine');
-            try {
-              const { data: pData } = await supabase
-                .from('profiles').select('id,nome,avatar_url,whatsapp,tipo')
-                .eq('id', deepVitrine).single();
-              if (pData) {
-                setViewingProfile({ user_id: pData.id, nome: pData.nome, avatar_url: pData.avatar_url, whatsapp: pData.whatsapp, tipo: pData.tipo });
-                setScreen('publicProfile');
-                return;
-              }
-            } catch(e) {}
-          }
-          setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
+          setScreen(deepVitrine ? 'calendar' : (validScreens.includes(savedScreen) ? savedScreen : 'calendar'));
 
           // Carregar perfil usando RPC (contorna erro 406)
           try {
@@ -1527,21 +1515,23 @@ const App = () => {
   React.useEffect(() => {
     if (!user) return;
     const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
+    console.log('🔗 Deep vitrine check:', deepVitrine);
     if (!deepVitrine) return;
     localStorage.removeItem('agenda-pokemon-deep-vitrine');
     const buscarPerfil = async () => {
       try {
+        console.log('🔍 Buscando perfil vitrine:', deepVitrine);
         const { data, error } = await supabase
           .from('profiles')
           .select('id,nome,avatar_url,whatsapp,tipo')
           .eq('id', deepVitrine)
           .single();
+        console.log('📦 Perfil vitrine resultado:', data, error);
         if (data) {
           setViewingProfile({ user_id: data.id, nome: data.nome, avatar_url: data.avatar_url, whatsapp: data.whatsapp, tipo: data.tipo });
           setScreen('publicProfile');
         } else {
-          console.warn('Perfil não encontrado para vitrine:', deepVitrine, error);
-          setScreen('vitrine'); // fallback
+          setScreen('vitrine');
         }
       } catch(e) {
         console.error('Erro ao buscar vitrine:', e);
