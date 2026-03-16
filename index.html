@@ -307,10 +307,22 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
   const GradedSlab = ({ c, children }) => {
     if (!c.graded) return <>{children}</>;
     const nota = c.grade_value || c.gradeValue || '';
-    // Cor da nota
-    const notaColor = nota==='10'||nota==='9.5' ? '#FFD700'
-      : nota==='9'||nota==='8.5' ? '#C0C0C0'
-      : '#CD7F32';
+    // Cor progressiva: 10=ouro puro, 9.5=ouro claro, 9=prata, 8.5=prata escuro, 8=bronze claro, resto=bronze
+    const notaColor =
+      nota==='10'   ? '#FFD700' :
+      nota==='9.5'  ? '#FFC200' :
+      nota==='9'    ? '#E8E8E8' :
+      nota==='8.5'  ? '#C0C0C0' :
+      nota==='8'    ? '#E8B86D' :
+      nota==='7'    ? '#CD7F32' :
+      nota==='6'    ? '#B87333' :
+      nota==='AUTH' ? '#7EC8E3' :
+                      '#A0785A';
+    const notaGlow =
+      nota==='10'   ? '0 0 6px rgba(255,215,0,0.8)' :
+      nota==='9.5'  ? '0 0 5px rgba(255,194,0,0.6)' :
+      nota==='9'    ? '0 0 4px rgba(192,192,192,0.6)' :
+                      'none';
     return (
       <div style={{
         position:'relative',
@@ -319,33 +331,34 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
         background:'linear-gradient(145deg,#c8a84b,#f5e27a,#c8a84b,#8b6914)',
         boxShadow:'0 0 0 1px #8b6914, 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
       }}>
-        {/* Label topo — estilo slab */}
+        {/* Label topo — centralizado */}
         <div style={{
           background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
           borderBottom:'1px solid #c8a84b',
           borderRadius:'5px 5px 0 0',
-          padding:'2px 4px',
+          padding:'3px 4px',
           display:'flex',
           alignItems:'center',
-          justifyContent:'space-between',
-          gap:'4px',
+          justifyContent:'center',
+          gap:'6px',
         }}>
-          <span style={{color:'#f5e27a',fontSize:'6px',fontWeight:900,letterSpacing:'0.5px',fontFamily:'Arial Black,sans-serif'}}>
+          <span style={{color:'#f5e27a',fontSize:'8px',fontWeight:900,letterSpacing:'1px',fontFamily:'Arial Black,sans-serif'}}>
             GRADED
           </span>
-          <span style={{
-            background:`linear-gradient(135deg,${notaColor},#fff,${notaColor})`,
-            WebkitBackgroundClip:'text',
-            WebkitTextFillColor:'transparent',
-            fontSize:'9px',
-            fontWeight:900,
-            fontFamily:'Arial Black,sans-serif',
-            lineHeight:1,
-          }}>
-            {nota || '—'}
-          </span>
+          {nota && (
+            <span style={{
+              color: notaColor,
+              fontSize:'10px',
+              fontWeight:900,
+              fontFamily:'Arial Black,sans-serif',
+              lineHeight:1,
+              textShadow: notaGlow,
+            }}>
+              {nota}
+            </span>
+          )}
         </div>
-        {/* Carta com bordas laterais e inferior do slab */}
+        {/* Carta */}
         <div style={{
           margin:'1.5px',
           borderRadius:'0 0 4px 4px',
@@ -359,10 +372,10 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
           borderTop:'1px solid #c8a84b',
           borderRadius:'0 0 4px 4px',
-          padding:'1px 4px',
+          padding:'2px 4px',
           textAlign:'center',
         }}>
-          <span style={{color:'#c8a84b',fontSize:'5px',fontWeight:700,letterSpacing:'1px'}}>
+          <span style={{color:'#c8a84b',fontSize:'7px',fontWeight:700,letterSpacing:'1.5px'}}>
             ★ CERTIFIED ★
           </span>
         </div>
