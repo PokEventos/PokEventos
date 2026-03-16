@@ -3518,8 +3518,10 @@ const App = () => {
     const [filter, setFilter] = React.useState('all'); // 'all' | 'found' | 'missing'
 
     const wantedWithMatches = wantedList.map(wc => {
-      const matches = EVENTS.filter(ev => matchWanted(wc, ev) &&
-        ev.date >= new Date().toISOString().split('T')[0]);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const matches = EVENTS.filter(ev =>
+        ev.date >= todayStr &&
+        (ev.cards || []).some(ec => matchWanted(wc, ec)));
       const vitrineMatches = vitrineAll.filter(vc => {
         const vcAdapted = { id: vc.card_id || vc.id, name: vc.name, number: vc.number, set: { name: vc.set_name }, setId: vc.set_id };
         return matchWanted(wc, vcAdapted);
