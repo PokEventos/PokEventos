@@ -345,18 +345,6 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           <span style={{color:'#f5e27a',fontSize:'8px',fontWeight:900,letterSpacing:'1px',fontFamily:'Arial Black,sans-serif'}}>
             GRADED
           </span>
-          {nota && (
-            <span style={{
-              color: notaColor,
-              fontSize:'10px',
-              fontWeight:900,
-              fontFamily:'Arial Black,sans-serif',
-              lineHeight:1,
-              textShadow: notaGlow,
-            }}>
-              {nota}
-            </span>
-          )}
         </div>
         {/* Carta */}
         <div style={{
@@ -364,8 +352,31 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           borderRadius:'0 0 4px 4px',
           overflow:'hidden',
           background:'#111',
+          position:'relative',
         }}>
           {children}
+          {/* Nota no canto superior esquerdo sobre a carta */}
+          {nota && (
+            <div style={{
+              position:'absolute',
+              top:'3px',
+              left:'3px',
+              background:'#000',
+              border:`1px solid ${notaColor}`,
+              borderRadius:'4px',
+              padding:'1px 4px',
+              lineHeight:1.1,
+              boxShadow: notaGlow,
+            }}>
+              <span style={{
+                color: notaColor,
+                fontSize:'10px',
+                fontWeight:900,
+                fontFamily:'Arial Black,sans-serif',
+                textShadow: notaGlow,
+              }}>{nota}</span>
+            </div>
+          )}
         </div>
         {/* Barra inferior */}
         <div style={{
