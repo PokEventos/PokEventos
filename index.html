@@ -6602,6 +6602,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     const [myCards,   setMyCards]   = React.useState([]);
     const [loading,   setLoading]   = React.useState(true);
     const [expanded,  setExpanded]  = React.useState(null);
+    const [mvPage,    setMvPage]    = React.useState(0);
     const [editing,   setEditing]   = React.useState(null); // { id, price, quality, language, comment }
     const [saving,    setSaving]    = React.useState(false);
 
@@ -6695,136 +6696,152 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                 Ir para a Vitrine
               </button>
             </div>
-          ) : myCards.map(c => (
-            <div key={c.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
-              {/* Row colapsada */}
-              <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={()=>setExpanded(expanded===c.id?null:c.id)}>
-                {c.img_url
-                  ? <img src={c.img_url} className="h-14 w-auto object-contain rounded-lg border border-gray-100 flex-shrink-0" />
-                  : <div className="w-10 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-gray-800 text-sm truncate">{c.name}</p>
-                  <p className="text-xs text-gray-400 truncate">{c.set_name}{c.number ? ' · ' + c.number : ''}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
-                    {c.language && <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language} className="w-5 h-3.5 rounded object-cover shadow" />}
-                    <span className="font-black text-green-600 text-sm">R$ {Number(c.price).toFixed(2)}</span>
+          ) : (() => {
+            const PER_PAGE = 15;
+            const totalPages = Math.ceil(myCards.length / PER_PAGE);
+            const pageCards  = myCards.slice(mvPage * PER_PAGE, (mvPage + 1) * PER_PAGE);
+            const selCard    = myCards.find(x => x.id === expanded);
+            return (
+              <>
+                {/* Paginação topo */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
+                    <button onClick={()=>{setMvPage(p=>Math.max(0,p-1));setExpanded(null);}} disabled={mvPage===0}
+                      className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 font-black text-gray-600">‹</button>
+                    <p className="text-xs font-bold text-gray-500">Página {mvPage+1} / {totalPages} · {myCards.length} cartas</p>
+                    <button onClick={()=>{setMvPage(p=>Math.min(totalPages-1,p+1));setExpanded(null);}} disabled={mvPage===totalPages-1}
+                      className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 font-black text-gray-600">›</button>
+                  </div>
+                )}
+
+                {/* Grade 5×3 */}
+                <div className="bg-white rounded-2xl shadow-md p-3 border border-gray-100">
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {pageCards.map(c => (
+                      <div key={c.id} onClick={()=>setExpanded(expanded===c.id?null:c.id)}
+                        className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${expanded===c.id?'border-yellow-400 shadow-lg':'border-transparent hover:border-gray-200'}`}>
+                        {c.img_url
+                          ? <img src={c.img_url} className="w-full aspect-[63/88] object-contain bg-gray-50" />
+                          : <div className="w-full aspect-[63/88] bg-gray-100 flex items-center justify-center text-xl">🎴</div>
+                        }
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-0.5 py-0.5 text-center">
+                          <p className="text-white text-[8px] font-black leading-tight">R${Number(c.price).toFixed(0)}</p>
+                        </div>
+                        <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>
+                          {c.quality}
+                        </div>
+                        {c.language && (
+                          <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`}
+                            className="absolute top-0.5 right-0.5 w-4 h-2.5 rounded object-cover shadow" />
+                        )}
+                      </div>
+                    ))}
+                    {Array.from({length: PER_PAGE - pageCards.length}).map((_,i) => (
+                      <div key={'empty-'+i} className="w-full aspect-[63/88] rounded-xl bg-gray-50 border border-dashed border-gray-100" />
+                    ))}
                   </div>
                 </div>
-                <span className={`text-gray-300 transition-transform ${expanded===c.id?'rotate-90':''}`}>›</span>
-              </div>
 
-              {/* Expandido */}
-              {expanded === c.id && (
-                <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-2">
-                  {c.img_url && (
-                    <div className="flex justify-center">
-                      <img src={c.img_url} className="h-48 w-auto object-contain rounded-2xl shadow-md" />
+                {/* Paginação pontos */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1.5">
+                    {Array.from({length: totalPages}).map((_,i) => (
+                      <button key={i} onClick={()=>{setMvPage(i);setExpanded(null);}}
+                        className={`rounded-full transition-all ${mvPage===i?'w-5 h-2 bg-yellow-400':'w-2 h-2 bg-gray-200 hover:bg-gray-300'}`} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Detalhe / edição da carta selecionada */}
+                {selCard && (
+                  <div className="bg-white rounded-2xl shadow-md border-2 border-yellow-300 overflow-hidden">
+                    <div className="flex items-center gap-3 p-3 border-b border-gray-100">
+                      {selCard.img_url && <img src={selCard.img_url} className="h-24 w-auto object-contain rounded-xl border border-gray-100 flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-gray-800 text-sm">{selCard.name}</p>
+                        <p className="text-xs text-gray-400">{selCard.set_name}{selCard.number ? ' · ' + selCard.number : ''}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                          {selCard.language && <img src={`https://flagcdn.com/w40/${langFlag(selCard.language)}.png`} className="w-5 h-3.5 rounded object-cover shadow" />}
+                          <span className="font-black text-green-600">R$ {Number(selCard.price).toFixed(2)}</span>
+                        </div>
+                        {selCard.comment && <p className="text-xs text-gray-500 mt-1 italic">"{selCard.comment}"</p>}
+                      </div>
+                      <button onClick={()=>setExpanded(null)} className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 flex-shrink-0">✕</button>
                     </div>
-                  )}
 
-                  {/* Modo visualização */}
-                  {editing?.id !== c.id && (
-                    <>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {c.set_name && <div><span className="text-gray-400">Edição</span><p className="font-bold text-gray-700">{c.set_name}</p></div>}
-                        {c.number   && <div><span className="text-gray-400">Número</span><p className="font-bold text-gray-700">{c.number}</p></div>}
-                        {c.language && <div><span className="text-gray-400">Idioma</span>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} className="w-5 h-3.5 rounded object-cover shadow" />
-                            <p className="font-bold text-gray-700">{c.language}</p>
+                    <div className="p-3">
+                      {editing?.id !== selCard.id ? (
+                        <div className="flex gap-2">
+                          <button onClick={()=>startEdit(selCard)}
+                            className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl text-sm">✏️ Editar</button>
+                          <button onClick={()=>handleDelete(selCard.id)}
+                            className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-sm">🗑️ Remover</button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Qualidade</label>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {QUALITIES_MV.map(q => (
+                                <button key={q} onClick={()=>setEditing(p=>({...p,quality:q}))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${editing.quality===q?`${QUALITY_COLOR[q]} text-white border-transparent`:'bg-white text-gray-500 border-gray-200'}`}>{q}</button>
+                              ))}
+                            </div>
                           </div>
-                        </div>}
-                        {c.comment  && <div className="col-span-2"><span className="text-gray-400">Obs</span><p className="font-bold text-gray-700">{c.comment}</p></div>}
-                      </div>
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={()=>startEdit(c)}
-                          className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl text-sm transition-all">
-                          ✏️ Editar
-                        </button>
-                        <button onClick={()=>handleDelete(c.id)}
-                          className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-sm transition-all">
-                          🗑️ Remover
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Modo edição */}
-                  {editing?.id === c.id && (
-                    <div className="space-y-3 pt-1">
-                      {/* Qualidade */}
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Qualidade</label>
-                        <div className="flex gap-1.5 flex-wrap">
-                          {QUALITIES_MV.map(q => (
-                            <button key={q} onClick={()=>setEditing(p=>({...p,quality:q}))}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${editing.quality===q?`${QUALITY_COLOR[q]} text-white border-transparent`:'bg-white text-gray-500 border-gray-200'}`}>
-                              {q}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Idioma</label>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {[{code:'BR',img:'https://flagcdn.com/w40/br.png'},{code:'EN',img:'https://flagcdn.com/w40/us.png'},{code:'JP',img:'https://flagcdn.com/w40/jp.png'}].map(({code,img})=>(
+                                <button key={code} onClick={()=>setEditing(p=>({...p,language:code}))}
+                                  className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${editing.language===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
+                                  <img src={img} className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                              <select value={['BR','EN','JP'].includes(editing.language)?'':editing.language}
+                                onChange={e=>{if(e.target.value) setEditing(p=>({...p,language:e.target.value}));}}
+                                className="h-10 pl-2 pr-6 rounded-xl border-2 border-gray-200 text-xs appearance-none cursor-pointer">
+                                <option value="">Outros</option>
+                                <option value="CN">🇨🇳 China</option>
+                                <option value="KR">🇰🇷 Coreia</option>
+                                <option value="DE">🇩🇪 Alemanha</option>
+                                <option value="FR">🇫🇷 França</option>
+                                <option value="IT">🇮🇹 Itália</option>
+                                <option value="ES">🇪🇸 Espanha</option>
+                                <option value="PT">🇵🇹 Portugal</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Preço (R$)</label>
+                              <input value={editing.price} onChange={e=>setEditing(p=>({...p,price:e.target.value}))}
+                                type="number" placeholder="Ex: 150"
+                                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Observação</label>
+                              <input value={editing.comment} onChange={e=>setEditing(p=>({...p,comment:e.target.value}))}
+                                placeholder="Ex: PSA 9"
+                                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={()=>setEditing(null)}
+                              className="flex-1 py-2.5 bg-gray-200 text-gray-700 font-black rounded-xl text-sm">Cancelar</button>
+                            <button onClick={handleSave} disabled={saving}
+                              className="flex-1 py-2.5 bg-blue-500 text-white font-black rounded-xl text-sm disabled:opacity-50">
+                              {saving ? '⏳ Salvando…' : '✅ Salvar'}
                             </button>
-                          ))}
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Idioma */}
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Idioma</label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {[{code:'BR',img:'https://flagcdn.com/w40/br.png'},{code:'EN',img:'https://flagcdn.com/w40/us.png'},{code:'JP',img:'https://flagcdn.com/w40/jp.png'}].map(({code,img})=>(
-                            <button key={code} onClick={()=>setEditing(p=>({...p,language:code}))}
-                              className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all ${editing.language===code?'border-gray-800 shadow-md scale-110':'border-gray-200 opacity-40 hover:opacity-80'}`}>
-                              <img src={img} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                          <select value={['BR','EN','JP'].includes(editing.language)?'':editing.language}
-                            onChange={e=>{if(e.target.value) setEditing(p=>({...p,language:e.target.value}));}}
-                            className="h-10 pl-2 pr-6 rounded-xl border-2 border-gray-200 text-xs appearance-none cursor-pointer">
-                            <option value="">Outros</option>
-                            <option value="CN">🇨🇳 China</option>
-                            <option value="KR">🇰🇷 Coreia</option>
-                            <option value="DE">🇩🇪 Alemanha</option>
-                            <option value="FR">🇫🇷 França</option>
-                            <option value="IT">🇮🇹 Itália</option>
-                            <option value="ES">🇪🇸 Espanha</option>
-                            <option value="PT">🇵🇹 Portugal</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Preço + Obs */}
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Preço (R$)</label>
-                          <input value={editing.price} onChange={e=>setEditing(p=>({...p,price:e.target.value}))}
-                            type="number" placeholder="Ex: 150"
-                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Observação</label>
-                          <input value={editing.comment} onChange={e=>setEditing(p=>({...p,comment:e.target.value}))}
-                            placeholder="Ex: PSA 9"
-                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
-                        </div>
-                      </div>
-
-                      {/* Botões salvar/cancelar */}
-                      <div className="flex gap-2">
-                        <button onClick={()=>setEditing(null)}
-                          className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black rounded-xl text-sm transition-all">
-                          Cancelar
-                        </button>
-                        <button onClick={handleSave} disabled={saving}
-                          className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl text-sm transition-all disabled:opacity-50">
-                          {saving ? '⏳ Salvando…' : '✅ Salvar'}
-                        </button>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
         <BottomNav current="profile" />
       </div>
