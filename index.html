@@ -5904,7 +5904,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
     const addVitrineCard = (card) => {
       if (vitrineCards.find(c => c.card.id === card.id)) return;
-      setVitrineCards(p => [{ card, quality:'NM', language:'BR', price:'', comment:'', graded:false, gradeValue:'' }, ...p]);
+      setVitrineCards(p => [{ card, quality:'NM', language:'BR', price:'', comment:'', graded:false, gradeValue:'', customImg:null, customImgUploading:false }, ...p]);
       setVCardQuery(''); setVCardResults([]);
     };
 
@@ -5912,6 +5912,21 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       setVitrineCards(p => p.map(c => c.card.id === id ? {...c, [field]: val} : c));
 
     const removeVitrineCard = (id) => setVitrineCards(p => p.filter(c => c.card.id !== id));
+
+    const uploadVitrinePhoto = async (cardId, file) => {
+      updateVitrineCard(cardId, 'customImgUploading', true);
+      try {
+        const ext = file.name.split('.').pop();
+        const fileName = `vitrine-${user.id}-${cardId}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('vitrine').upload(fileName, file, { upsert: true });
+        if (upErr) throw new Error(upErr.message);
+        const { data: urlData } = supabase.storage.from('vitrine').getPublicUrl(fileName);
+        updateVitrineCard(cardId, 'customImg', urlData.publicUrl);
+      } catch(e) {
+        alert('Erro no upload: ' + e.message);
+      }
+      updateVitrineCard(cardId, 'customImgUploading', false);
+    };
 
     const handlePublish = async () => {
       if (!whatsapp) { alert('Informe seu WhatsApp'); return; }
@@ -5932,7 +5947,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             language:   vc.language,
             price:      parseFloat(vc.price),
             whatsapp,
-            img_url:    vc.card.images?.large || vc.card.images?.small || null,
+            img_url:    vc.customImg || vc.card.images?.large || vc.card.images?.small || null,
             comment:    vc.comment || '',
             card_id:    vc.card.id || '',
             graded:     vc.graded || false,
@@ -6206,6 +6221,26 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                             <input value={comment} onChange={e=>updateVitrineCard(card.id,'comment',e.target.value)}
                               placeholder="Ex: PSA 9, LP+"
                               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm outline-none focus:border-yellow-400" />
+                          </div>
+                        </div>
+
+                        {/* Foto personalizada */}
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1.5">📷 FOTO DA CARTA <span className="text-gray-400 font-normal">(opcional — útil para JPN/CN)</span></label>
+                          <div className="flex items-center gap-2">
+                            <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all text-xs font-bold ${vc.customImg ? 'border-green-400 bg-green-50 text-green-700' : 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-yellow-400 hover:text-yellow-600'}`}>
+                              {vc.customImgUploading ? '⏳ Enviando...' : vc.customImg ? '✅ Foto enviada' : '📁 Escolher foto'}
+                              <input type="file" accept="image/*" className="hidden"
+                                disabled={vc.customImgUploading}
+                                onChange={e=>{ if(e.target.files?.[0]) uploadVitrinePhoto(card.id, e.target.files[0]); }} />
+                            </label>
+                            {vc.customImg && (
+                              <>
+                                <img src={vc.customImg} className="h-12 w-auto rounded-lg border border-gray-200 object-contain" />
+                                <button onClick={()=>updateVitrineCard(card.id,'customImg',null)}
+                                  className="w-7 h-7 bg-red-50 text-red-400 hover:bg-red-100 rounded-full flex items-center justify-center text-xs">✕</button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
