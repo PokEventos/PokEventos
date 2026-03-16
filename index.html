@@ -6603,6 +6603,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     const [loading,   setLoading]   = React.useState(true);
     const [expanded,  setExpanded]  = React.useState(null);
     const [mvPage,    setMvPage]    = React.useState(0);
+    const [mvSort,    setMvSort]    = React.useState('recente'); // 'recente' | 'preco_desc' | 'preco_asc'
     const [editing,   setEditing]   = React.useState(null); // { id, price, quality, language, comment }
     const [saving,    setSaving]    = React.useState(false);
 
@@ -6698,11 +6699,31 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             </div>
           ) : (() => {
             const PER_PAGE = 15;
-            const totalPages = Math.ceil(myCards.length / PER_PAGE);
-            const pageCards  = myCards.slice(mvPage * PER_PAGE, (mvPage + 1) * PER_PAGE);
-            const selCard    = myCards.find(x => x.id === expanded);
+            const sortedCards = [...myCards].sort((a,b) => {
+              if (mvSort === 'preco_desc') return Number(b.price) - Number(a.price);
+              if (mvSort === 'preco_asc')  return Number(a.price) - Number(b.price);
+              return 0; // 'recente' — já vem ordenado do banco
+            });
+            const totalPages = Math.ceil(sortedCards.length / PER_PAGE);
+            const pageCards  = sortedCards.slice(mvPage * PER_PAGE, (mvPage + 1) * PER_PAGE);
+            const selCard    = sortedCards.find(x => x.id === expanded);
             return (
               <>
+                {/* Ordenação */}
+                <div className="flex gap-2">
+                  {[
+                    { key: 'recente',    label: '🕐 Recentes' },
+                    { key: 'preco_desc', label: '💰 Maior preço' },
+                    { key: 'preco_asc',  label: '💸 Menor preço' },
+                  ].map(opt => (
+                    <button key={opt.key}
+                      onClick={()=>{ setMvSort(opt.key); setMvPage(0); setExpanded(null); }}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${mvSort===opt.key?'bg-yellow-400 text-gray-900 shadow-md':'bg-white text-gray-500 border border-gray-200 hover:border-yellow-300'}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Paginação topo */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
