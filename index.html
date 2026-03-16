@@ -298,10 +298,77 @@ const dataRelativa = (dateStr) => {
 
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
   const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
-  const gradeBorder = (c) => c.graded ? 'ring-2 ring-offset-1 ring-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.5)]' : '';
+  const gradeBorder = (c) => '';
   const gradeBadge  = (c) => c.graded
-    ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-black text-yellow-400 leading-tight">{c.grade_value || c.gradeValue || '🏆'}</div>
+    ? null
     : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
+
+  // Componente GradedSlab — envolve a imagem num slab estilo PSA/BGS
+  const GradedSlab = ({ c, children }) => {
+    if (!c.graded) return <>{children}</>;
+    const nota = c.grade_value || c.gradeValue || '';
+    // Cor da nota
+    const notaColor = nota==='10'||nota==='9.5' ? '#FFD700'
+      : nota==='9'||nota==='8.5' ? '#C0C0C0'
+      : '#CD7F32';
+    return (
+      <div style={{
+        position:'relative',
+        borderRadius:'6px',
+        padding:'0',
+        background:'linear-gradient(145deg,#c8a84b,#f5e27a,#c8a84b,#8b6914)',
+        boxShadow:'0 0 0 1px #8b6914, 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
+      }}>
+        {/* Label topo — estilo slab */}
+        <div style={{
+          background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
+          borderBottom:'1px solid #c8a84b',
+          borderRadius:'5px 5px 0 0',
+          padding:'2px 4px',
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'space-between',
+          gap:'4px',
+        }}>
+          <span style={{color:'#f5e27a',fontSize:'6px',fontWeight:900,letterSpacing:'0.5px',fontFamily:'Arial Black,sans-serif'}}>
+            GRADED
+          </span>
+          <span style={{
+            background:`linear-gradient(135deg,${notaColor},#fff,${notaColor})`,
+            WebkitBackgroundClip:'text',
+            WebkitTextFillColor:'transparent',
+            fontSize:'9px',
+            fontWeight:900,
+            fontFamily:'Arial Black,sans-serif',
+            lineHeight:1,
+          }}>
+            {nota || '—'}
+          </span>
+        </div>
+        {/* Carta com bordas laterais e inferior do slab */}
+        <div style={{
+          margin:'1.5px',
+          borderRadius:'0 0 4px 4px',
+          overflow:'hidden',
+          background:'#111',
+        }}>
+          {children}
+        </div>
+        {/* Barra inferior */}
+        <div style={{
+          background:'linear-gradient(90deg,#0a0a1a,#1a1a3e,#0a0a1a)',
+          borderTop:'1px solid #c8a84b',
+          borderRadius:'0 0 4px 4px',
+          padding:'1px 4px',
+          textAlign:'center',
+        }}>
+          <span style={{color:'#c8a84b',fontSize:'5px',fontWeight:700,letterSpacing:'1px'}}>
+            ★ CERTIFIED ★
+          </span>
+        </div>
+      </div>
+    );
+  };
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -6168,27 +6235,29 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                 <div key={c.id}
                   className={`bg-white rounded-2xl shadow-md overflow-hidden active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'} ${gradeBorder(c)}`}>
                   {/* Imagem */}
-                  <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={()=>setSelCard(c)}>
-                    {c.img_url
-                      ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
-                      : <span className="text-5xl">🎴</span>}
-                    <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
-                      {c.graded
-                        ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="px-1.5 py-0.5 rounded text-[10px] font-black text-yellow-400">🏆 {c.grade_value||''}</div>
-                        : <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
-                      }
-                      {c.language && (
-                        <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
-                          className="w-6 h-4 rounded object-cover shadow-md" />
-                      )}
-                    </div>
+                  <div className="bg-gray-50 cursor-pointer" onClick={()=>setSelCard(c)}>
+                    <GradedSlab c={c}>
+                      <div className="aspect-[3/4] flex items-center justify-center overflow-hidden relative">
+                        {c.img_url
+                          ? <img src={c.img_url} className="w-full h-full object-contain p-2" />
+                          : <span className="text-5xl">🎴</span>}
+                        {!c.graded && (
+                          <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+                            <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+                          </div>
+                        )}
+                        {c.language && (
+                          <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
+                            className="absolute top-2 right-2 w-6 h-4 rounded object-cover shadow-md" />
+                        )}
+                      </div>
+                    </GradedSlab>
                     {/* Sininho Wanted */}
                     <button onClick={e=>{ e.stopPropagation(); vWanted ? removeWanted(vWanted.id) : addToWanted(vCard); }}
                       className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-base shadow-md transition-all active:scale-90 ${vWanted ? 'bg-yellow-400 text-gray-900' : 'bg-white/90 text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'}`}>
                       {vWanted ? '⭐' : '☆'}
                     </button>
                     {vWanted && <div className="absolute bottom-0 left-0 right-0 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">⭐ Na sua Wanted List</div>}
-                  </div>
                   {/* Info */}
                   <div className="p-2.5 cursor-pointer" onClick={()=>setSelCard(c)}>
                     <p className="font-black text-gray-900 text-sm leading-tight truncate">{c.name}</p>
@@ -6824,19 +6893,23 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                   <div className="grid grid-cols-5 gap-1.5">
                     {pageCards.map(c => (
                       <div key={c.id} onClick={()=>setExpanded(expanded===c.id?null:c.id)}
-                        className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${expanded===c.id?'border-yellow-400 shadow-lg':'border-transparent hover:border-gray-200'} ${gradeBorder(c)}`}>
-                        {c.img_url
-                          ? <img src={c.img_url} className="w-full aspect-[63/88] object-contain bg-gray-50" />
-                          : <div className="w-full aspect-[63/88] bg-gray-100 flex items-center justify-center text-xl">🎴</div>
-                        }
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-0.5 py-0.5 text-center">
+                        className={`relative cursor-pointer transition-all active:scale-95 ${expanded===c.id?'opacity-100 scale-105':'opacity-90 hover:opacity-100'}`}>
+                        <GradedSlab c={c}>
+                          <div className="relative">
+                            {c.img_url
+                              ? <img src={c.img_url} className="w-full aspect-[63/88] object-contain bg-gray-50" />
+                              : <div className="w-full aspect-[63/88] bg-gray-100 flex items-center justify-center text-xl">🎴</div>
+                            }
+                            {!c.graded && gradeBadge(c)}
+                            {c.language && (
+                              <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`}
+                                className="absolute top-0.5 right-0.5 w-4 h-2.5 rounded object-cover shadow" />
+                            )}
+                          </div>
+                        </GradedSlab>
+                        <div className="bg-black/70 px-0.5 py-0.5 text-center rounded-b">
                           <p className="text-white text-[8px] font-black leading-tight">R${Number(c.price).toFixed(0)}</p>
                         </div>
-                        {gradeBadge(c)}
-                        {c.language && (
-                          <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`}
-                            className="absolute top-0.5 right-0.5 w-4 h-2.5 rounded object-cover shadow" />
-                        )}
                       </div>
                     ))}
                     {Array.from({length: PER_PAGE - pageCards.length}).map((_,i) => (
