@@ -365,19 +365,17 @@ const buscarNomesPt = async (cartas) => {
 };
 
 // ── Busca no banco local (cards_db) ─────────────────────────────────
-const buscarNoBanco = async (q, langFiltro = null) => {
+const buscarNoBanco = async (q) => {
   const busca = detectarTipoBusca(q);
   let rows = [];
 
   // Determinar idiomas a buscar
   // langFiltro: 'pt', 'en', 'ja-jp', ou null (busca PT+EN por padrão)
-  const isJP   = langFiltro === 'ja-jp' || langFiltro === 'jp' || langFiltro === 'ja';
-  const langs  = isJP ? ['ja'] : ['pt', 'en']; // 'pt-en' ou null → ['pt','en']
-  const prefPT = langs.includes('pt');
+  const langs = ['pt', 'en'];
 
   const deduplicar = (lista) => {
     const mapa = {};
-    lista.forEach(r => { if (!mapa[r.card_id] || (prefPT && r.lang === 'pt')) mapa[r.card_id] = r; });
+    lista.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
     return Object.values(mapa);
   };
 
@@ -390,18 +388,6 @@ const buscarNoBanco = async (q, langFiltro = null) => {
       .order('lang', { ascending: true })
       .limit(80);
     rows = deduplicar(data || []);
-
-    // Se buscando PT/EN e não achou, tenta japonês
-    if (rows.length === 0 && !isJP) {
-      const { data: dataJP } = await window.supabase
-        .from('cards_db')
-        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
-        .ilike('name', '%' + busca.valor + '%')
-        .eq('lang', 'ja')
-        .limit(40);
-      rows = dataJP || [];
-    }
-    // Se buscando JP, não mistura com PT/EN
 
   } else if (busca.tipo === 'id') {
     const { data } = await window.supabase
@@ -420,17 +406,6 @@ const buscarNoBanco = async (q, langFiltro = null) => {
       .in('lang', langs)
       .limit(60);
     rows = deduplicar(data || []);
-
-    // Fallback japonês se não achou
-    if (rows.length === 0 && !isJP) {
-      const { data: dataJP } = await window.supabase
-        .from('cards_db')
-        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang')
-        .ilike('number', busca.valor)
-        .eq('lang', 'ja')
-        .limit(40);
-      rows = dataJP || [];
-    }
 
   } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
     const numBusca   = String(parseInt(busca.numero, 10));
@@ -476,87 +451,11 @@ const buscarNoBanco = async (q, langFiltro = null) => {
 };
 
 // ── Busca completa na API TCGDex para japonês ────────────────────
-const buscarJapones = async (q) => {
-  const API_JP = 'https://api.tcgdex.net/v2/ja';
-  const busca = detectarTipoBusca(q);
-
-  // Busca por nome
-  if (busca.tipo === 'nome') {
-    const res = await fetch(API_JP + '/cards?name=' + encodeURIComponent(busca.valor));
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (Array.isArray(data) ? data : []).filter(c => c.image && c.id).slice(0,40).map(c => normalizeTcgdex(c, null));
-  }
-
-  // Busca por ID direto (ex: S6a-001)
-  if (busca.tipo === 'id') {
-    const res = await fetch(API_JP + '/cards/' + encodeURIComponent(busca.valor));
-    if (!res.ok) return [];
-    const c = await res.json();
-    return c?.id ? [normalizeTcgdex(c, null)] : [];
-  }
-
-  // Busca por número simples (ex: 077) — busca em todos os sets JP
-  if (busca.tipo === 'numero' || busca.tipo === 'alfanumero') {
-    const res = await fetch(API_JP + '/cards?localId=' + encodeURIComponent(busca.valor));
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (Array.isArray(data) ? data : []).filter(c => c.image && c.id).slice(0,40).map(c => normalizeTcgdex(c, null));
-  }
-
-  // Busca por X/Y — usa set_total para filtrar o set certo
-  if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
-    const totalBusca = typeof busca.total === 'number'
-      ? busca.total
-      : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
-    const numBusca = String(parseInt(busca.numero, 10));
-
-    // Carrega lista de sets JP e filtra pelo total
-    const setsRes = await fetch(API_JP + '/sets');
-    if (!setsRes.ok) return [];
-    const sets = await setsRes.json();
-    const setsMatch = (Array.isArray(sets) ? sets : []).filter(s =>
-      parseInt(s.cardCount?.official || s.cardCount?.total || 0, 10) === totalBusca
-    );
-
-    // Tenta cada set que bate com o total
-    for (const set of setsMatch) {
-      const numFmts = [numBusca, numBusca.padStart(3,'0'), numBusca.padStart(4,'0')];
-      for (const nf of numFmts) {
-        try {
-          const r = await fetch(API_JP + '/cards/' + set.id + '-' + nf);
-          if (r.ok) {
-            const c = await r.json();
-            if (c?.id) return [normalizeTcgdex(c, null)];
-          }
-        } catch(e) {}
-      }
-    }
-    return [];
-  }
-
-  return [];
-};
+;
 
 // Executa a busca — banco local primeiro, API externa como fallback
-const tcgdexBuscar = async (q, langHint) => {
-  const isJP = langHint === 'ja' || langHint === 'ja-jp';
-
-  // 1. Se japonês — vai direto na busca JP (banco + API)
-  if (isJP) {
-    try {
-      const doBanco = await buscarNoBanco(q, 'ja');
-      if (doBanco.length > 0) return doBanco;
-    } catch(e) {}
-    // Banco JP incompleto — usa API diretamente
-    try {
-      const daApi = await buscarJapones(q);
-      if (daApi.length > 0) return daApi;
-    } catch(e) { console.warn('API JP falhou:', e.message); }
-    return [];
-  }
-
-  // 2. PT/EN — banco local primeiro
+const tcgdexBuscar = async (q) => {
+  // Banco local primeiro
   try {
     const resultados = await buscarNoBanco(q, null);
     if (resultados.length > 0) return resultados;
@@ -3126,11 +3025,11 @@ const App = () => {
     const [apiError,    setApiError]   = useState('');
     const [modalCard,   setModalCard]  = useState(null);
     const [excluirComuns, setExcluirComuns] = useState(false);
-    const [langBusca,   setLangBusca]  = useState('pt-en');
+
 
     // Funções TCGdex compartilhadas: TCGDEX_API, normalizeTcgdex, detectarTipoBusca, fetchDetalhes, tcgdexBuscar (globais)
 
-    const doSearch = async (override, langOverride) => {
+    const doSearch = async (override) => {
       const q = (override !== undefined ? override : query).trim();
       if (!q) return;
       setLoading(true);
@@ -3138,10 +3037,9 @@ const App = () => {
       setResults([]);
       setSearched(q);
       try {
-        const lang = langOverride || langBusca;
         let found = [];
-        // Para JP vai tudo pelo tcgdexBuscar que já tem banco+API integrado
-        found = await tcgdexBuscar(q, lang === 'ja-jp' ? 'ja' : null);
+        try { found = await buscarNoBanco(q); } catch(e) {}
+        if (found.length === 0) found = await tcgdexBuscar(q);
         setResults(found);
         if (found.length === 0) setApiError('Nenhuma carta encontrada para "' + q + '"');
       } catch (e) {
@@ -3160,7 +3058,7 @@ const App = () => {
         return;
       }
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => { doSearch(val, langBusca); }, 600);
+      debounceRef.current = setTimeout(() => { doSearch(val); }, 600);
     };
 
     const [wantedModal, setWantedModal] = useState(null);
@@ -3283,23 +3181,14 @@ const App = () => {
             </label>
           </div>
 
-          <div className="flex gap-2 mb-2">
-            <button onClick={()=>{ setLangBusca('pt-en'); if(query.trim()) doSearch(undefined,'pt-en'); }}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all ${langBusca==='pt-en' ? 'bg-yellow-400 text-gray-900 shadow-md' : 'bg-white/15 text-white border border-white/30'}`}>
-              🇧🇷 PT / 🇺🇸 EN
-            </button>
-            <button onClick={()=>{ setLangBusca('ja-jp'); if(query.trim()) doSearch(undefined,'ja-jp'); }}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all ${langBusca==='ja-jp' ? 'bg-yellow-400 text-gray-900 shadow-md' : 'bg-white/15 text-white border border-white/30'}`}>
-              🇯🇵 Japonês
-            </button>
-          </div>
+
           <div className="flex gap-2">
             <input
               type="text"
               value={query}
               onChange={e => handleChange(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
-              placeholder={langBusca==='ja-jp' ? 'Nome em japonês · número do set…' : 'Charizard · 215/172 · GG10/GG70 · TG22…'}
+              placeholder="Charizard · 215/172 · GG10/GG70 · TG22…"
               className="flex-1 px-4 py-3 rounded-xl text-gray-900 text-sm font-medium outline-none bg-white shadow-lg"
               autoComplete="off"
             />
