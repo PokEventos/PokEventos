@@ -298,6 +298,14 @@ const dataRelativa = (dateStr) => {
 
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
   const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
+  const gradeBorder = (c) => c.graded ? 'ring-2 ring-offset-1 ring-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.5)]' : '';
+  const gradeBadge  = (c) => c.graded
+    ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-black text-yellow-400 leading-tight">{c.grade_value || c.gradeValue || '🏆'}</div>
+    : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
+  const gradeBorder = (c) => c.graded ? 'ring-2 ring-offset-1 ring-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.5)]' : '';
+  const gradeBadge  = (c) => c.graded
+    ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-black text-yellow-400 leading-tight">{c.grade_value || c.gradeValue || '🏆'}</div>
+    : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
@@ -4514,7 +4522,7 @@ const App = () => {
                         {language && <img src={`https://flagcdn.com/w40/${langFlag(language)}.png`} alt={language} className="w-6 h-5 rounded object-cover shadow" />}
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
 
                 <div className="flex gap-2">
@@ -5817,7 +5825,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
     const addVitrineCard = (card) => {
       if (vitrineCards.find(c => c.card.id === card.id)) return;
-      setVitrineCards(p => [{ card, quality:'NM', language:'BR', price:'', comment:'' }, ...p]);
+      setVitrineCards(p => [{ card, quality:'NM', language:'BR', price:'', comment:'', graded:false, gradeValue:'' }, ...p]);
       setVCardQuery(''); setVCardResults([]);
     };
 
@@ -5848,6 +5856,8 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             img_url:    vc.card.images?.large || vc.card.images?.small || null,
             comment:    vc.comment || '',
             card_id:    vc.card.id || '',
+            graded:     vc.graded || false,
+            grade_value: vc.graded ? (vc.gradeValue || null) : null,
             ativo:      true,
           });
           if (error) { alert('Erro ao publicar ' + vc.card.name + ': ' + error.message); }
@@ -6015,7 +6025,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               ) : (
                 <div className="px-4 pb-2 space-y-3">
                   <p className="font-bold text-sm text-gray-700">{vitrineCards.length} carta(s) para publicar</p>
-                  {vitrineCards.map(({card,quality,language,price,comment}) => (
+                  {vitrineCards.map((vc) => { const {card,quality,language,price,comment,graded,gradeValue} = vc; return (
                     <div key={card.id} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
                       {/* Header */}
                       <div className="flex items-center gap-3 p-3 border-b border-gray-100">
@@ -6032,7 +6042,37 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                       </div>
 
                       <div className="p-3 space-y-3">
-                        {/* Qualidade */}
+                        {/* Graded toggle */}
+                        <div className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
+                          <div>
+                            <p className="text-xs font-black text-gray-700">🏆 Carta Graded?</p>
+                            <p className="text-[10px] text-gray-400">PSA, BGS, CGC...</p>
+                          </div>
+                          <button onClick={()=>updateVitrineCard(card.id,'graded',!vc.graded)}
+                            className={`w-12 h-6 rounded-full transition-all relative ${vc.graded?'bg-yellow-400':'bg-gray-200'}`}>
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${vc.graded?'left-6':'left-0.5'}`}/>
+                          </button>
+                        </div>
+
+                        {/* Grade value */}
+                        {vc.graded && (
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-gray-500 block mb-1.5">NOTA DO GRADE</label>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {['10','9.5','9','8.5','8','7','6','5','AUTH'].map(g=>(
+                                  <button key={g} onClick={()=>updateVitrineCard(card.id,'gradeValue',g)}
+                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-black border-2 transition-all ${vc.gradeValue===g?'bg-yellow-400 text-gray-900 border-yellow-400':'bg-white text-gray-500 border-gray-200 hover:border-yellow-300'}`}>
+                                    {g}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Qualidade — só mostra se não for graded */}
+                        {!vc.graded && (
                         <div>
                           <label className="text-[10px] font-bold text-gray-500 block mb-1.5">QUALIDADE</label>
                           <div className="flex gap-1.5 flex-wrap">
@@ -6044,6 +6084,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                             ))}
                           </div>
                         </div>
+                        )}
 
                         {/* Idioma */}
                         <div>
@@ -6612,7 +6653,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                           ? <img src={c.img_url} className="w-full h-full object-contain p-2" onError={e=>e.target.style.display='none'} />
                           : <span className="text-5xl">🎴</span>}
                         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
-                          <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded-md ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</span>
+  {gradeBadge(c)}
                           {c.language && <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language} className="w-6 h-4 rounded object-cover shadow-md" />}
                         </div>
                         <button onClick={()=> vWanted ? removeWanted(vWanted.id) : addToWanted(vCard)}
@@ -6784,7 +6825,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                   <div className="grid grid-cols-5 gap-1.5">
                     {pageCards.map(c => (
                       <div key={c.id} onClick={()=>setExpanded(expanded===c.id?null:c.id)}
-                        className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${expanded===c.id?'border-yellow-400 shadow-lg':'border-transparent hover:border-gray-200'}`}>
+                        className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${expanded===c.id?'border-yellow-400 shadow-lg':'border-transparent hover:border-gray-200'} ${gradeBorder(c)}`}>
                         {c.img_url
                           ? <img src={c.img_url} className="w-full aspect-[63/88] object-contain bg-gray-50" />
                           : <div className="w-full aspect-[63/88] bg-gray-100 flex items-center justify-center text-xl">🎴</div>
@@ -6792,9 +6833,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                         <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-0.5 py-0.5 text-center">
                           <p className="text-white text-[8px] font-black leading-tight">R${Number(c.price).toFixed(0)}</p>
                         </div>
-                        <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>
-                          {c.quality}
-                        </div>
+                        {gradeBadge(c)}
                         {c.language && (
                           <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`}
                             className="absolute top-0.5 right-0.5 w-4 h-2.5 rounded object-cover shadow" />
@@ -6826,7 +6865,10 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                         <p className="font-black text-gray-800 text-sm">{selCard.name}</p>
                         <p className="text-xs text-gray-400">{selCard.set_name}{selCard.number ? ' · ' + selCard.number : ''}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                          {selCard.graded
+                            ? <span style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="text-[10px] font-black text-yellow-400 px-1.5 py-0.5 rounded">🏆 {selCard.grade_value || ''}</span>
+                            : <span className={`text-[10px] font-black text-white px-1.5 py-0.5 rounded ${QUALITY_COLOR[selCard.quality]||'bg-gray-400'}`}>{selCard.quality}</span>
+                          }
                           {selCard.language && <img src={`https://flagcdn.com/w40/${langFlag(selCard.language)}.png`} className="w-5 h-3.5 rounded object-cover shadow" />}
                           <span className="font-black text-green-600">R$ {Number(selCard.price).toFixed(2)}</span>
                         </div>
