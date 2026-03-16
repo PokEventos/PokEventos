@@ -3498,7 +3498,9 @@ const App = () => {
             </div>
           )}
 
-                {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} /> : null}
+        </div>
+
+        {modalEvent ? <EventModal key={modalEvent.id} event={modalEvent} verCartas={modalEventShowCards} setVerCartas={setModalEventShowCards} onClose={()=>{setModalEvent(null); setModalEventShowCards(false);}} wantedList={wantedList} matchWanted={matchWanted} AUCTION_GROUPS={AUCTION_GROUPS} checkins={checkins} toggleCheckin={toggleCheckin} addToWanted={addToWanted} removeWanted={removeWanted} lembretes={lembretes} toggleLembrete={toggleLembrete} /> : null}
         {modalCard && <CardModal data={modalCard} onClose={() => setModalCard(null)} wantedList={wantedList} checkins={checkins} toggleCheckin={toggleCheckin} setModalEvent={setModalEvent} addToWanted={addToWanted} removeWanted={removeWanted} />}
         <BottomNav current="search" />
       </div>
