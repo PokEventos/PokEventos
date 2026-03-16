@@ -1278,6 +1278,11 @@ const App = () => {
           if (leilaoId) {
             localStorage.setItem('agenda-pokemon-deep-link', leilaoId);
           }
+          // Deep link: ?vitrine=USER_ID
+          const vitrineId = urlParams.get('vitrine');
+          if (vitrineId) {
+            localStorage.setItem('agenda-pokemon-deep-vitrine', vitrineId);
+          }
           // Detectar retorno do link de reset de senha (hash #access_token + type=recovery)
           const hashParams = new URLSearchParams(window.location.hash.replace('#',''));
           if (hashParams.get('type') === 'recovery') {
@@ -1288,6 +1293,21 @@ const App = () => {
           if (savedScreen === 'publicProfile') {
             const savedProfile = localStorage.getItem('agenda-pokemon-viewing-profile');
             if (savedProfile) setViewingProfile(JSON.parse(savedProfile));
+          }
+          // Deep link vitrine: buscar perfil do vendedor e abrir PublicProfileScreen
+          const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
+          if (deepVitrine) {
+            localStorage.removeItem('agenda-pokemon-deep-vitrine');
+            try {
+              const { data: pData } = await supabase
+                .from('profiles').select('id,nome,avatar_url,whatsapp,tipo')
+                .eq('id', deepVitrine).single();
+              if (pData) {
+                setViewingProfile({ user_id: pData.id, nome: pData.nome, avatar_url: pData.avatar_url, whatsapp: pData.whatsapp, tipo: pData.tipo });
+                setScreen('publicProfile');
+                return;
+              }
+            } catch(e) {}
           }
           setScreen(validScreens.includes(savedScreen) ? savedScreen : 'calendar');
 
@@ -2471,6 +2491,11 @@ const App = () => {
           const leilaoId = urlParams.get('leilao');
           if (leilaoId) {
             localStorage.setItem('agenda-pokemon-deep-link', leilaoId);
+          }
+          // Deep link: ?vitrine=USER_ID
+          const vitrineId = urlParams.get('vitrine');
+          if (vitrineId) {
+            localStorage.setItem('agenda-pokemon-deep-vitrine', vitrineId);
           }
           // Detectar retorno do link de reset de senha (hash #access_token + type=recovery)
           const hashParams = new URLSearchParams(window.location.hash.replace('#',''));
@@ -6632,7 +6657,21 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               <h1 className="text-2xl font-black" style={{fontFamily:'Arial Black,sans-serif'}}>Minha Vitrine</h1>
               <p className="text-orange-100 text-sm mt-0.5">{myCards.length} carta{myCards.length !== 1 ? 's' : ''} à venda</p>
             </div>
-            <ProfileBtn />
+            <div className="flex items-center gap-2">
+              <button onClick={() => {
+                const url = window.location.origin + window.location.pathname + '?vitrine=' + user.id;
+                if (navigator.share) {
+                  navigator.share({ title: 'Minha Vitrine — Agenda Pokémon', text: 'Veja as cartas que tenho à venda!', url });
+                } else {
+                  navigator.clipboard.writeText(url);
+                  alert('🔗 Link copiado!
+' + url);
+                }
+              }} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white font-bold px-3 py-2 rounded-xl text-sm transition-all">
+                🔗 Compartilhar
+              </button>
+              <ProfileBtn />
+            </div>
           </div>
         </div>
 
