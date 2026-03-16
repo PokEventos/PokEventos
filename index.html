@@ -302,10 +302,6 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
   const gradeBadge  = (c) => c.graded
     ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-black text-yellow-400 leading-tight">{c.grade_value || c.gradeValue || '🏆'}</div>
     : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
-  const gradeBorder = (c) => c.graded ? 'ring-2 ring-offset-1 ring-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.5)]' : '';
-  const gradeBadge  = (c) => c.graded
-    ? <div style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid #f5c518'}} className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-black text-yellow-400 leading-tight">{c.grade_value || c.gradeValue || '🏆'}</div>
-    : <div className={`absolute top-0.5 left-0.5 text-[7px] font-black text-white px-1 py-0.5 rounded ${QUALITY_COLOR[c.quality]||'bg-gray-400'}`}>{c.quality}</div>;
 const QUALITY_DESC  = { M:'Mint',NM:'Near Mint',SP:'Slightly Played',MP:'Moderately Played',HP:'Heavily Played',D:'Damaged' };
 
 /* ════════════════════════════════════════
