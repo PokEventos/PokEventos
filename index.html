@@ -5913,6 +5913,25 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
 
     const removeVitrineCard = (id) => setVitrineCards(p => p.filter(c => c.card.id !== id));
 
+    // Adicionar carta pela foto (sem busca)
+    const addVitrineCardByPhoto = async (file) => {
+      if (!file) return;
+      const tempId = 'photo-' + Date.now();
+      // Criar objeto carta temporário com a foto
+      const objectUrl = URL.createObjectURL(file);
+      const tempCard = {
+        id: tempId,
+        name: file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ') || 'Carta sem nome',
+        number: '',
+        set: { name: '' },
+        images: { small: objectUrl, large: objectUrl },
+        _photoFile: file, // guardar o arquivo para upload depois
+        _isPhotoCard: true,
+      };
+      setVitrineCards(p => [{ card: tempCard, quality:'NM', language:'BR', price:'', comment:'', graded:false, gradeValue:'', customImg:objectUrl, customImgUploading:false }, ...p]);
+      setVCardQuery(''); setVCardResults([]);
+    };
+
     const uploadVitrinePhoto = async (cardId, file) => {
       updateVitrineCard(cardId, 'customImgUploading', true);
       try {
@@ -5936,6 +5955,19 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       const vendedor = userProfile?.nome || user?.user_metadata?.display_name || 'Leiloeiro';
       try {
         for (const vc of vitrineCards) {
+          let finalImg = vc.customImg || vc.card.images?.large || vc.card.images?.small || null;
+          // Se a foto veio de arquivo local (blob:), fazer upload agora
+          if (vc.card._photoFile && finalImg?.startsWith('blob:')) {
+            try {
+              const ext = vc.card._photoFile.name.split('.').pop();
+              const fileName = `vitrine-${user.id}-${Date.now()}.${ext}`;
+              const { error: upErr } = await supabase.storage.from('vitrine').upload(fileName, vc.card._photoFile, { upsert: true });
+              if (!upErr) {
+                const { data: urlData } = supabase.storage.from('vitrine').getPublicUrl(fileName);
+                finalImg = urlData.publicUrl;
+              }
+            } catch(e) {}
+          }
           const { error } = await supabase.from('vitrine').insert({
             user_id:    user.id,
             vendedor,
@@ -5947,9 +5979,9 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             language:   vc.language,
             price:      parseFloat(vc.price),
             whatsapp,
-            img_url:    vc.customImg || vc.card.images?.large || vc.card.images?.small || null,
+            img_url:    finalImg,
             comment:    vc.comment || '',
-            card_id:    vc.card.id || '',
+            card_id:    vc.card._isPhotoCard ? '' : (vc.card.id || ''),
             graded:     vc.graded || false,
             grade_value: vc.graded ? (vc.gradeValue || null) : null,
             ativo:      true,
@@ -6075,19 +6107,29 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-yellow-400 mt-1" />
               </div>
 
-              {/* Busca de carta */}
-              <div className="p-4 space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Buscar Carta</label>
+              {/* Adicionar carta */}
+              <div className="p-4 space-y-3">
+                {/* Opção 1: Foto */}
+                <label className="flex items-center justify-center gap-2 w-full py-3 bg-gray-900 hover:bg-gray-800 active:scale-95 text-white font-bold rounded-xl cursor-pointer transition-all border-2 border-gray-700">
+                  📷 Adicionar pela foto da carta
+                  <span className="text-gray-400 text-xs font-normal">(JPN / CN / sem cadastro)</span>
+                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
+                </label>
+
+                {/* Divisor */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[10px] text-gray-400 font-bold">OU BUSQUE NA BASE</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Opção 2: Busca */}
                 <div className="flex gap-2">
                   <input value={vCardQuery} onChange={e=>searchVitrineCards(e.target.value)}
                     placeholder="Nome, número, edição…"
                     className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-yellow-400 outline-none" />
                   {vCardLoading && <span className="self-center text-gray-400 text-sm flex-shrink-0">⏳</span>}
-                  <label className="flex items-center gap-1 bg-gray-900 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer flex-shrink-0">
-                    📷
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const n=f.name.replace(/\.[^.]+$/,'').replace(/[_-]/g,' '); searchVitrineCards(n); e.target.value=''; }} />
-                  </label>
                 </div>
 
                 {/* Resultados */}
@@ -6123,13 +6165,23 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                     <div key={card.id} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
                       {/* Header */}
                       <div className="flex items-center gap-3 p-3 border-b border-gray-100">
-                        <img src={card.images?.large||card.images?.small} alt={card.name}
-                          className="h-16 w-auto object-contain rounded-lg border border-gray-200 flex-shrink-0"
-                          onError={e=>e.target.style.display='none'} />
+                        {(vc.customImg || card.images?.large || card.images?.small)
+                          ? <img src={vc.customImg || card.images?.large || card.images?.small} alt={card.name}
+                              className="h-16 w-auto object-contain rounded-lg border border-gray-200 flex-shrink-0"
+                              onError={e=>e.target.style.display='none'} />
+                          : <div className="h-16 w-12 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🎴</div>
+                        }
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-sm text-gray-800">{card.name}</p>
+                          {card._isPhotoCard
+                            ? <input value={card.name}
+                                onChange={e=>setVitrineCards(p=>p.map(x=>x.card.id===card.id?{...x,card:{...x.card,name:e.target.value}}:x))}
+                                placeholder="Nome da carta"
+                                className="w-full font-black text-sm text-gray-800 border-b-2 border-yellow-400 outline-none bg-transparent" />
+                            : <p className="font-black text-sm text-gray-800">{card.name}</p>
+                          }
                           {card.namePt && card.namePt !== card.nameEn && <p className="text-[10px] text-blue-500">🇧🇷 {card.namePt}</p>}
-                          <p className="text-xs text-gray-500">{card.set?.name} · <span className="font-mono">{card.number}</span></p>
+                          {!card._isPhotoCard && <p className="text-xs text-gray-500">{card.set?.name} · <span className="font-mono">{card.number}</span></p>}
+                          {card._isPhotoCard && <p className="text-[10px] text-orange-500 font-semibold">📷 Adicionada pela foto</p>}
                         </div>
                         <button onClick={()=>removeVitrineCard(card.id)}
                           className="w-7 h-7 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center flex-shrink-0">✕</button>
