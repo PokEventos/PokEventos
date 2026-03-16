@@ -46,6 +46,12 @@
   const initSupa=()=>{if(window.supabaseCreateClient){supabase=window.supabaseCreateClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'agenda-pokemon-auth',storage:window.localStorage}});window.supabase=supabase;console.log('✅ Supabase conectado');}else setTimeout(initSupa,100);};
   initSupa();
   window.addEventListener('supabase-ready',initSupa);
+  // Capturar deep links imediatamente ao carregar a página
+  (function() {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('vitrine')) localStorage.setItem('agenda-pokemon-deep-vitrine', p.get('vitrine'));
+    if (p.get('leilao'))  localStorage.setItem('agenda-pokemon-deep-link',    p.get('leilao'));
+  })();
   const sbDB={
     createLeilao:async(d)=>supabase?await supabase.from('auctions').insert(d).select().single():{data:null,error:new Error('offline')},
     createCartas:async(c)=>supabase?await supabase.from('leilao_cartas').insert(c):{error:new Error('offline')},
@@ -1514,24 +1520,36 @@ const App = () => {
       loadCheckinsFromDB();
       loadLembretes();
       if ('Notification' in window) setPushEnabled(Notification.permission === 'granted');
-
-      // Deep link vitrine: processar após login/carregamento do perfil
-      const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
-      if (deepVitrine) {
-        localStorage.removeItem('agenda-pokemon-deep-vitrine');
-        supabase.from('profiles')
-          .select('id,nome,avatar_url,whatsapp,tipo')
-          .eq('id', deepVitrine)
-          .single()
-          .then(({ data: pData }) => {
-            if (pData) {
-              setViewingProfile({ user_id: pData.id, nome: pData.nome, avatar_url: pData.avatar_url, whatsapp: pData.whatsapp, tipo: pData.tipo });
-              setScreen('publicProfile');
-            }
-          });
-      }
     }
   }, [user, userProfile]);
+
+  // Deep link vitrine — roda assim que o user estiver disponível (não precisa de userProfile)
+  React.useEffect(() => {
+    if (!user) return;
+    const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
+    if (!deepVitrine) return;
+    localStorage.removeItem('agenda-pokemon-deep-vitrine');
+    const buscarPerfil = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id,nome,avatar_url,whatsapp,tipo')
+          .eq('id', deepVitrine)
+          .single();
+        if (data) {
+          setViewingProfile({ user_id: data.id, nome: data.nome, avatar_url: data.avatar_url, whatsapp: data.whatsapp, tipo: data.tipo });
+          setScreen('publicProfile');
+        } else {
+          console.warn('Perfil não encontrado para vitrine:', deepVitrine, error);
+          setScreen('vitrine'); // fallback
+        }
+      } catch(e) {
+        console.error('Erro ao buscar vitrine:', e);
+        setScreen('vitrine');
+      }
+    };
+    buscarPerfil();
+  }, [user]);
   
   // Carregar leilões do Supabase (público - todos veem)
   React.useEffect(() => {
