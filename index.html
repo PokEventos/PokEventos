@@ -6113,8 +6113,8 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                 {/* Opção 1: Foto */}
                 <div>
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold rounded-lg cursor-pointer transition-all border border-gray-300 text-xs">
-                    📷 Foto da carta
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                    🖼️ Enviar foto/mídia da carta
+                    <input type="file" accept="image/*" className="hidden"
                       onChange={e=>{ const f=e.target.files?.[0]; if(f) addVitrineCardByPhoto(f); e.target.value=''; }} />
                   </label>
                   <p className="text-[10px] text-gray-400 mt-1">Use para cartas JP 🇯🇵, CN 🇨🇳 ou sem cadastro na base</p>
@@ -6887,20 +6887,23 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
       setLoading(false);
     };
 
-    const startEdit = (c) => setEditing({ id: c.id, price: String(c.price), quality: c.quality, language: c.language || 'BR', comment: c.comment || '' });
+    const startEdit = (c) => setEditing({ id: c.id, name: c.name || '', price: String(c.price), quality: c.quality, language: c.language || 'BR', comment: c.comment || '', imgUploading: false });
 
     const handleSave = async () => {
       if (!editing.price) { alert('Informe o preço'); return; }
       setSaving(true);
-      const { error } = await supabase.from('vitrine').update({
+      const updatePayload = {
+        name:     editing.name.trim() || undefined,
         price:    parseFloat(editing.price),
         quality:  editing.quality,
         language: editing.language,
         comment:  editing.comment,
-      }).eq('id', editing.id).eq('user_id', user.id);
+      };
+      if (editing.newImgUrl) updatePayload.img_url = editing.newImgUrl;
+      const { error } = await supabase.from('vitrine').update(updatePayload).eq('id', editing.id).eq('user_id', user.id);
       if (error) { alert('Erro ao salvar: ' + error.message); }
       else {
-        setMyCards(p => p.map(c => c.id === editing.id ? { ...c, price: parseFloat(editing.price), quality: editing.quality, language: editing.language, comment: editing.comment } : c));
+        setMyCards(p => p.map(c => c.id === editing.id ? { ...c, ...updatePayload } : c));
         setEditing(null);
       }
       setSaving(false);
@@ -7070,6 +7073,45 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                         </div>
                       ) : (
                         <div className="space-y-3">
+                          {/* Nome */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Nome da carta</label>
+                            <input value={editing.name} onChange={e=>setEditing(p=>({...p,name:e.target.value}))}
+                              placeholder="Ex: Charizard ex"
+                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                          </div>
+                          {/* Foto */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Foto da carta</label>
+                            <div className="flex items-center gap-2">
+                              <label className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border cursor-pointer text-xs font-bold transition-all ${editing.imgUploading ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-300'}`}>
+                                {editing.imgUploading ? '⏳ Enviando...' : editing.newImgUrl ? '✅ Nova foto' : '🖼️ Trocar foto'}
+                                <input type="file" accept="image/*" className="hidden" disabled={editing.imgUploading}
+                                  onChange={async e => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    setEditing(p=>({...p, imgUploading: true}));
+                                    try {
+                                      const ext = file.name.split('.').pop();
+                                      const fileName = 'vitrine-' + user.id + '-' + Date.now() + '.' + ext;
+                                      const { error: upErr } = await supabase.storage.from('vitrine').upload(fileName, file, { upsert: true });
+                                      if (upErr) throw new Error(upErr.message);
+                                      const { data: urlData } = supabase.storage.from('vitrine').getPublicUrl(fileName);
+                                      setEditing(p=>({...p, newImgUrl: urlData.publicUrl, imgUploading: false}));
+                                    } catch(err) {
+                                      alert('Erro: ' + err.message);
+                                      setEditing(p=>({...p, imgUploading: false}));
+                                    }
+                                  }} />
+                              </label>
+                              {editing.newImgUrl && (
+                                <>
+                                  <img src={editing.newImgUrl} className="h-10 w-auto rounded-lg border border-gray-200 object-contain" />
+                                  <button onClick={()=>setEditing(p=>({...p,newImgUrl:null}))} className="w-6 h-6 bg-red-50 text-red-400 rounded-full flex items-center justify-center text-xs">✕</button>
+                                </>
+                              )}
+                            </div>
+                          </div>
                           <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">Qualidade</label>
                             <div className="flex gap-1.5 flex-wrap">
