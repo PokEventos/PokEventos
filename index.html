@@ -1340,6 +1340,15 @@ const App = () => {
             console.error('❌ Exception ao carregar perfil:', err);
           }
         } else {
+          // Não logado — salvar deep links para processar após login
+          const urlParamsNL = new URLSearchParams(window.location.search);
+          const vitrineNL = urlParamsNL.get('vitrine');
+          if (vitrineNL) localStorage.setItem('agenda-pokemon-deep-vitrine', vitrineNL);
+          const leilaoNL = urlParamsNL.get('leilao');
+          if (leilaoNL) localStorage.setItem('agenda-pokemon-deep-link', leilaoNL);
+          // Detectar link de reset de senha
+          const hashNL = new URLSearchParams(window.location.hash.replace('#',''));
+          if (hashNL.get('type') === 'recovery') { setScreen('redefinirSenha'); }
           console.log('⚠️ Nenhum usuário logado');
         }
         setLoading(false);
@@ -1505,6 +1514,22 @@ const App = () => {
       loadCheckinsFromDB();
       loadLembretes();
       if ('Notification' in window) setPushEnabled(Notification.permission === 'granted');
+
+      // Deep link vitrine: processar após login/carregamento do perfil
+      const deepVitrine = localStorage.getItem('agenda-pokemon-deep-vitrine');
+      if (deepVitrine) {
+        localStorage.removeItem('agenda-pokemon-deep-vitrine');
+        supabase.from('profiles')
+          .select('id,nome,avatar_url,whatsapp,tipo')
+          .eq('id', deepVitrine)
+          .single()
+          .then(({ data: pData }) => {
+            if (pData) {
+              setViewingProfile({ user_id: pData.id, nome: pData.nome, avatar_url: pData.avatar_url, whatsapp: pData.whatsapp, tipo: pData.tipo });
+              setScreen('publicProfile');
+            }
+          });
+      }
     }
   }, [user, userProfile]);
   
@@ -6458,6 +6483,17 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
           <button onClick={()=>setScreen('vitrine')}
             className="absolute top-12 left-4 w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white text-xl">
             ‹
+          </button>
+          <button onClick={() => {
+            const url = window.location.origin + window.location.pathname + '?vitrine=' + p.user_id;
+            if (navigator.share) {
+              navigator.share({ title: p.nome + ' — Vitrine Pokémon', text: 'Veja as cartas à venda de ' + p.nome, url });
+            } else {
+              navigator.clipboard.writeText(url);
+              alert('🔗 Link copiado! ' + url);
+            }
+          }} className="absolute top-12 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white text-lg">
+            🔗
           </button>
           <div className="flex flex-col items-center gap-3 mt-2">
             {p.avatar_url
