@@ -1561,16 +1561,7 @@ const App = () => {
         const eventIds = data.map(row => row.event_id);
         setCheckins(eventIds);
         console.log(`✅ ${eventIds.length} check-ins carregados`);
-        // Limpar checkins órfãos (leilões que não existem mais)
-        setTimeout(async () => {
-          const validIds = events.map(e => String(e.id));
-          const orphans = eventIds.filter(id => !validIds.includes(String(id)));
-          if (orphans.length > 0) {
-            console.log(`🧹 Removendo ${orphans.length} check-in(s) órfão(s)...`);
-            await supabase.from('user_checkins').delete().eq('user_id', user.id).in('event_id', orphans);
-            setCheckins(prev => prev.filter(id => !orphans.includes(id)));
-          }
-        }, 1500);
+        // Não removemos checkins órfãos — o usuário pode ter check-in em leilões passados
       }
     } catch (err) {
       console.error('❌ Erro ao carregar check-ins:', err);
