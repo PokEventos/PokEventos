@@ -6451,7 +6451,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                 <div key={c.id}
                   className={`bg-white rounded-2xl shadow-md overflow-hidden active:scale-95 transition-transform border-2 ${vWanted ? 'border-yellow-300 shadow-lg' : 'border-gray-100'} ${gradeBorder(c)}`}>
                   {/* Imagem */}
-                  <div className="bg-gray-50 cursor-pointer" onClick={()=>setSelCard(c)}>
+                  <div className="relative bg-gray-50 cursor-pointer" onClick={()=>setSelCard(c)}>
                     <GradedSlab c={c}>
                       <div className="aspect-[3/4] flex items-center justify-center overflow-hidden relative">
                         {c.img_url
@@ -6464,16 +6464,15 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                         )}
                         {c.language && (
                           <img src={`https://flagcdn.com/w40/${langFlag(c.language)}.png`} alt={c.language}
-                            className="absolute top-2 right-2 w-6 h-4 rounded object-cover shadow-md" />
+                            className="absolute bottom-1 right-1 w-5 h-3.5 rounded object-cover shadow-md" />
                         )}
+                        {/* Sininho Wanted */}
+                        <button onClick={e=>{ e.stopPropagation(); vWanted ? removeWanted(vWanted.id) : addToWanted(vCard); }}
+                          className={`absolute top-1 right-1 w-7 h-7 rounded-full flex items-center justify-center text-sm shadow-md transition-all active:scale-90 ${vWanted ? 'bg-yellow-400 text-gray-900' : 'bg-black/30 text-white hover:bg-yellow-400 hover:text-gray-900'}`}>
+                          {vWanted ? '⭐' : '☆'}
+                        </button>
                       </div>
                     </GradedSlab>
-                    {/* Sininho Wanted */}
-                    <button onClick={e=>{ e.stopPropagation(); vWanted ? removeWanted(vWanted.id) : addToWanted(vCard); }}
-                      className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-base shadow-md transition-all active:scale-90 ${vWanted ? 'bg-yellow-400 text-gray-900' : 'bg-white/90 text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'}`}>
-                      {vWanted ? '⭐' : '☆'}
-                    </button>
-                    {vWanted && <div className="absolute bottom-0 left-0 right-0 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 text-center">⭐ Na sua Wanted List</div>}
                   </div>
                   {/* Info */}
                   <div className="p-2.5 cursor-pointer" onClick={()=>setSelCard(c)}>
