@@ -2367,6 +2367,10 @@ const App = () => {
         
         setUser(data.user);
         
+        // Recarregar leilões após login (podem ter carregado vazio antes da autenticação)
+        loadAuctionsFromDB();
+        loadVitrineAll();
+
         // Carregar perfil via RPC
         try {
           const { data: profileJson, error: rpcError } = await supabase.rpc('get_my_profile');
