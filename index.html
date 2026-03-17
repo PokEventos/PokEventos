@@ -5445,9 +5445,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     const [editando,       setEditando]       = useState(false);
     const [saving,         setSaving]         = useState(false);
     const [showSuporte,    setShowSuporte]    = useState(false);
-    const [suporteForm,    setSuporteForm]    = useState({ nome:'', email:'', mensagem:'' });
-    const [suporteEnviado, setSuporteEnviado] = useState(false);
-    const [suporteEnvio,   setSuporteEnvio]   = useState(false);
+    const [suporteForm,    setSuporteForm]    = useState({ nome:'', mensagem:'' });
     const [form,           setForm]           = useState({
       nome:     '',
       email:    '',
@@ -5636,7 +5634,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
             </>
           )}
 
-          <button onClick={()=>{ setSuporteForm({nome:userName,email:userEmail,mensagem:''}); setSuporteEnviado(false); setShowSuporte(true); }}
+          <button onClick={()=>{ setSuporteForm({nome:userName,mensagem:''}); setShowSuporte(true); }}
             className="w-full flex items-center gap-3 px-4 py-4 bg-blue-500 hover:bg-blue-600 active:scale-95 rounded-2xl text-white font-bold text-sm shadow-md transition-all">
             <span className="text-xl">💬</span><span>Fale Conosco</span>
           </button>
@@ -5736,65 +5734,22 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               <button onClick={()=>setShowSuporte(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30">✕</button>
             </div>
 
-            {suporteEnviado ? (
-              <div className="p-8 text-center">
-                <div className="text-5xl mb-3">✅</div>
-                <p className="font-black text-gray-800 text-lg mb-2">Mensagem enviada!</p>
-                <p className="text-gray-500 text-sm">Responderemos em até 48 horas no seu e-mail.</p>
-                <button onClick={()=>setShowSuporte(false)}
-                  className="mt-6 w-full py-3 bg-blue-500 text-white font-black rounded-2xl text-sm">
-                  Fechar
-                </button>
-              </div>
-            ) : (
-              <div className="p-5 space-y-3 max-h-[75vh] overflow-y-auto">
+            <div className="p-5 space-y-4">
+                <p className="text-sm text-gray-500 text-center">Preencha sua mensagem e enviaremos direto pelo WhatsApp!</p>
 
-                {/* Contatos rápidos */}
-                <div className="grid grid-cols-2 gap-2">
-                  <a href="mailto:drcharlab@gmail.com"
-                    className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 hover:bg-blue-50 hover:border-blue-200 transition-all">
-                    <span className="text-2xl">📧</span>
-                    <div>
-                      <p className="text-xs font-black text-gray-700">E-mail</p>
-                      <p className="text-[10px] text-gray-400 truncate">drcharlab@gmail.com</p>
-                    </div>
-                  </a>
-                  <a href="https://wa.me/5521991992097" target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 hover:bg-green-50 hover:border-green-200 transition-all">
-                    <span className="text-2xl">💬</span>
-                    <div>
-                      <p className="text-xs font-black text-gray-700">WhatsApp</p>
-                      <p className="text-[10px] text-gray-400">Falar agora</p>
-                    </div>
-                  </a>
-                </div>
-
-                {/* Divisor */}
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] text-gray-400 font-bold">OU ENVIE UMA MENSAGEM</span>
-                  <div className="flex-1 h-px bg-gray-200" />
-                </div>
-
-                {/* Formulário */}
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Seu nome</label>
                   <input value={suporteForm.nome} onChange={e=>setSuporteForm(f=>({...f,nome:e.target.value}))}
                     placeholder="Como você se chama?"
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-green-400" />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Seu e-mail</label>
-                  <input type="email" value={suporteForm.email} onChange={e=>setSuporteForm(f=>({...f,email:e.target.value}))}
-                    placeholder="para respondermos"
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400" />
-                </div>
+
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Mensagem</label>
                   <textarea value={suporteForm.mensagem} onChange={e=>setSuporteForm(f=>({...f,mensagem:e.target.value}))}
                     placeholder="Descreva sua dúvida, sugestão ou problema..."
                     rows={4}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 resize-none" />
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm outline-none focus:border-green-400 resize-none" />
                 </div>
 
                 <div className="flex gap-2 pb-2">
@@ -5802,21 +5757,17 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                     className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl text-sm">
                     Cancelar
                   </button>
-                  <button disabled={suporteEnvio || !suporteForm.mensagem.trim() || !suporteForm.email.trim()}
+                  <button disabled={!suporteForm.mensagem.trim()}
                     onClick={()=>{
-                      if (!suporteForm.mensagem.trim() || !suporteForm.email.trim()) return;
-                      setSuporteEnvio(true);
-                      const assunto = encodeURIComponent('Suporte Agenda Pokémon — ' + suporteForm.nome);
-                      const corpo   = encodeURIComponent('Nome: ' + suporteForm.nome + ' | Email: ' + suporteForm.email + ' | Mensagem: ' + suporteForm.mensagem);
-                      window.location.href = 'mailto:drcharlab@gmail.com?subject=' + assunto + '&body=' + corpo;
-                      setTimeout(() => { setSuporteEnviado(true); setSuporteEnvio(false); }, 1500);
+                      const texto = encodeURIComponent('Olá! Sou ' + (suporteForm.nome || 'um usuário') + ' do Agenda Pokémon.' + ' Mensagem: ' + suporteForm.mensagem);
+                      window.open('https://wa.me/5521981025644?text=' + texto, '_blank');
+                      setShowSuporte(false);
                     }}
-                    className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-2xl text-sm disabled:opacity-50 transition-all">
-                    {suporteEnvio ? '⏳ Enviando...' : '📤 Enviar'}
+                    className="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-black rounded-2xl text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                    💬 Enviar no WhatsApp
                   </button>
                 </div>
               </div>
-            )}
           </div>
         </div>
       )}
