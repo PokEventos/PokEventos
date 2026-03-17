@@ -3506,9 +3506,7 @@ const App = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <button onClick={()=>setScreen('profile')} className="text-yellow-400/60 text-xs mb-1.5 flex items-center gap-1 hover:text-yellow-400">← Perfil</button>
-              <h1 className="text-2xl font-black text-white" style={{fontFamily:'Arial Black,sans-serif'}}>
-                ⭐ Wishlist
-              </h1>
+              <h1 className="text-2xl font-black text-white" style={{fontFamily:'Arial Black,sans-serif'}}>⭐ Wishlist</h1>
               <p className="text-yellow-400/70 text-xs mt-0.5">{wantedList.length} carta{wantedList.length!==1?'s':''} desejada{wantedList.length!==1?'s':''}</p>
             </div>
             <ProfileBtn />
@@ -3543,8 +3541,8 @@ const App = () => {
           </div>
         </div>
 
-        {/* Lista */}
-        <div className="px-4 pt-2 space-y-3">
+        {/* Grid */}
+        <div className="px-4 pt-2 pb-4">
           {wantedList.length === 0 ? (
             <div className="rounded-3xl p-10 text-center mt-4" style={{background:'rgba(255,255,255,0.05)'}}>
               <p className="text-5xl mb-3">⭐</p>
@@ -3559,68 +3557,60 @@ const App = () => {
             <div className="rounded-3xl p-8 text-center" style={{background:'rgba(255,255,255,0.05)'}}>
               <p className="text-gray-400 text-sm">Nenhuma carta nesse filtro</p>
             </div>
-          ) : filtered.map((wc, i) => {
-            const hasLeilao  = wc.matches.length > 0;
-            const hasVitrine = wc.vitrineMatches && wc.vitrineMatches.length > 0;
-            const found = hasLeilao || hasVitrine;
-            return (
-              <div key={i} onClick={()=>setWantedModal(wc)}
-                className="cursor-pointer active:scale-[0.98] transition-all overflow-hidden rounded-3xl"
-                style={{background: found ? 'linear-gradient(135deg,rgba(34,197,94,0.15),rgba(255,255,255,0.06))' : 'rgba(255,255,255,0.06)', border: found ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.08)'}}>
-                <div className="flex gap-4 p-4">
-                  {/* Imagem grande */}
-                  <div className="flex-shrink-0 relative">
-                    {wc.img
-                      ? <img src={wc.img} alt={wc.name}
-                          className="rounded-2xl object-contain shadow-2xl"
-                          style={{height:'120px', width:'auto', maxWidth:'88px', border:'2px solid rgba(255,255,255,0.1)'}} />
-                      : <div className="rounded-2xl flex items-center justify-center text-4xl"
-                          style={{height:'120px',width:'88px',background:'rgba(255,255,255,0.08)',border:'2px solid rgba(255,255,255,0.1)'}}>🎴</div>
-                    }
-                    {found && (
-                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-green-400 rounded-full flex items-center justify-center shadow-lg">
-                        <span style={{fontSize:'9px'}}>✓</span>
-                      </div>
-                    )}
-                  </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filtered.map((wc, i) => {
+                const hasLeilao  = wc.matches.length > 0;
+                const hasVitrine = wc.vitrineMatches && wc.vitrineMatches.length > 0;
+                const found      = hasLeilao || hasVitrine;
+                return (
+                  <div key={i} onClick={()=>setWantedModal(wc)}
+                    className="cursor-pointer active:scale-95 transition-all rounded-2xl overflow-hidden"
+                    style={{background:'rgba(255,255,255,0.06)', border: found ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(255,255,255,0.08)'}}>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <div>
-                      <p className="font-black text-white text-base leading-tight">{wc.name}</p>
+                    {/* Imagem */}
+                    <div className="relative aspect-[63/88] w-full bg-black/20 flex items-center justify-center overflow-hidden">
+                      {wc.img
+                        ? <img src={wc.img} alt={wc.name} className="w-full h-full object-contain p-1" />
+                        : <span className="text-5xl">🎴</span>
+                      }
+                      {/* Badge encontrada */}
+                      {found && (
+                        <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-green-400 rounded-full flex items-center justify-center shadow-lg">
+                          <span style={{fontSize:'9px',color:'#000',fontWeight:900}}>✓</span>
+                        </div>
+                      )}
+                      {/* Badge leilão pulsando */}
+                      {hasLeilao && (
+                        <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{background:'rgba(34,197,94,0.85)'}}>
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse inline-block" />
+                          <span style={{fontSize:'8px',color:'white',fontWeight:900}}>{wc.matches.length}</span>
+                        </div>
+                      )}
+                      {hasVitrine && !hasLeilao && (
+                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full" style={{background:'rgba(251,146,60,0.85)'}}>
+                          <span style={{fontSize:'8px',color:'white',fontWeight:900}}>🏪</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-2.5">
+                      <p className="text-white font-black text-xs leading-tight truncate">{wc.name}</p>
                       {wc.set && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-gray-500 text-[10px] truncate mt-0.5">
                           {typeof wc.set==='object'?wc.set?.name:wc.set}{wc.number?' · #'+wc.number:''}
                         </p>
                       )}
-                      {wc.rarity && <p className="text-[10px] text-yellow-400/70 mt-0.5">{wc.rarity}</p>}
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {hasLeilao && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-300 rounded-full px-2.5 py-1" style={{background:'rgba(34,197,94,0.2)',border:'1px solid rgba(34,197,94,0.4)'}}>
-                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block" />
-                          {wc.matches.length} leilã{wc.matches.length>1?'ões':'ão'}
-                        </span>
-                      )}
-                      {hasVitrine && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-300 rounded-full px-2.5 py-1" style={{background:'rgba(251,146,60,0.2)',border:'1px solid rgba(251,146,60,0.4)'}}>
-                          🏪 {wc.vitrineMatches.length} na vitrine
-                        </span>
-                      )}
                       {!found && (
-                        <span className="text-[10px] text-gray-500 rounded-full px-2.5 py-1" style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)'}}>⏳ Aguardando</span>
+                        <p className="text-gray-600 text-[10px] mt-1">⏳ Aguardando</p>
                       )}
                     </div>
                   </div>
-
-                  <div className="flex items-center flex-shrink-0">
-                    <span className="text-gray-600 text-lg">›</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Modal detalhe */}
@@ -3628,7 +3618,6 @@ const App = () => {
           <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={()=>setWantedModal(null)}>
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <div className="relative w-full max-w-md z-10 pb-4" onClick={e=>e.stopPropagation()}>
-              {/* Card da carta — destaque */}
               <div className="mx-4 rounded-3xl overflow-hidden shadow-2xl mb-3" style={{background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'1px solid rgba(255,255,255,0.1)'}}>
                 <div className="flex gap-5 p-5">
                   {wantedModal.img && (
@@ -3651,7 +3640,6 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* Alertas */}
                 {(wantedModal.matches.length > 0 || (wantedModal.vitrineMatches && wantedModal.vitrineMatches.length > 0)) ? (
                   <div className="px-5 pb-5 space-y-2">
                     {wantedModal.matches.length > 0 && (
