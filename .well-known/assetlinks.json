@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "br.com.agendapokemon.app",
+    "sha256_cert_fingerprints": ["5A:EC:31:9C:34:3B:2C:63:B1:FE:CD:7D:E7:1F:F3:B7:96:DC:D8:4D:7D:A1:77:AF:07:02:E3:2B:F2:BF:96:56"]
+  }
+}]
