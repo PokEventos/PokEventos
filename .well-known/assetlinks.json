@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "br.com.agendapokemon.app",
-    "sha256_cert_fingerprints": ["5A:EC:31:9C:34:3B:2C:63:B1:FE:CD:7D:E7:1F:F3:B7:96:DC:D8:4D:7D:A1:77:AF:07:02:E3:2B:F2:BF:96:56"]
+    "sha256_cert_fingerprints": ["7B:50:3E:56:29:A8:86:A3:C4:6C:E5:39:2F:FE:ED:B5:08:FD:76:1C:CF:A4:7F:23:EE:E8:8E:63:68:1D:12:DC"]
   }
 }]
