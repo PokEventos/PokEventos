@@ -5759,7 +5759,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                   </button>
                   <button disabled={!suporteForm.mensagem.trim()}
                     onClick={()=>{
-                      const texto = encodeURIComponent('Olá! Sou ' + (suporteForm.nome || 'um usuário') + ' do Agenda Pokémon.' + ' Mensagem: ' + suporteForm.mensagem);
+                      const texto = encodeURIComponent('Olá! Sou ' + (suporteForm.nome || 'um usuário') + ' do Agenda Pokémon. ' + suporteForm.mensagem);
                       window.open('https://wa.me/5521981025644?text=' + texto, '_blank');
                       setShowSuporte(false);
                     }}
@@ -6555,7 +6555,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                     </button>
                   );
                 })()}
-                <a href={`https://wa.me/${selCard.whatsapp.replace(/\D/g,'')}`} target="_blank"
+                <a href={`https://wa.me/${selCard.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Olá! Sou ' + (userProfile?.nome || 'um usuário') + ' do Agenda Pokémon. Tenho interesse na carta ' + selCard.name + '!')}`} target="_blank"
                   className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg">
                   💬 Falar com vendedor no WhatsApp
                 </a>
@@ -6849,7 +6849,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               </div>
             )}
             {p.whatsapp && (
-              <a href={`https://wa.me/${p.whatsapp.replace(/\D/g,'')}`} target="_blank"
+              <a href={`https://wa.me/${p.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Olá! Sou ' + (userProfile?.nome || 'um usuário') + ' do Agenda Pokémon. Vi sua vitrine e gostaria de conversar!')}`} target="_blank"
                 className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-5 py-2.5 rounded-2xl text-sm shadow-lg transition-all">
                 💬 Falar no WhatsApp
               </a>
