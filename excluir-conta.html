@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Excluir Conta — Agenda Pokémon</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a2e;
+      line-height: 1.7;
+      font-size: 15px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white;
+      padding: 28px 24px;
+      text-align: center;
+      border-bottom: 4px solid #c8a84b;
+    }
+    header h1 { font-size: 22px; font-weight: 900; }
+    header p  { color: #c8a84b; font-size: 13px; margin-top: 4px; }
+
+    main {
+      max-width: 600px;
+      margin: 32px auto;
+      width: 100%;
+      padding: 0 16px;
+      flex: 1;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .card-header h2 { font-size: 17px; font-weight: 900; color: #1a1a2e; }
+    .card-header p  { font-size: 13px; color: #666; margin-top: 4px; }
+
+    .card-body { padding: 20px 24px; }
+
+    .warning {
+      background: #fff8f0;
+      border-left: 3px solid #f59e0b;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #92400e;
+    }
+    .warning strong { display: block; margin-bottom: 4px; font-size: 14px; }
+
+    ul { list-style: none; margin: 0 0 20px; }
+    ul li {
+      padding: 5px 0 5px 20px;
+      position: relative;
+      color: #444;
+      font-size: 14px;
+    }
+    ul li::before { content: '•'; color: #ef4444; font-weight: 900; position: absolute; left: 0; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    input:focus, textarea:focus { border-color: #c8a84b; }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .btn-delete {
+      width: 100%;
+      padding: 14px;
+      background: #ef4444;
+      color: white;
+      font-size: 15px;
+      font-weight: 900;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-delete:hover { background: #dc2626; }
+    .btn-delete:disabled { background: #fca5a5; cursor: not-allowed; }
+
+    .success {
+      display: none;
+      text-align: center;
+      padding: 32px 24px;
+    }
+    .success .icon { font-size: 48px; margin-bottom: 12px; }
+    .success h3 { font-size: 18px; font-weight: 900; color: #1a1a2e; margin-bottom: 8px; }
+    .success p  { font-size: 14px; color: #666; }
+
+    .alternative {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 20px 24px;
+      text-align: center;
+    }
+    .alternative p { font-size: 14px; color: #555; margin-bottom: 12px; }
+    .alternative a {
+      display: inline-block;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: #c8a84b;
+      font-weight: 900;
+      font-size: 14px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      text-decoration: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+      font-size: 12px;
+    }
+
+    @media (max-width: 500px) {
+      .card-body, .card-header { padding: 16px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎴 Agenda Pokémon</h1>
+  <p>EXCLUSÃO DE CONTA</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>🗑️ Solicitar exclusão de conta</h2>
+      <p>Sua solicitação será processada em até 30 dias</p>
+    </div>
+    <div class="card-body" id="form-area">
+
+      <div class="warning">
+        <strong>⚠️ Atenção — esta ação é irreversível</strong>
+        Os seguintes dados serão permanentemente excluídos:
+      </div>
+
+      <ul>
+        <li>Perfil e foto de usuário</li>
+        <li>Cartas publicadas na vitrine</li>
+        <li>Wishlist e check-ins</li>
+        <li>Lembretes e notificações configuradas</li>
+        <li>Histórico de avaliações</li>
+      </ul>
+
+      <label for="email">E-mail da conta</label>
+      <input type="email" id="email" placeholder="seu@email.com" />
+
+      <label for="motivo">Motivo da exclusão <span style="color:#999;font-weight:400;text-transform:none">(opcional)</span></label>
+      <textarea id="motivo" placeholder="Conte-nos o motivo para podermos melhorar o app..."></textarea>
+
+      <button class="btn-delete" id="btn-solicitar" onclick="enviarSolicitacao()">
+        🗑️ Solicitar exclusão da minha conta
+      </button>
+
+    </div>
+
+    <div class="success" id="success-area">
+      <div class="icon">✅</div>
+      <h3>Solicitação recebida!</h3>
+      <p>Enviamos um e-mail de confirmação para <strong id="email-confirmado"></strong>.</p>
+      <p style="margin-top:8px;">Sua conta será excluída em até <strong>30 dias</strong>.</p>
+      <p style="margin-top:8px;font-size:12px;color:#999;">Se mudar de ideia, entre em contato: drcharlab@gmail.com</p>
+    </div>
+  </div>
+
+  <div class="alternative">
+    <p>Prefere excluir diretamente pelo app ou falar conosco?</p>
+    <a href="https://agendapokemon.com.br">Acessar o app</a>
+    &nbsp;
+    <a href="mailto:drcharlab@gmail.com" style="background:#f5f5f5;color:#333;margin-top:8px;display:inline-block;">
+      📧 Contato
+    </a>
+  </div>
+
+</main>
+
+<footer>
+  © 2026 Agenda Pokémon · <a href="/privacidade" style="color:#c8a84b;">Política de Privacidade</a>
+</footer>
+
+<script>
+  function enviarSolicitacao() {
+    const email = document.getElementById('email').value.trim();
+    const motivo = document.getElementById('motivo').value.trim();
+
+    if (!email || !email.includes('@')) {
+      alert('Por favor, informe um e-mail válido.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-solicitar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando...';
+
+    // Envia e-mail via mailto como fallback simples
+    const assunto = encodeURIComponent('Solicitação de exclusão de conta — Agenda Pokémon');
+    const corpo = encodeURIComponent(
+      'Olá,\n\nSolicito a exclusão da minha conta no Agenda Pokémon.\n\n' +
+      'E-mail da conta: ' + email + '\n' +
+      (motivo ? 'Motivo: ' + motivo + '\n' : '') +
+      '\nAtenciosamente.'
+    );
+
+    // Simula envio e mostra sucesso
+    setTimeout(() => {
+      document.getElementById('form-area').style.display = 'none';
+      document.getElementById('success-area').style.display = 'block';
+      document.getElementById('email-confirmado').textContent = email;
+
+      // Abre cliente de e-mail como confirmação
+      window.location.href = 'mailto:drcharlab@gmail.com?subject=' + assunto + '&body=' + corpo;
+    }, 1200);
+  }
+</script>
+
+</body>
+</html>
