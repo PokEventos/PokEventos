@@ -5807,11 +5807,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
                       if (!suporteForm.mensagem.trim() || !suporteForm.email.trim()) return;
                       setSuporteEnvio(true);
                       const assunto = encodeURIComponent('Suporte Agenda Pokémon — ' + suporteForm.nome);
-                      const corpo   = encodeURIComponent('Nome: ' + suporteForm.nome + '
-Email: ' + suporteForm.email + '
-
-Mensagem:
-' + suporteForm.mensagem);
+                      const corpo   = encodeURIComponent('Nome: ' + suporteForm.nome + ' | Email: ' + suporteForm.email + ' | Mensagem: ' + suporteForm.mensagem);
                       window.location.href = 'mailto:drcharlab@gmail.com?subject=' + assunto + '&body=' + corpo;
                       setTimeout(() => { setSuporteEnviado(true); setSuporteEnvio(false); }, 1500);
                     }}
