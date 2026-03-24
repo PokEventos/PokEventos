@@ -1090,7 +1090,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
           <div className="flex-1 min-w-0">
             <p className="font-black text-xl leading-tight truncate">{event.title || event.organizer}</p>
             <p className="text-yellow-300 text-xs font-semibold mt-0.5">
-              📅 {new Date(event.date).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})} · ⏰ {event.time}
+              📅 {new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})} · ⏰ {event.time}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1124,7 +1124,7 @@ const EventModal = ({ event, onClose, wantedList, matchWanted, AUCTION_GROUPS, c
         {/* ── Data/hora + descrição ── */}
         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-3">
           <p className="font-bold text-red-700 text-sm">
-            🕐 {new Date(event.date).toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})} às {event.time}
+            🕐 {new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})} às {event.time}
           </p>
           {event.description && <p className="text-sm text-gray-600 mt-1">{event.description}</p>}
         </div>
@@ -2925,13 +2925,13 @@ const App = () => {
     };
     const getEventsForDate = date => {
       if (!date) return [];
-      return EVENTS.filter(e => e.date === date.toISOString().split('T')[0]);
+      return EVENTS.filter(e => e.date === `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`);
     };
     const today = new Date(); today.setHours(0,0,0,0);
     const days  = getDays(currentMonth);
 
     // Próximos leilões (futuros + hoje), ordenados por data
-    const todayStr    = today.toISOString().split('T')[0];
+    const todayStr    = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     const upcomingEvs = EVENTS
       .filter(e => e.date >= todayStr)
       .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
