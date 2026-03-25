@@ -348,10 +348,12 @@ ${contexto}
 ➡️ Abra o app: https://agendapokemon.com.br`;
 
       const cleanPhone = profile.whatsapp.replace(/\D/g, '');
-      await fetch(`https://beqiihapbgtrrgvmgrpg.supabase.co/functions/v1/notify_wishlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik' },
-        body: JSON.stringify({ phone: cleanPhone, message: msg }),
+      supabase.rpc('send_wishlist_notification', {
+        p_phone:   cleanPhone,
+        p_message: msg,
+      }).then(({ error }) => {
+        if (error) console.error('Erro notify wishlist:', error);
+        else console.log('✅ Notificação wishlist enviada para', cleanPhone);
       });
     }
   } catch(e) {
