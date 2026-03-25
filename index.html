@@ -304,7 +304,7 @@ const notifyWishlistMatches = async (supabase, cards, contexto, publisherUserId)
     // Buscar todas as wishlists
     const { data: wishlists } = await supabase
       .from('user_wanted_cards')
-      .select('user_id, card_id, card_name, card_number, set_name');
+      .select('user_id, card_id, card_name');
     if (!wishlists?.length) return;
 
     // Agrupar por usuário — excluindo quem publicou
