@@ -4069,12 +4069,11 @@ const App = () => {
             newAuction.id = savedAuction.id;
 
             // Notificar usuários com cartas na wishlist
-            if (!editingAuctionId && addedCards.length > 0) {
-              const cardsForNotify = addedCards.map(c => ({ id: c.id, name: c.name, number: c.number }));
+            if (!editingAuctionId && newAuction.cards && newAuction.cards.length > 0) {
+              const cardsForNotify = newAuction.cards.map(c => ({ id: c.id, name: c.name, number: c.number }));
               const grupoLink = savedAuction.whatsapp_link || savedAuction.whatsappLink || '';
               const contexto  = grupoLink
-                ? `📅 Leilão: *${savedAuction.title || savedAuction.organizer}* · ${savedAuction.date} às ${savedAuction.time}
-🔗 ${grupoLink}`
+                ? `📅 Leilão: *${savedAuction.title || savedAuction.organizer}* · ${savedAuction.date} às ${savedAuction.time}\n🔗 ${grupoLink}`
                 : `📅 Leilão: *${savedAuction.title || savedAuction.organizer}* · ${savedAuction.date} às ${savedAuction.time}`;
               notifyWishlistMatches(supabase, cardsForNotify, contexto, user.id);
             }
