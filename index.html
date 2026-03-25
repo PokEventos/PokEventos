@@ -299,7 +299,7 @@ const dataRelativa = (dateStr) => {
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
 
 // Notifica usuários via WhatsApp quando carta da wishlist aparece
-const notifyWishlistMatches = async (supabase, cards, contexto) => {
+const notifyWishlistMatches = async (supabase, cards, contexto, publisherUserId) => {
   try {
     // Buscar todas as wishlists
     const { data: wishlists } = await supabase
@@ -307,9 +307,10 @@ const notifyWishlistMatches = async (supabase, cards, contexto) => {
       .select('user_id, card_id, card_name, card_number, set_name');
     if (!wishlists?.length) return;
 
-    // Agrupar por usuário
+    // Agrupar por usuário — excluindo quem publicou
     const byUser = {};
     for (const w of wishlists) {
+      if (w.user_id === publisherUserId) continue;
       if (!byUser[w.user_id]) byUser[w.user_id] = [];
       byUser[w.user_id].push(w);
     }
@@ -349,7 +350,7 @@ ${contexto}
       const cleanPhone = profile.whatsapp.replace(/\D/g, '');
       await fetch(`https://beqiihapbgtrrgvmgrpg.supabase.co/functions/v1/notify_wishlist`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (supabase.supabaseKey || '') },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcWlpaGFwYmd0cnJndm1ncnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQ5NjIsImV4cCI6MjA4NjkyMDk2Mn0.caWCYxnO3tW6eDXDwIp-Ht8JWxr7RymMXgNFEQ7Idik' },
         body: JSON.stringify({ phone: cleanPhone, message: msg }),
       });
     }
@@ -4075,7 +4076,7 @@ const App = () => {
                 ? `📅 Leilão: *${savedAuction.title || savedAuction.organizer}* · ${savedAuction.date} às ${savedAuction.time}
 🔗 ${grupoLink}`
                 : `📅 Leilão: *${savedAuction.title || savedAuction.organizer}* · ${savedAuction.date} às ${savedAuction.time}`;
-              notifyWishlistMatches(supabase, cardsForNotify, contexto);
+              notifyWishlistMatches(supabase, cardsForNotify, contexto, user.id);
             }
             
             // Adicionar à lista local (normalizado)
@@ -4852,65 +4853,7 @@ const App = () => {
 
 const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr',IT:'it',ES:'es',PT:'pt'}[l]||l?.toLowerCase()||'br');
 
-// Notifica usuários via WhatsApp quando carta da wishlist aparece
-const notifyWishlistMatches = async (supabase, cards, contexto) => {
-  try {
-    // Buscar todas as wishlists
-    const { data: wishlists } = await supabase
-      .from('user_wanted_cards')
-      .select('user_id, card_id, card_name, card_number, set_name');
-    if (!wishlists?.length) return;
 
-    // Agrupar por usuário
-    const byUser = {};
-    for (const w of wishlists) {
-      if (!byUser[w.user_id]) byUser[w.user_id] = [];
-      byUser[w.user_id].push(w);
-    }
-
-    // Para cada usuário verificar se alguma carta bate
-    for (const [userId, wanted] of Object.entries(byUser)) {
-      const matches = [];
-      for (const card of cards) {
-        const cardName = (card.name || '').toLowerCase();
-        for (const w of wanted) {
-          const wName = (w.card_name || '').toLowerCase();
-          if (cardName && wName && cardName.includes(wName) || (w.card_id && w.card_id === (card.id || card.card_id))) {
-            matches.push(card.name || w.card_name);
-            break;
-          }
-        }
-      }
-      if (!matches.length) continue;
-
-      // Buscar WhatsApp do usuário
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('whatsapp, nome')
-        .eq('id', userId)
-        .single();
-      if (!profile?.whatsapp) continue;
-
-      const cartasStr = matches.slice(0, 3).join(', ') + (matches.length > 3 ? ` e mais ${matches.length - 3}` : '');
-      const msg = `⭐ *Carta da sua Wishlist encontrada!*
-
-🎴 ${cartasStr}
-
-${contexto}
-
-➡️ Abra o app: https://agendapokemon.com.br`;
-
-      const cleanPhone = profile.whatsapp.replace(/\D/g, '');
-      await fetch(`https://beqiihapbgtrrgvmgrpg.supabase.co/functions/v1/notify_wishlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (supabase.supabaseKey || '') },
-        body: JSON.stringify({ phone: cleanPhone, message: msg }),
-      });
-    }
-  } catch(e) {
-    console.error('Erro notifyWishlistMatches:', e);
-  }
-};
   const QUALITY_COLOR = { M:'bg-yellow-400',NM:'bg-green-500',SP:'bg-blue-500',MP:'bg-orange-400',HP:'bg-red-500',D:'bg-gray-600' };
   
       // ── FREE: estado linear carta-por-carta ──────────────────────────
@@ -6285,7 +6228,8 @@ ${contexto}
             // Notificar usuários com essa carta na wishlist
             notifyWishlistMatches(supabase,
               [{ id: vc.card.id || vc.card.card_id, name: vc.card.name, number: vc.card.number }],
-              `🏪 *${vc.card.name}* foi publicada na vitrine por ${vendedor} · R$ ${vc.price} · ${vc.quality}`
+              `🏪 *${vc.card.name}* foi publicada na vitrine por ${vendedor} · R$ ${vc.price} · ${vc.quality}`,
+              user.id
             );
           }
         }
