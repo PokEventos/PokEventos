@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Agenda Pokémon</title>
-  <meta name="theme-color" content="#7c3aed" />
+  <meta name="theme-color" content="#dc2626" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -36,8 +36,8 @@
 </head>
 <body>
 <div id="root"></div>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">  // === SUPABASE ===
   const SUPA_URL='https://beqiihapbgtrrgvmgrpg.supabase.co';
@@ -525,13 +525,10 @@ const buscarNoBanco = async (q) => {
   const busca = detectarTipoBusca(q);
   let rows = [];
 
-  // Determinar idiomas a buscar
-  // langFiltro: 'pt', 'en', 'ja-jp', ou null (busca PT+EN por padrão)
-  const langs = ['pt', 'en'];
-
+  const langs = ['en'];
   const deduplicar = (lista) => {
     const mapa = {};
-    lista.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
+    lista.forEach(r => { if (!mapa[r.card_id]) mapa[r.card_id] = r; });
     return Object.values(mapa);
   };
 
@@ -584,9 +581,8 @@ const buscarNoBanco = async (q) => {
     console.log('🔍 resultado:', data, 'erro:', error);
     rows = data || [];
 
-    // Deduplicar preferindo PT
     const mapa = {};
-    rows.forEach(r => { if (!mapa[r.card_id] || r.lang === 'pt') mapa[r.card_id] = r; });
+    rows.forEach(r => { if (!mapa[r.card_id]) mapa[r.card_id] = r; });
     rows = Object.values(mapa);
   }
 
@@ -595,7 +591,7 @@ const buscarNoBanco = async (q) => {
     id:     r.card_id,
     name:   r.name,
     nameEn: r.name,
-    namePt: r.lang === 'pt' ? r.name : null,
+    namePt: null,
     number: r.number || '',
     rarity: r.rarity || '',
     set:    { name: r.set_name || r.set_id || '' },
