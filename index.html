@@ -525,10 +525,11 @@ const buscarNoBanco = async (q) => {
   const busca = detectarTipoBusca(q);
   let rows = [];
 
-  const langs = ['en'];
+  const langs = ['en', 'ja'];
   const deduplicar = (lista) => {
     const mapa = {};
-    lista.forEach(r => { if (!mapa[r.card_id]) mapa[r.card_id] = r; });
+    // Preferir EN sobre JA quando o mesmo card_id existir nos dois
+    lista.forEach(r => { if (!mapa[r.card_id] || r.lang === 'en') mapa[r.card_id] = r; });
     return Object.values(mapa);
   };
 
@@ -600,11 +601,13 @@ const buscarNoBanco = async (q) => {
   return rows.slice(0, 40).map(r => ({
     id:     r.card_id,
     name:   r.name,
-    nameEn: r.name,
+    nameEn: r.lang === 'en' ? r.name : null,
+    nameJa: r.lang === 'ja' ? r.name : null,
     namePt: null,
     number: r.number || '',
     rarity: r.rarity || '',
-    set:    { name: r.set_name || r.set_id || '' },
+    lang:   r.lang || 'en',
+    set:    { name: r.set_name || r.set_id || '', id: r.set_id || '' },
     images: {
       small: r.img_small || r.img_url || '',
       large: r.img_url   || r.img_small || '',
