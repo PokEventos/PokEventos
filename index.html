@@ -561,25 +561,35 @@ const buscarNoBanco = async (q) => {
     rows = deduplicar(data || []);
 
   } else if (busca.tipo === 'numtotal' || busca.tipo === 'alfatotal') {
-    const numBusca   = String(parseInt(busca.numero, 10));
-    const numPadded  = busca.numero.padStart(3, '0');
-    const totalBusca = typeof busca.total === 'number'
-      ? busca.total
-      : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
+    const isAlfa = /[A-Za-z]/.test(busca.numero);
 
-    console.log('🔍 numtotal busca:', { numBusca, numPadded, totalBusca, langs });
+    if (isAlfa) {
+      // Busca alfanumérica: GG10/GG70 — busca pelo número exato
+      const numExato = busca.numero.toUpperCase();
+      const { data } = await window.supabase
+        .from('cards_db')
+        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
+        .ilike('number', numExato)
+        .in('lang', langs)
+        .limit(20);
+      rows = data || [];
+    } else {
+      // Busca numérica: 4/102 — busca por número e total do set
+      const numBusca  = String(parseInt(busca.numero, 10));
+      const numPadded = busca.numero.padStart(3, '0');
+      const totalBusca = typeof busca.total === 'number'
+        ? busca.total
+        : parseInt((busca.total || '0').replace(/[^0-9]/g, ''), 10);
 
-    // Tenta número sem zeros E com zeros, numa query só com OR
-    const { data, error } = await window.supabase
-      .from('cards_db')
-      .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
-      .or(`number.eq.${numBusca},number.eq.${numPadded}`)
-      .eq('set_total', totalBusca)
-      .in('lang', langs)
-      .limit(20);
-
-    console.log('🔍 resultado:', data, 'erro:', error);
-    rows = data || [];
+      const { data } = await window.supabase
+        .from('cards_db')
+        .select('card_id,name,number,set_id,set_name,img_url,img_small,rarity,lang,set_total')
+        .or(`number.eq.${numBusca},number.eq.${numPadded}`)
+        .eq('set_total', totalBusca)
+        .in('lang', langs)
+        .limit(20);
+      rows = data || [];
+    }
 
     const mapa = {};
     rows.forEach(r => { if (!mapa[r.card_id]) mapa[r.card_id] = r; });
