@@ -597,22 +597,48 @@ const buscarNoBanco = async (q) => {
     rows = Object.values(mapa);
   }
 
+  // Mapeamento set_id JA → set_id EN para fallback de imagem
+  const JA_TO_EN_SET = {
+    'S1W':'swsh1','S1H':'swsh1','S1a':'swsh2','S2':'swsh2','S2a':'swsh3',
+    'S3':'swsh3','S3a':'swsh3.5','S4':'swsh4','S4a':'swsh4.5','S5I':'swsh5',
+    'S5R':'swsh5','S5a':'swsh6','S6H':'swsh6','S6K':'swsh6','S6a':'swsh6',
+    'S7D':'swsh8','S7R':'swsh8','S8':'swsh8','S8a':'cel25','S8b':'swsh9',
+    'S9':'swsh9','S9a':'swsh10','S10b':'swsh10.5','S10D':'swsh10','S10P':'swsh10',
+    'S10a':'swsh11','S11':'swsh11','S11a':'swsh12','S12':'swsh12','S12a':'swsh12.5',
+  };
+
   // Normalizar para o formato que o app espera
-  return rows.slice(0, 40).map(r => ({
-    id:     r.card_id,
-    name:   r.name,
-    nameEn: r.lang === 'en' ? r.name : null,
-    nameJa: r.lang === 'ja' ? r.name : null,
-    namePt: null,
-    number: r.number || '',
-    rarity: r.rarity || '',
-    lang:   r.lang || 'en',
-    set:    { name: r.set_name || r.set_id || '', id: r.set_id || '' },
-    images: {
-      small: r.img_small || r.img_url || '',
-      large: r.img_url   || r.img_small || '',
-    },
-  }));
+  return rows.slice(0, 40).map(r => {
+    let imgSmall = r.img_small || r.img_url || '';
+    let imgLarge = r.img_url   || r.img_small || '';
+
+    // Para cartas JA sem imagem válida, tentar URL EN correspondente
+    if (r.lang === 'ja') {
+      const enSetId = JA_TO_EN_SET[r.set_id];
+      if (enSetId) {
+        const num = String(parseInt(r.number, 10) || r.number);
+        const enBase = `https://assets.tcgdex.net/en/${enSetId}/${num}`;
+        imgSmall = imgSmall || (enBase + '/low.png');
+        imgLarge = imgLarge || (enBase + '/high.png');
+      }
+    }
+
+    return {
+      id:     r.card_id,
+      name:   r.name,
+      nameEn: r.lang === 'en' ? r.name : null,
+      nameJa: r.lang === 'ja' ? r.name : null,
+      namePt: null,
+      number: r.number || '',
+      rarity: r.rarity || '',
+      lang:   r.lang || 'en',
+      set:    { name: r.set_name || r.set_id || '', id: r.set_id || '' },
+      images: { small: imgSmall, large: imgLarge },
+      _imgFallback: r.lang === 'ja' && JA_TO_EN_SET[r.set_id]
+        ? `https://assets.tcgdex.net/en/${JA_TO_EN_SET[r.set_id]}/${String(parseInt(r.number,10)||r.number)}/high.png`
+        : null,
+    };
+  });
 };
 
 // ── Busca completa na API TCGDex para japonês ────────────────────
@@ -4531,7 +4557,7 @@ const App = () => {
                       ) : displayCards.map((card, i) => (
                         <button key={i} onClick={() => addCardToAuction(card)}
                           className="w-full flex items-center gap-3 p-3 hover:bg-yellow-50 border-b last:border-0 text-left transition-all">
-                          <img src={card.images?.small} alt={card.name} className="h-24 w-auto object-contain rounded-xl border border-gray-200 shadow-sm flex-shrink-0" onError={e=>e.target.style.display='none'} />
+                          <img src={card.images?.small} alt={card.name} className="h-24 w-auto object-contain rounded-xl border border-gray-200 shadow-sm flex-shrink-0" onError={e=>{if(card._imgFallback&&e.target.src!==card._imgFallback){e.target.src=card._imgFallback;}else{e.target.style.display='none';}}} />
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-sm text-gray-800 leading-snug">{card.name}</p>
                             {card.namePt && card.namePt !== card.nameEn && (
@@ -4576,7 +4602,7 @@ const App = () => {
                         <div className="flex items-center gap-3 p-3 border-b border-gray-100">
                           <img src={card.images?.large||card.images?.small} alt={card.name}
                             className="h-16 w-auto object-contain rounded-lg border border-gray-200 flex-shrink-0"
-                            onError={e=>e.target.style.display='none'} />
+                            onError={e=>{if(card._imgFallback&&e.target.src!==card._imgFallback){e.target.src=card._imgFallback;}else{e.target.style.display='none';}}} />
                           <div className="flex-1 min-w-0">
                             <p className="font-black text-sm text-gray-800">{card.name}</p>
                             {card.namePt && card.namePt !== card.nameEn && (
