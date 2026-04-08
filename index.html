@@ -4053,6 +4053,23 @@ const App = () => {
         })),
       };
       
+      // Verificar se já existe leilão com mesmo nome, data e hora
+      if (!editingAuctionId) {
+        const { data: existente } = await supabase
+          .from('auctions')
+          .select('id, title, date, time')
+          .eq('title', form.name.trim())
+          .eq('date', form.date)
+          .eq('time', form.time)
+          .maybeSingle();
+
+        if (existente) {
+          alert(`⚠️ Já existe um leilão com esse nome, data e hora!\n\n"${existente.title}"\n${existente.date} às ${existente.time}\n\nAltera o nome ou o horário para continuar.`);
+          setSaving && setSaving(false);
+          return;
+        }
+      }
+
       // Salvar no Supabase
       if (user) {
         try {
