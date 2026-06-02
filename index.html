@@ -7180,7 +7180,7 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
     const [toast, setToast] = React.useState('');
     const [orderCode, setOrderCode] = React.useState('');
     const [form, setForm] = React.useState({ nome:'', zap:'', email:'', cep:'', uf:'', end:'', cidade:'', bairro:'' });
-    const isAdmin = user && (user.email === 'jacksonlima.ads@gmail.com' || user.email === 'admin@triodekanto.com');
+    const isAdmin = user && (user.email === 'drcharlab@gmail.com');
 
     const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''), 2600); };
     const fmt = (v) => 'R$ ' + v.toFixed(2).replace('.',',');
