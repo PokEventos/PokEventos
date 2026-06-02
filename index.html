@@ -7305,33 +7305,31 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               {isAdmin && <button onClick={() => { setModalProd({ tipo:'Booster Box', idioma:'BR', status:'active' }); setImgPreview(''); setImgUrl(''); setImgData(''); }} className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-sm">+ Adicionar produto</button>}
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-3 gap-2">
               {lista.map(p => (
-                <div key={p.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden active:scale-[0.99]">
-                  {/* Foto grande */}
-                  <div className="w-full h-56 bg-gray-100 flex items-center justify-center overflow-hidden relative">
-                    {p.img_url
-                      ? <img src={p.img_url} alt={p.nome} className="w-full h-full object-cover" onError={e=>e.target.style.display='none'} />
-                      : <span className="text-7xl opacity-30">{TYPE_EMOJI[p.tipo]||'📦'}</span>}
-                    {(p.status==='sold'||p.estoque===0) && <div className="absolute inset-0 bg-black/55 flex items-center justify-center"><span className="bg-red-600 text-white text-sm font-black px-4 py-1.5 rounded-full tracking-wide">ESGOTADO</span></div>}
-                    {p.estoque<=2 && p.estoque>0 && <div className="absolute top-2 right-2 bg-yellow-400 text-gray-900 text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">⚠ ÚLTIMAS!</div>}
-                    {/* Badges sobre a foto */}
-                    <div className="absolute top-2 left-2 flex gap-1.5">
-                      <span className="text-[10px] font-black bg-white/90 text-purple-700 px-2 py-0.5 rounded-full shadow-sm">{p.tipo}</span>
-                      <span className="text-[10px] font-black bg-white/90 text-green-700 px-2 py-0.5 rounded-full shadow-sm">{p.idioma||'BR'}</span>
+                <div key={p.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all overflow-hidden active:scale-[0.97] flex flex-col">
+                  {/* Foto quadrada */}
+                  <div className="relative w-full" style={{paddingBottom:'100%'}}>
+                    <div className="absolute inset-0 bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {p.img_url
+                        ? <img src={p.img_url} alt={p.nome} className="w-full h-full object-cover" onError={e=>e.target.style.display='none'} />
+                        : <span className="text-4xl opacity-30">{TYPE_EMOJI[p.tipo]||'📦'}</span>}
+                      {(p.status==='sold'||p.estoque===0) && <div className="absolute inset-0 bg-black/55 flex items-center justify-center"><span className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-full">ESGOTADO</span></div>}
+                      {p.estoque<=2 && p.estoque>0 && <div className="absolute top-1 right-1 bg-yellow-400 text-gray-900 text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">ÚLTIMAS!</div>}
+                      <div className="absolute top-1 left-1 flex flex-col gap-0.5">
+                        <span className="text-[8px] font-black bg-white/90 text-purple-700 px-1.5 py-0.5 rounded-full shadow-sm leading-none">{p.tipo}</span>
+                        <span className="text-[8px] font-black bg-white/90 text-green-700 px-1.5 py-0.5 rounded-full shadow-sm leading-none">{p.idioma||'BR'}</span>
+                      </div>
                     </div>
                   </div>
-                  {/* Info + botão */}
-                  <div className="px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-900 font-black text-base leading-tight truncate">{p.nome}</p>
-                      {p.descricao && <p className="text-gray-400 text-xs mt-0.5 leading-tight">{p.descricao}</p>}
-                      <span className="text-red-600 font-black text-xl mt-1 block">{fmt(p.preco||0)}</span>
-                    </div>
+                  {/* Info */}
+                  <div className="p-2 flex flex-col flex-1">
+                    <p className="text-gray-900 font-black text-[11px] leading-tight line-clamp-2 mb-1">{p.nome}</p>
+                    <p className="text-red-600 font-black text-sm mt-auto">{fmt(p.preco||0)}</p>
                     <button
                       disabled={p.status==='sold'||p.estoque===0}
                       onClick={() => addToCart(p)}
-                      className={`flex-shrink-0 font-black px-4 py-3 rounded-xl transition-all text-sm shadow-sm ${p.status==='sold'||p.estoque===0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 active:scale-95 text-white shadow-md'}`}>
+                      className={`w-full mt-1.5 font-black py-1.5 rounded-lg transition-all text-[11px] ${p.status==='sold'||p.estoque===0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 active:scale-95 text-white shadow-sm'}`}>
                       {p.status==='sold'||p.estoque===0 ? 'Esgotado' : '+ Carrinho'}
                     </button>
                   </div>
