@@ -7305,32 +7305,35 @@ const langFlag = (l) => ({BR:'br',EN:'us',JP:'jp',CN:'cn',KR:'kr',DE:'de',FR:'fr
               {isAdmin && <button onClick={() => { setModalProd({ tipo:'Booster Box', idioma:'BR', status:'active' }); setImgPreview(''); setImgUrl(''); setImgData(''); }} className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-sm">+ Adicionar produto</button>}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-4">
               {lista.map(p => (
-                <div key={p.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden active:scale-[0.98]">
-                  <div className="h-36 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                <div key={p.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden active:scale-[0.99]">
+                  {/* Foto grande */}
+                  <div className="w-full h-56 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                     {p.img_url
-                      ? <img src={p.img_url} alt={p.nome} className="w-full h-full object-cover card-img" onError={e=>e.target.style.display='none'} />
-                      : <span className="text-5xl opacity-40">{TYPE_EMOJI[p.tipo]||'📦'}</span>}
-                    {(p.status==='sold'||p.estoque===0) && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><span className="bg-red-600 text-white text-xs font-black px-2 py-1 rounded-full">ESGOTADO</span></div>}
-                    {p.estoque<=2 && p.estoque>0 && <div className="absolute top-1.5 right-1.5 bg-yellow-400 text-gray-900 text-[9px] font-black px-2 py-0.5 rounded-full shadow">ÚLTIMAS!</div>}
+                      ? <img src={p.img_url} alt={p.nome} className="w-full h-full object-cover" onError={e=>e.target.style.display='none'} />
+                      : <span className="text-7xl opacity-30">{TYPE_EMOJI[p.tipo]||'📦'}</span>}
+                    {(p.status==='sold'||p.estoque===0) && <div className="absolute inset-0 bg-black/55 flex items-center justify-center"><span className="bg-red-600 text-white text-sm font-black px-4 py-1.5 rounded-full tracking-wide">ESGOTADO</span></div>}
+                    {p.estoque<=2 && p.estoque>0 && <div className="absolute top-2 right-2 bg-yellow-400 text-gray-900 text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">⚠ ÚLTIMAS!</div>}
+                    {/* Badges sobre a foto */}
+                    <div className="absolute top-2 left-2 flex gap-1.5">
+                      <span className="text-[10px] font-black bg-white/90 text-purple-700 px-2 py-0.5 rounded-full shadow-sm">{p.tipo}</span>
+                      <span className="text-[10px] font-black bg-white/90 text-green-700 px-2 py-0.5 rounded-full shadow-sm">{p.idioma||'BR'}</span>
+                    </div>
                   </div>
-                  <div className="p-3">
-                    <div className="flex gap-1 mb-1.5 flex-wrap">
-                      <span className="text-[9px] font-black bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded">{p.tipo}</span>
-                      <span className="text-[9px] font-black bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded">{p.idioma||'BR'}</span>
+                  {/* Info + botão */}
+                  <div className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-900 font-black text-base leading-tight truncate">{p.nome}</p>
+                      {p.descricao && <p className="text-gray-400 text-xs mt-0.5 leading-tight">{p.descricao}</p>}
+                      <span className="text-red-600 font-black text-xl mt-1 block">{fmt(p.preco||0)}</span>
                     </div>
-                    <p className="text-gray-900 font-black text-sm leading-tight mb-1">{p.nome}</p>
-                    {p.descricao && <p className="text-gray-400 text-[11px] mb-2 leading-tight">{p.descricao}</p>}
-                    <div className="flex items-center justify-between">
-                      <span className="text-red-600 font-black text-base">{fmt(p.preco||0)}</span>
-                      <button
-                        disabled={p.status==='sold'||p.estoque===0}
-                        onClick={() => addToCart(p)}
-                        className={`text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all ${p.status==='sold'||p.estoque===0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white shadow-sm'}`}>
-                        {p.status==='sold'||p.estoque===0 ? 'Esgotado' : '+ Carrinho'}
-                      </button>
-                    </div>
+                    <button
+                      disabled={p.status==='sold'||p.estoque===0}
+                      onClick={() => addToCart(p)}
+                      className={`flex-shrink-0 font-black px-4 py-3 rounded-xl transition-all text-sm shadow-sm ${p.status==='sold'||p.estoque===0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 active:scale-95 text-white shadow-md'}`}>
+                      {p.status==='sold'||p.estoque===0 ? 'Esgotado' : '+ Carrinho'}
+                    </button>
                   </div>
                 </div>
               ))}
